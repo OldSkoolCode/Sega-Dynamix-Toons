@@ -1,0 +1,550 @@
+/****
+ *			Genesis Sprite Line code.
+ *				Copyright 1994, Futurescape Productions
+ *
+ *			History:
+ *				03/29/94 KLM, Started.
+ ****/
+
+#include <stdio.h>
+#include <string.h>
+#include "vm.h"
+#include "tim.h"
+
+#define	MEM		TRUE
+
+/* absolute value of a */
+#define ABS(a)		(((a)<0) ? -(a) : (a))
+
+/* take binary sign of a, either -1, or 1 if >= 0 */
+#define SGN(a)		(((a)<0) ? -1 : 1)
+
+/* swap a and b (see Gem by Wyvill) */
+#define SWAP(a,b)	{ a^=b; b^=a; a^=b; }
+
+struct SPRLIST {
+	WORD	y;
+	UBYTE	size;			/* 0000HHVV */
+	UBYTE	link;
+	UWORD	chr;
+	WORD	x;
+};
+
+WORD			Last_LB = 0;
+UBYTE			*LB_Ptrs[64];
+UWORD			LB_Sizes[64];
+
+extern UWORD				SYS_LastSpr;
+extern UWORD				SYS_SprAvail;
+
+static UWORD		Sprite_XTable[16] = {
+	0x000,0x020,0x040,0x060,	/* nx1 */
+	0x000,0x040,0x080,0x0C0,	/* nx2 */
+	0x000,0x060,0x0C0,0x120,	/* nx3 */
+	0x000,0x080,0x100,0x180		/* nx4 */
+};
+
+static short		sprite_width;
+static short		sprite_height;
+static short		sprite_x;
+static short		sprite_y;
+static UBYTE		*data_ptr;
+static UWORD		*xoffs_ptr;
+
+
+void
+Die(short size)
+{
+	UWORD *ptr;
+	int i;
+
+	SYS_VDPAccess = FALSE;
+	ptr = &CharSet;
+	ptr += 16;
+	SYS_SetVAddr(32);
+	for (i=0; i < (16 * 96); i++)
+		VDATA = *ptr++;
+	
+	SYS_SetPalette(&AsciiPalette);
+	ScreenRow = 5;
+	ScreenCol = 5;
+	printf("Unable to allocate\n     %d bytes.\n",size);
+	printf("     In VM_Line.");
+	while (TRUE)
+		;
+}
+
+void
+Die2(short x,short y)
+{
+	UWORD *ptr;
+	int i;
+
+	SYS_VDPAccess = FALSE;
+	ptr = &CharSet;
+	ptr += 16;
+	SYS_SetVAddr(32);
+	for (i=0; i < (16 * 96); i++)
+		VDATA = *ptr++;
+	
+	SYS_SetPalette(&AsciiPalette);
+	ScreenRow = 5;
+	ScreenCol = 5;
+	printf("X=%d Y=%d\n",x,y);
+	ScreenCol = 5;
+	printf("X=%d Y=%d\n",sprite_x,sprite_y);
+	ScreenCol = 5;
+	printf("W=%d H=%d\n",sprite_width,sprite_height);
+	while (TRUE)
+		;
+}
+
+/***
+ *		Call StartSprite each time you need a new sprite to fill
+ ***/
+
+static void
+StartSprite(void )
+{
+	sprite_width = sprite_height = 0;
+}
+
+/***
+ *		GrowSprite will change the size of the current sprite until it
+ *		reaches a maximum size and then it returns a 1.
+ ***/
+
+static short
+GrowSprite(short x,short y)
+{
+	short		w,h;
+
+	if (!sprite_width) {
+		/* New sprite */
+		sprite_x = x;
+		sprite_y = y;
+		sprite_width = 1;
+		sprite_height = 1;
+		return (0);
+	}
+	/* Change size if needed */
+	w = (x - sprite_x);
+	w++;
+	h = (y - sprite_y);
+	if (h < 0)
+		h--;
+	else
+		h++;
+	/* Maxed out? */
+	if (w > 24 && ABS(h) > 24)
+		return (1);
+	if (w >= 32)
+		return (1);
+	if (ABS(h) >= 32)
+		return (1);
+	/* Adjust width and height */
+	sprite_width = w;
+	sprite_height = h;
+	return (0);
+}
+
+/***
+ *		Call EndSprite when the sprite you are filling has maxed out
+ ***/
+
+static const UWORD	sprite_sizes[16] = {
+	32,	/* 1x1 */
+	64,	/* 1x2 */
+	96,	/* 1x3 */
+	128,	/* 1x4 */
+	64,	/* 2x1 */
+	128,	/* 2x2 */
+	192,	/* 2x3 */
+	256,	/* 2x4 */
+	96,	/* 3x1 */
+	192,	/* 3x2 */
+	288,	/* 3x3 */
+	384,	/* 3x4 */
+	128,	/* 4x1 */
+	256,	/* 4x2 */
+	384,	/* 4x3 */
+	512	/* 4x4 */
+};
+
+static void
+EndSprite(void )
+{
+	short		x,y,w,h;
+	short		size;
+
+	sprite_width--;
+	sprite_width &= 0xFFF8;
+	sprite_width += 8;
+	if (sprite_height < 0)
+		sprite_height++;
+	else
+		sprite_height--;
+	sprite_height &= 0xFFF8;
+	if (sprite_height >= 0)
+		sprite_height += 8;
+	else {
+		/* Sprite grew upwards */
+		sprite_height = ABS(sprite_height);
+		sprite_y -= sprite_height - 1;
+	}
+	size = ((sprite_width >> 1) - 4) & 0x0C;
+	size |= ((sprite_height >> 3) - 1) & 0x03;
+
+	/* Too many sprites? */
+	if (SYS_LastSpr >= 79) {
+		data_ptr = 0;
+		return;
+	}
+
+	Work_Sprlist[SYS_SprAvail].slx = sprite_x + 128;	
+	Work_Sprlist[SYS_SprAvail].sly = sprite_y + 128;
+	Work_Sprlist[SYS_SprAvail].sllink = (size << 8) | (SYS_SprAvail + 1);
+	Work_Sprlist[SYS_SprAvail].slchr = spriteChar;
+	xoffs_ptr = &Sprite_XTable[(size & 0x03) * 4];
+	size = sprite_sizes[size];
+#if MEM
+#if 1
+	data_ptr = realloc(LB_Ptrs[Last_LB],LB_Sizes[Last_LB]+size);
+#else
+	data_ptr = malloc(LB_Sizes[Last_LB]+size);
+	if (data_ptr) {
+		if (LB_Sizes[Last_LB])
+			memcpy(data_ptr,LB_Ptrs[Last_LB],LB_Sizes[Last_LB]);
+		free(LB_Ptrs[Last_LB]);
+	}
+#endif
+
+	if (!data_ptr) {
+#if 0
+		Die(LB_Sizes[Last_LB]+size);
+#else
+		if (LB_Ptrs[Last_LB])
+			free(LB_Ptrs[Last_LB]);
+		LB_Ptrs[Last_LB] = 0;
+		LB_Sizes[Last_LB] = 0;
+		return;
+#endif
+	} else {
+		LB_Ptrs[Last_LB] = data_ptr;
+		data_ptr += LB_Sizes[Last_LB];
+	}
+#endif
+	LB_Sizes[Last_LB] += size;
+	/* Clear memory for pixels */
+#if MEM
+	if (data_ptr)
+		memset(data_ptr,0,size);
+#endif
+	spriteChar += size >> 5;
+	SYS_LastSpr = SYS_SprAvail;
+	SYS_SprAvail++;
+}
+
+static void
+SpritePixel(short x,short y)
+{
+	UBYTE		*ptr;
+	short		tmp;
+
+#if MEM
+	if (!data_ptr)		/* Memory allocation problem? */
+		return;
+	x -= sprite_x;
+	y -= sprite_y;
+
+#if 0
+	if (x >= 32 || y >= 32)			/* KLUDGE!!! FIX THIS!!!! */
+		Die2(x,y);
+#endif
+
+	ptr = data_ptr + xoffs_ptr[x >> 3] + (y << 2) + ((x >> 1) & 3);
+
+	if (x & 1) {
+		*ptr &= 0xF0;
+		*ptr |= vm_lcolor & 0x0F;
+	} else {
+		*ptr &= 0x0F;
+		*ptr |= (vm_lcolor & 0x0F) << 4;
+	}
+#endif
+}
+
+/***
+ *		LineClip:	Sutherland-Cohen line clipping algorithm
+ *						See Sproull and Sutherland, "A Clipping Divider"
+ *						Conference Proceedings, Fall Joint Computer Conference
+ *						volume 33, pp. 765-776, AFIPS Press, 1968.
+ ***/
+
+#define	CLIP_X1	0
+#define	CLIP_Y1	0
+#define	CLIP_X2	319
+#define	CLIP_Y2	199
+
+union	OutcodeUnion {
+	struct {
+		short code0 : 1;	/* x < CLIP_X1 */
+		short code1 : 1;	/* y < CLIP_Y1 */
+		short code2 : 1;	/* x > CLIP_X2 */
+		short code3 : 1;	/* y > CLIP_Y2 */
+	} ocs;
+	short		outcodes;
+};
+
+static void
+SetOutcodes(union OutcodeUnion *u,short x,short y)
+{
+	u->outcodes = 0;
+	u->ocs.code0 = (x < CLIP_X1);
+	u->ocs.code1 = (y < CLIP_Y1);
+	u->ocs.code2 = (x > CLIP_X2);
+	u->ocs.code3 = (y > CLIP_Y2);
+}
+
+static short
+LineClip(short *in_x1,short *in_y1,short *in_x2,short *in_y2)
+{
+	union OutcodeUnion		ocu1,ocu2;
+	short							x1,x2,y1,y2;
+	short							Inside;
+	short							Outside;
+
+	x1 = *in_x1;
+	x2 = *in_x2;
+	y1 = *in_y1;
+	y2 = *in_y2;
+	/* Initialize 4-bit codes */
+	SetOutcodes(&ocu1,x1,y1);
+	SetOutcodes(&ocu2,x2,y2);
+
+	Inside = ((ocu1.outcodes | ocu2.outcodes) == 0);
+	Outside = ((ocu1.outcodes & ocu2.outcodes) != 0);
+
+	while (!Outside && !Inside) {
+		if (ocu1.outcodes == 0) {
+			SWAP(x1,x2);
+			SWAP(y1,y2);
+			SWAP(ocu1.outcodes,ocu2.outcodes);
+		}
+		if (ocu1.ocs.code0) {									/* Clip left */
+			y1 += (y2-y1)*(CLIP_X1-x1)/(x2-x1);
+			x1 = CLIP_X1;
+		} else
+			if (ocu1.ocs.code1) {								/* Clip above */
+				x1 += (x2-x1)*(CLIP_Y1-y1)/(y2-y1);
+				y1 = CLIP_Y1;
+			} else
+				if (ocu1.ocs.code2) {							/* Clip right */
+					y1 += (y2-y1)*(CLIP_X2-x1)/(x2-x1);
+					x1 = CLIP_X2;
+				} else
+					if (ocu1.ocs.code3) {						/* Clip below */
+						x1 += (x2-x1)*(CLIP_Y2-y1)/(y2-y1);
+						y1 = CLIP_Y2;
+					}
+		/* Update for (x1,y1) */
+		SetOutcodes(&ocu1,x1,y1);
+		/* Update 4-bit codes */
+		Inside = ((ocu1.outcodes | ocu2.outcodes) == 0);
+		Outside = ((ocu1.outcodes & ocu2.outcodes) != 0);
+	}
+	*in_x1 = x1;
+	*in_x2 = x2;
+	*in_y1 = y1;
+	*in_y2 = y2;
+	return (Inside);
+}
+
+/***
+ * Digital Line Drawing by Paul Heckbert from "Graphics Gems", Academic
+ * Press, 1990
+ *
+ * Line: draw digital line from (x1,y1) to (x2,y2), calling a
+ * user-supplied procedure at each pixel. Does no clipping.
+ * Uses Bresenham's algorithm. 
+ *
+ * Paul Heckbert	3 Sep 85 
+ ***/
+
+void
+vm_line(short x1,short y1,short x2,short y2)
+{
+	short		d,
+				x,
+				y,
+				sy,
+				dx,
+				dy,
+				incX,
+				incY;
+	short		stat,
+				cnt,
+				tmpD,
+				tmpX,
+				tmpY;
+	UWORD		startChar;
+
+	/* Convert to a quater of the screen size (640x400 -> 320x200) */
+	x1 >>= VIRTUALCOORDS;
+	x2 >>= VIRTUALCOORDS;
+	y1 >>= VIRTUALCOORDS;
+	y2 >>= VIRTUALCOORDS;
+
+	/* Clip line, if line is totally outside, don't draw it */
+	if (!LineClip(&x1,&y1,&x2,&y2))
+		return;
+
+	/* Allocate space for graphics of line */
+#if MEM
+	/* Has this memory been freed? */
+	if (LB_Ptrs[Last_LB])
+		return;
+
+	if ((LB_Ptrs[Last_LB] = malloc(8)) == 0)
+		return;
+	if (!LB_Ptrs[Last_LB])
+		Die(8);
+#endif
+	LB_Sizes[Last_LB] = 0;
+
+	startChar = spriteChar << 5;
+	if (x2 < x1) {
+		/* Always go to the right */
+		SWAP(x1,x2);
+		SWAP(y1,y2);
+	}
+
+	/* Determine what characters would be affected by this line */
+
+	dx = x2 - x1;
+	incX = dx << 1;
+	dy = y2 - y1;
+	sy = SGN(dy);
+	incY = ABS(dy) << 1;
+
+	x = x1;
+	y = y1;
+	if (incX > incY) {					/* X dominant */
+		d = incY - (incX >> 1);
+		while (TRUE) {
+			tmpD = d;
+			tmpX = x;
+			tmpY = y;
+			cnt = 0;
+			/* Build a sprite first... */
+			StartSprite();
+			do {
+				stat = GrowSprite(x,y);
+				if (stat)
+					break;
+				cnt++;
+				if (x == x2)
+					break;
+				if (d >= 0) {
+					y += sy;
+					d -= incX;
+				}
+				x++;
+				d += incY;
+			} while (TRUE);
+			EndSprite();
+
+			/* ...now fill the sprite in */
+			d = tmpD;
+			x = tmpX;
+			y = tmpY;
+			while (cnt--) {
+				SpritePixel(x,y);
+				if (d >= 0) {
+					y += sy;
+					d -= incX;
+				}
+				x++;
+				d += incY;
+			}
+			if (!stat) {
+				/* Built last sprite */
+				goto exit;
+			}
+		}
+	} else {									/* Y dominant */
+		d = incX - (incY >> 1);
+		while (TRUE) {
+			tmpD = d;
+			tmpX = x;
+			tmpY = y;
+			cnt = 0;
+			/* Build a sprite first... */
+			StartSprite();
+			do {
+				stat = GrowSprite(x,y);
+				if (stat)
+					break;
+				cnt++;
+				if (y == y2)
+					break;
+				if (d >= 0) {
+					x++;
+					d -= incY;
+				}
+				y += sy;
+				d += incX;
+			} while (TRUE);
+			EndSprite();
+
+			/* ...now fill the sprite in */
+			d = tmpD;
+			x = tmpX;
+			y = tmpY;
+			while (cnt--) {
+				SpritePixel(x,y);
+				if (d >= 0) {
+					x++;
+					d -= incY;
+				}
+				y += sy;
+				d += incX;
+			}
+			if (!stat) {
+				/* Built last sprite */
+				goto exit;
+			}
+		}
+	}
+	/* Tidy up for the DMA of the line buffers */
+exit:
+#if MEM
+	if (LB_Ptrs[Last_LB] && LB_Sizes[Last_LB])
+		addDMAQueue(startChar,LB_Sizes[Last_LB],LB_Ptrs[Last_LB]);
+#endif
+	if (Last_LB < 63)
+		Last_LB++;
+	else
+		Die(0);
+}
+
+/***
+ *		Free_Line_Buffers:	Call this routine after the data for the lines
+ *									has been DMAed and before the next game loop.
+ ***/
+
+void
+Free_Line_Buffers(void )
+{
+	short		i;
+
+#if MEM
+	for (i=0; i < Last_LB; i++)
+		if (LB_Ptrs[i])
+			free(LB_Ptrs[i]);
+#endif
+	for (i=0; i < 64; i++)
+		LB_Ptrs[i] = 0;
+	Last_LB = 0;
+}
+

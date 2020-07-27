@@ -1,0 +1,111 @@
+/* * * * *
+*
+*  TN_GLOB.C
+*
+*  This modules contain the declaration of all the global variable for the new
+*  toons modules.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/08/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+/* #include "ports.h" */
+#include "tim.h"
+
+
+/* interface globals */
+short messager_font;
+short warning_message;
+long toon_timer;
+char ignore_erasing;
+char solution_has_ropes;
+
+/* command line options */
+CHAR toons_edit;
+
+char control_button, go_button, puzzle_edit_button = 1;
+char icon_changed;
+
+void *corners, *edit_corners, *play_corners, *button_shapes,
+	*toon_cp_shapes, *toon_rcp_shapes, *quit_shapes, *clapper_shapes,
+   *camera_shapes, *burst_shapes, *horn_shapes, *nuke_shapes,
+   *pig_shapes, *updown_arrows, *toonbox_shapes, *handle_shapes;
+
+/* toon color maps */
+char const panel_color		= 12;
+char const partbin_color 	= 10;
+char const bckgrnd_color 	= 4;
+char const highlight1		= 1;
+char const highlight2		= 11;
+char const highlight3		= 9;
+char const highlight4		= 5;
+char const highlight5		= 2;
+char const pb_background   = 10;
+char const pb_shadow       = 9;
+char const pb_foreground   = 1;
+
+/* toon offsets */
+short x_offset, y_offset;
+
+/* supershape generic structure */
+F_SSHAPE single_super_shape = { 0, 0, {0,255,0,0}, {{0,0},{0,0},{0,0},{0,0}}};
+
+/* These have been initialized only as a test */
+char const default_title[] = "No Title Yet";
+char const default_description[] = "No Description Yet";
+char current_title[TITLE_MAX_STRLEN+1];
+
+enum tpm toon_puzzle_mode;
+short ap_unlock_x, ap_unlock_y;
+char toon_clear_chklist;
+unsigned char current_puzzle_number;
+char home_toon_puzzle;
+
+enum handle_type current_handle;
+PART *over_part;  /* Points to part mouse is current over (not always active) */
+
+/* sound globals */
+char master_volume = 100, current_music_index = 1;
+short current_music;
+const short music_table[NUM_MUSIC_SONGS] =
+   {
+      SONG_NONE,
+      SONG1,
+      SONG2,
+      SONG13,
+      SONG14,
+      SONG15,
+      SONG16,
+      SONG17,
+      SONG18,
+      SONG19,
+      SONG20,
+      SONG21,
+      SONG22,
+      SONG23,
+      SONG24,
+      SONG25,
+      SONG26,
+      SONG27,
+      SONG28,
+      SONG29,
+      SONG30,
+      SONG3,
+      SONG4,
+      SONG5,
+      SONG6,
+      SONG7,
+      SONG8,
+      SONG9,
+      SONG10,
+      SONG11,
+      SONG12,
+      SONG31,
+   };
+
+char *error_text;
+

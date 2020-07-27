@@ -1,0 +1,172 @@
+/* * * * *
+*
+*  TN_SHSWT.C  
+*
+*  This file contains all the code associate with the shoot switch.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/03/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CHUTESWITCH                                *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* 
+   Supershape #1 is the ramp on left. Supershape #2 is the middle. Supershape
+   #3 is the right.
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C chuteswitch1 = {0, CHUTESWITCH_PLANE, {2,2,4,255},
+   {{24,12},{0,0},{26,18},{0,0}}};
+static F_SSHAPE_C chuteswitch2 = {0, CHUTESWITCH_PLANE, {1,3,255,255},
+   {{38,-8},{26,14},{0,0},{0,0}}};
+static F_SSHAPE_C chuteswitch3 = {0, CHUTESWITCH_PLANE, {0,0,4,255},
+   {{16,12},{40,0},{26,18},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far chuteswitch_ss_tab[CHUTESWITCH_NUM_STATES] = 
+   {&chuteswitch1,&chuteswitch2,&chuteswitch3};
+
+/* size. */
+TIM_VEC_C far chuteswitch_size[CHUTESWITCH_NUM_STATES] = 
+   {{64,40},{64,48},{64,40}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far chuteswitch_os[CHUTESWITCH_NUM_STATES] = 
+   {{0,0},{0,-16},{32,0}};
+
+/* border definitions. */
+static PART_BORDER_C far chuteswitch1_bord[CHUTESWITCH_BORDERS] =
+   {{0,2,0},{63,34,0},{63,39,0},{16,39,0},
+    {16,34,0},{40,22,0},{33,26,0},{0,9,0}};
+static PART_BORDER_C far chuteswitch3_bord[CHUTESWITCH_BORDERS] =
+   {{16,34,0},{79,2,0},{79,9,0},{47,26,0},
+    {40,22,0},{63,34,0},{63,39,0},{16,39,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far chuteswitch_bord_tab[CHUTESWITCH_NUM_STATES] =
+   {chuteswitch1_bord,chuteswitch1_bord,chuteswitch3_bord};
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void chuteswitch_reinit(PART *chuteswitch_part)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!chuteswitch_part)
+   {
+      set_border_table_slopes(PT_SHOOT_SWTCH, 0, chuteswitch_bord_tab, 0,
+                                                      CHUTESWITCH_NUM_STATES);
+      return;
+   }
+   chuteswitch_part->border = chuteswitch_bord_tab[chuteswitch_part->state];
+   set_adjusted_loc_size(chuteswitch_part);
+}
+
+
+#pragma argsused
+void chuteswitch_flip(PART *chuteswitch_part,short flip_mode)
+{
+   if (chuteswitch_part->state)
+      chuteswitch_part->state = 0;
+   else
+      chuteswitch_part->state = CHUTESWITCH_NUM_STATES - 1;
+
+   chuteswitch_part->start_state = chuteswitch_part->toon_state =
+      chuteswitch_part->state;
+
+   chuteswitch_reinit(chuteswitch_part);
+   part_to_er(chuteswitch_part,1|2);
+   set_redraw(chuteswitch_part,2);
+}
+
+
+
+void chuteswitch_internal(PART *chute)
+{
+   static const char far state_array[] =
+   {
+      1,2,3
+   };
+   #define CHUTE_NUM_STATES (sizeof(state_array)/sizeof(char))
+
+   static const char far state_farray[] =
+   {
+      3,2,1
+   };
+   #define CHUTE_FNUM_STATES (sizeof(state_farray)/sizeof(char))
+   #define CHUTE_TIME      45 /* originally 90 */
+
+   PART *pptr;
+   char far *s_array;
+   char s_num, exit;
+
+   /* check if the switch should observe environment */
+   if (!chute->work_var)
+   {
+      /* check the environments to see if something is passing under it. */
+      tn_query_dist(chute,F1_MOVE_L,48,chute->size.y,49,48);
+      pptr = chute->qptr;
+      exit = 0;
+      while (!exit && pptr)
+      {
+         /* check if something with a velocity is under the ramp */
+         if (pptr->speed.x)
+            exit = 1;
+         else
+            pptr = pptr->qptr;
+      }
+      if (!exit || !pptr)
+         return;
+
+      jtp_sx_play(SX_CHUTE_SWITCH, 1, 0);
+
+      /* set up for switch operation. */
+      chute->work_var = CHUTE_TIME;
+      chute->toon_state = 0;
+      if (!chute->state)
+         chute->work_var1 = 1;
+      else
+         chute->work_var1 = -1;
+   }
+   else
+   {
+      chute->work_var--;
+
+      if (chute->work_var1)
+      {
+         if (chute->work_var1 > 0)
+         {
+            s_array = state_array;
+            s_num = CHUTE_NUM_STATES;
+         }            
+         else
+         {
+            s_array = state_farray;
+            s_num = CHUTE_FNUM_STATES;
+         }
+
+         chute->state = s_array[chute->toon_state] - 1;
+         chuteswitch_reinit(chute);
+
+         if (++chute->toon_state == s_num)
+            chute->work_var1 = 0;
+      }
+   }
+}
+
+

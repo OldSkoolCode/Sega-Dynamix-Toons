@@ -1,0 +1,4367 @@
+/* * * * *
+*  SUPPORT.C
+*
+*  This file contains misc. support routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  02/14/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "tim_text.h"
+#include "toons.h"
+#include "tim.h"
+#include "simlib.h"
+
+#ifdef DEBUG
+#if    DEBUG
+   #include "watch.h"
+   #include "mono.h"
+#endif
+#endif
+
+extern UWORD cursorx, cursory;
+
+/* external routines */
+extern void far vm_iffsave (char *);
+#if !FINAL
+   extern char noflip;
+   extern char clip_draw;
+   static void show_process_er(void);
+#endif
+
+/*local routines */
+PART *mouse_over_this_part( PART *, PART *);
+void set_rope_redraw_from_er( PART *);
+short get_cur_rope_len( ROPE *, PART *, short *, short *);
+void save_opi( PART *);
+short inside_border(PART *pptr1, PART *pptr2);
+short long_segment_intersect(LINE_SEG *seg1,LINE_SEG *seg2,TIM_VEC *result);
+
+
+/* * * * *
+*
+*  mouse offset coordinates.
+*
+* * * * */
+#if ENGLISH
+static struct { char x,y; } mouse_offsets[NUM_IC] =
+{
+   /*  0 */     0, 0, 18,21,  0, 0,  0, 0,   0,0,   0,0,  0,0,  0,0,
+   /*  8 */     0, 0,  0, 0,  0, 0,  0, 0,   0,0,
+   /* 13 */     0, 0,  0, 0,  0, 9,  0,24,  45,0,  48,0, 22,0, 19,0,
+   /* 21 */    38, 0, 24, 0, 34, 0, 35, 0,  37,0,  45,0, 0,0,
+   /* 28 */    18,21, 18,21, 18,21,  0, 6,   0,0,
+};
+#elif GERMAN
+static struct { char x,y; } mouse_offsets[NUM_IC] =
+{
+   /*  0 */     0, 0, 18,21,  0, 0,  0, 0,   0, 0,   0,0,  0,0,  0,0,
+   /*  8 */     0, 0,  0, 0,  0, 0,  0, 0,   0, 0,
+   /* 13 */     4, 0,  0, 0,  0,19,  0,26,  40, 0,  53,0, 34,0, 64,0,
+   /* 21 */    80, 0, 17, 0, 59, 0, 60, 0,  41, 0,  41,0, 0,0,
+   /* 28 */    18,21, 18,21, 18,21,  0,19,   0,22,
+};
+#elif FRENCH
+static struct { char x,y; } mouse_offsets[NUM_IC] =
+{
+   /*  0 */     0, 0, 18,21,  0, 0,  0, 0,   0, 0,   0, 0,  0,0,  0,0,
+   /*  8 */     0, 0,  0, 0,  0, 0,  0, 0,   0, 0,
+   /* 13 */     0, 0,  0, 0,  0, 8,  0,21,  44, 0,  62,10, 53,0, 50,0,
+   /* 21 */    55, 0, 53, 0, 58, 0, 54, 0,  61, 0,  12, 0, 0,0,
+   /* 28 */    18,21, 18,21, 18,21,  0, 7,   0,19,
+};
+#endif
+
+
+void rotate2d(short *x,short *y,short ang)
+{
+   short cos_ang,sin_ang;
+   long new_lx,new_ly;
+
+   cos_ang = ts_cos(ang);
+   sin_ang = ts_sin(ang);
+   new_lx = smuls(*x,cos_ang) - smuls(*y,sin_ang);
+   new_ly = smuls(*x,sin_ang) + smuls(*y,cos_ang);
+   *x = (short) (new_lx>>TRIGSHIFT);
+   *y = (short) (new_ly>>TRIGSHIFT);
+}
+
+
+
+short segment_intersect(LINE_SEG *seg1,LINE_SEG *seg2,TIM_VEC *result)
+{
+   short a1,b1,c1,a2,b2,c2,d,ix,iy;
+   long work_long;
+
+   a1 = seg1->y0 - seg1->y1;
+   b1 = seg1->x0 - seg1->x1;
+   c1 = a1*seg1->x1 - b1*seg1->y1;
+
+   a2 = seg2->y1 - seg2->y0;
+   b2 = seg2->x1 - seg2->x0;
+   c2 = a2*seg2->x0 - b2*seg2->y0;
+
+   d = a2*b1 - a1*b2;
+
+   if (d != 0)
+   {
+      work_long = smuls(c2,b1) - smuls(c1,b2);
+      ix = (short) (work_long/d);
+      work_long = smuls(a1,c2) - smuls(a2,c1);
+      iy = (short) (work_long/d);
+   }
+   else
+      if (a2*seg1->x0 + b2*seg1->y0)
+      {
+         ix = 0;
+         iy = 0;
+      }
+      else
+      {
+         ix = seg1->x1;
+         iy = seg1->y1;
+      }
+
+   result->x = ix;
+   result->y = iy;
+
+   if (!within_range(ix,seg1->x0,seg1->x1))
+      return(0);
+   if (!within_range(ix,seg2->x0,seg2->x1))
+      return(0);
+   if (!within_range(iy,seg1->y0,seg1->y1))
+      return(0);
+   if (!within_range(iy,seg2->y0,seg2->y1))
+      return(0);
+
+   return(1);
+}
+
+short long_segment_intersect(LINE_SEG *seg1,LINE_SEG *seg2,TIM_VEC *result)
+{
+   long a1,b1,c1,a2,b2,c2,d;
+   short ix,iy;
+   long work_long;
+
+   a1 = seg1->y0 - seg1->y1;
+   b1 = seg1->x0 - seg1->x1;
+   c1 = a1*seg1->x1 - b1*seg1->y1;
+
+   a2 = seg2->y1 - seg2->y0;
+   b2 = seg2->x1 - seg2->x0;
+   c2 = a2*seg2->x0 - b2*seg2->y0;
+
+   d = a2*b1 - a1*b2;
+
+   if (d != 0)
+   {
+      work_long = c2*b1 - c1*b2;
+      ix = (short) (work_long/d);
+      work_long = a1*c2 - a2*c1;
+      iy = (short) (work_long/d);
+   }
+   else
+      if (a2*seg1->x0 + b2*seg1->y0)
+      {
+         ix = 0;
+         iy = 0;
+      }
+      else
+      {
+         ix = seg1->x1;
+         iy = seg1->y1;
+      }
+
+   result->x = ix;
+   result->y = iy;
+
+   if (!within_range(ix,seg1->x0,seg1->x1))
+      return(0);
+   if (!within_range(ix,seg2->x0,seg2->x1))
+      return(0);
+   if (!within_range(iy,seg1->y0,seg1->y1))
+      return(0);
+   if (!within_range(iy,seg2->y0,seg2->y1))
+      return(0);
+
+   return(1);
+}
+
+
+
+void adjust_segment_slope(LINE_SEG *seg)
+{
+   short diff;
+
+   diff = seg->x1 - seg->x0;
+   if (diff > 0)
+      seg->x1++;
+   else
+      if (diff < 0)
+         seg->x1--;
+
+   diff = seg->y1 - seg->y0;
+   if (diff > 0)
+      seg->y1++;
+   else
+      if (diff < 0)
+         seg->y1--;
+}
+
+
+
+short within_range(short check_val,short pt1,short pt2)
+{
+   if (pt1 > pt2)
+      return(SHORT_IN_RANGE(check_val,pt2,pt1));
+
+   return(SHORT_IN_RANGE(check_val,pt1,pt2));
+}
+
+
+
+short angle_to_centers(PART *pptr1,PART *pptr2)
+{
+   short x1,y1,x2,y2;
+   short slope;
+   long dx,dy;
+
+   x1 = pptr1->scrn_loc.x + pptr1->offset.x + (pptr1->size.x>>1);
+   y1 = pptr1->scrn_loc.y + pptr1->offset.y + (pptr1->size.y>>1);
+   x2 = pptr2->scrn_loc.x + pptr2->offset.x + (pptr2->size.x>>1);
+   y2 = pptr2->scrn_loc.y + pptr2->offset.y + (pptr2->size.y>>1);
+
+   dx = (long) (x1-x2);
+   dy = (long) (y2-y1);
+
+   slope = angle_to(dx,dy);
+
+   return(slope);
+}
+
+
+short part_overlap(PART * part1)
+{
+   short x,y,bxw,byh;
+   short cx,cy,bcxw,bcyh;
+   PART *part2;
+
+   x = part1->scrn_loc.x + part1->offset.x;
+   y = part1->scrn_loc.y + part1->offset.y;
+   bxw = x + part1->size.x;
+   byh = y + part1->size.y;
+
+   part2 = get_first_part(F1_STATIC_L|F1_MOVE_L);
+   while (part2)
+   {
+      if ((part2!=part1) && (!(part2->flags2&F2_INACTIVE)))
+      {
+         cx = part2->scrn_loc.x + part2->offset.x;
+         cy = part2->scrn_loc.y + part2->offset.y;
+         bcxw = cx + part2->size.x;
+         bcyh = cy + part2->size.y;
+
+         if ((cx<bxw) && (bcxw>x) && (cy<byh) && (bcyh>y))
+            if (  border_overlap(part1,part2)
+               || inside_border(part1,part2)
+               || inside_border(part2,part1))
+               return(1);
+      }
+
+      part2 = get_next_part(part2,F1_MOVE_L);
+   }
+
+   return(0);
+}
+
+
+short border_overlap(PART *pptr1,PART *pptr2)
+{
+   short bord_num1,bord_num2;
+   short x0,x1,first_x0,y0,y1,first_y0,cx1,cy1;
+   short x2,x3,first_x2,y2,y3,first_y2,cx2,cy2;
+   LINE_SEG bseg1,bseg2;
+   TIM_VEC is;
+   P_PART_BORDER bptr1,bptr2;
+
+   cx1 = pptr1->scrn_loc.x;
+   cy1 = pptr1->scrn_loc.y;
+
+   cx2 = pptr2->scrn_loc.x;
+   cy2 = pptr2->scrn_loc.y;
+
+   bord_num1 = 1;
+   if ((bptr1=pptr1->border) != 0)
+   {
+      first_x0 = x0 = cx1 + bptr1->x;
+      first_y0 = y0 = cy1 + bptr1->y;
+      x1 = cx1 + (bptr1+1)->x;
+      y1 = cy1 + (bptr1+1)->y;
+   }
+   while (bptr1)
+   {
+      bseg1.x0 = x0 - x0;
+      bseg1.y0 = y0 - y0;
+      bseg1.x1 = x1 - x0;
+      bseg1.y1 = y1 - y0;
+/*      adjust_segment_slope(&bseg1); */
+
+      bord_num2 = 1;
+      if ((bptr2=pptr2->border) != 0)
+      {
+         first_x2 = x2 = cx2 + bptr2->x;
+         first_y2 = y2 = cy2 + bptr2->y;
+         x3 = cx2 + (bptr2+1)->x;
+         y3 = cy2 + (bptr2+1)->y;
+      }
+      while (bptr2)
+      {
+         bseg2.x0 = x2 - x0;
+         bseg2.y0 = y2 - y0;
+         bseg2.x1 = x3 - x0;
+         bseg2.y1 = y3 - y0;
+/*         adjust_segment_slope(&bseg2); */
+
+         if (long_segment_intersect(&bseg1,&bseg2,&is))
+            if ((is.y != bseg1.y1) || (is.x != bseg1.x1))
+               return(1);
+
+         bord_num2++;
+         if (bord_num2 > pptr2->num_borders)
+            bptr2 = 0;
+         else
+         {
+            bptr2++;
+            x2 = x3;
+            y2 = y3;
+            if (bord_num2 == pptr2->num_borders)
+            {
+               x3 = first_x2;
+               y3 = first_y2;
+            }
+            else
+            {
+               x3 = cx2 + (bptr2+1)->x;
+               y3 = cy2 + (bptr2+1)->y;
+            }
+         }
+      }
+
+      bord_num1++;
+      if (bord_num1 > pptr1->num_borders)
+         bptr1 = 0;
+      else
+      {
+         bptr1++;
+         x0 = x1;
+         y0 = y1;
+         if (bord_num1 == pptr1->num_borders)
+         {
+            x1 = first_x0;
+            y1 = first_y0;
+         }
+         else
+         {
+            x1 = cx1 + (bptr1+1)->x;
+            y1 = cy1 + (bptr1+1)->y;
+         }
+      }
+   }
+
+   return(0);
+}
+
+
+/* * * * *
+*
+*  inside_border(pptr1, pptr2);
+*
+*  This function will return TRUE if part one is totally inside
+*  part two.
+*
+*  NOTE - If part1 is NULL, then the current mouse location is used!
+*
+* * * * */
+short inside_border(PART *pptr1, PART *pptr2)
+{
+   P_PART_BORDER bptr;
+   LINE_SEG bseg;
+   short top,left,bottom,right;
+   short num_borders;
+   short ox,oy,cx,cy;
+   short dx,dy;
+   short check_tb, check_lr;
+
+   /* If part1 or part2 has no borders, return not inside */
+   if(   (pptr1 && (!pptr1->border || !pptr1->num_borders))
+      || !pptr2 || !pptr2->border || !pptr2->num_borders)
+      return(0);
+
+   /* Determine center of part1 */
+   if(pptr1)
+   {
+      cx = pptr1->scrn_loc.x + pptr1->offset.x + pptr1->size.x/2;
+      cy = pptr1->scrn_loc.y + pptr1->offset.y + pptr1->size.y/2;
+   }
+   else
+   {
+      cx = (cursorx<<VIRTUALCOORDS) + ledge;
+      cy = (cursory<<VIRTUALCOORDS) + tedge;
+   }
+
+   /* Setup some misc info */
+   top = left = bottom = right = 0;
+   ox = pptr2->scrn_loc.x + pptr2->border_offset.x;
+   oy = pptr2->scrn_loc.y + pptr2->border_offset.y;
+
+   /* Run through all borders of part2 */
+   bptr = pptr2->border;
+   num_borders = pptr2->num_borders;
+   bseg.x1 = ox + bptr[num_borders-1].x;
+   bseg.y1 = oy + bptr[num_borders-1].y;
+   while(num_borders--)
+   {
+      /* Move to next border */
+      bseg.x0 = bseg.x1;
+      bseg.y0 = bseg.y1;
+      bseg.x1 = ox + bptr->x;
+      bseg.y1 = oy + bptr->y;
+      bptr++;
+
+      /* Make sure border segment is one that needs to be checked */
+      check_tb =  ((bseg.x0 <= cx) && (bseg.x1 >= cx))
+               || ((bseg.x1 <= cx) && (bseg.x0 >= cx));
+      check_lr =  ((bseg.y0 <= cy) && (bseg.y1 >= cy))
+               || ((bseg.y1 <= cy) && (bseg.y0 >= cy));
+      if(check_lr || check_tb)
+      {
+         /* Gross check for border above/below center point */
+         if(check_tb && !check_lr) /* (!check_lr || (bseg.x0 == cx))) */
+         {
+            if(cy >= bseg.y0)
+               top = 1;
+            else
+               bottom = 1;
+         }
+
+         /* Gross check for border left/right of center point */
+         if(check_lr && !check_tb) /* (!check_tb || (bseg.y0 == cy))) */
+         {
+            if(cx >= bseg.x0)
+               left = 1;
+            else
+               right = 1;
+         }
+
+         /* Set flags based on slopes if both top and bottom are being checked */
+         if(check_lr && check_tb)
+         {
+            /* Calculate differences between border points */
+            dx = bseg.x0 - bseg.x1;
+            dy = bseg.y0 - bseg.y1;
+
+            /* Determine if border is above/below center point */
+            if(dx)
+            {
+               if((long)(dy*cx)/dx + bseg.y0 - (long)(dy*bseg.x0)/dx < cy)
+                  top = 1;
+               else
+                  bottom = 1;
+            }
+
+            /* Determine if border is left/right of center point */
+            if(dy)
+            {
+               if((long)(dx*cy)/dy + bseg.x0 - (long)(dx*bseg.y0)/dy < cx)
+                  left = 1;
+               else
+                  right = 1;
+            }
+         }
+      }
+
+      /* If all for directions have a border, return TRUE */
+      if(left && right && top && bottom)
+         return(TRUE);
+   }
+
+   /* Return FALSE */
+   return(FALSE);
+}
+
+
+void reverse_rope_links(ROPE *rptr)
+{
+   char temp_char;
+   short temp;
+   TIM_SCVEC temp_scvec;
+   PART *pptr;
+   PART *temp_part;
+   ROPE *prptr;
+
+   pptr = rptr->link1->wpptr[rptr->l1_num];
+   while (pptr && (pptr->type==PT_PULLEY))
+   {
+      temp_part = pptr->wpptr[0];
+      pptr->wpptr[0] = pptr->wpptr[1];
+      pptr->wpptr[1] = temp_part;
+      pptr->wpptr[2] = pptr->wpptr[0];
+      pptr->wpptr[3] = pptr->wpptr[1];
+
+      temp_scvec = pptr->rope_loc[0];
+      pptr->rope_loc[0] = pptr->rope_loc[1];
+      pptr->rope_loc[1] = temp_scvec;
+
+      prptr = pptr->rope_tie[0];
+
+      temp = prptr->pt[0].x;
+      prptr->pt[0].x = prptr->pt[1].x;
+      prptr->pt[1].x = temp;
+      temp = prptr->pt[0].y;
+      prptr->pt[0].y = prptr->pt[1].y;
+      prptr->pt[1].y = temp;
+
+      temp = prptr->old_pt[0].x;
+      prptr->old_pt[0].x = prptr->old_pt[1].x;
+      prptr->old_pt[1].x = temp;
+      temp = prptr->old_pt[0].y;
+      prptr->old_pt[0].y = prptr->old_pt[1].y;
+      prptr->old_pt[1].y = temp;
+
+      temp = prptr->old_old_pt[0].x;
+      prptr->old_old_pt[0].x = prptr->old_old_pt[1].x;
+      prptr->old_old_pt[1].x = temp;
+      temp = prptr->old_old_pt[0].y;
+      prptr->old_old_pt[0].y = prptr->old_old_pt[1].y;
+      prptr->old_old_pt[1].y = temp;
+
+      pptr = pptr->wpptr[1];
+   }
+
+   temp_part = rptr->link1;
+   rptr->org_link1 = rptr->link1 = rptr->link2;
+   rptr->org_link2 = rptr->link2 = temp_part;
+   temp_char = rptr->l1_num;
+   rptr->org_l1 = rptr->l1_num = rptr->l2_num;
+   rptr->org_l2 = rptr->l2_num = temp_char;
+
+   part_to_er(rptr->root_part,1|2);
+}
+
+
+
+PART *mouse_over_this_part(PART *prev_part,PART *part1)
+{
+   short x,y,xw,yh;
+   short cx,cy,cxw,cyh;
+   short i;
+   TIM_VEC org_loc;
+   PBELT *bptr;
+   ROPE *rptr,*rptr1,*rptr2;
+   PART *br_part;
+   PART *r1_part;
+   PART *r2_part;
+
+   xw = x = cursorx<<VIRTUALCOORDS;
+   yh = y = cursory<<VIRTUALCOORDS;
+
+   org_loc.x = part1->adj_loc.x - ledge;
+   org_loc.y = part1->adj_loc.y - tedge;
+
+   cx = org_loc.x;
+   cy = org_loc.y;
+   cxw = cx + part1->size.x;
+   cyh = cy + part1->size.y;
+
+   if ((bptr=part1->belt) != 0)
+      br_part = bptr->root_part;
+   else
+      br_part = 0;
+   if ((rptr1=part1->rope_tie[0]) != 0)
+      r1_part = rptr1->root_part;
+   else
+      r1_part = 0;
+   if ((rptr2=part1->rope_tie[1]) != 0)
+      r2_part = rptr2->root_part;
+   else
+      r2_part = 0;
+   if (prev_part)
+      if ((prev_part==part1) || (prev_part==br_part) ||
+          (prev_part==r1_part) || (prev_part==r2_part))
+      {
+         cx -= HANDLE_WIDTH + BALL_WIDTH - 3;
+         cy -= HANDLE_WIDTH + BALL_WIDTH - 3;
+         cxw += HANDLE_WIDTH + BALL_WIDTH - 3;
+         cyh += HANDLE_WIDTH + BALL_WIDTH - 3;
+      }
+
+   if ((xw>=cx) && (x<cxw) && (yh>=cy) && (y<cyh))
+   {
+      if (bptr && (tim_sub_mode!=TSM_PLACE))
+      {
+         cx = org_loc.x + part1->belt_loc.x;
+         cy = org_loc.y + part1->belt_loc.y;
+         cxw = cx + part1->belt_size;
+         if (part1->belt_size > (part1->size.y>>1))
+            cyh = cy + 10;
+         else
+            cyh = cy + part1->belt_size;
+         if (bptr->root_part == prev_part)
+         {
+            cx -= HANDLE_WIDTH + BALL_WIDTH - 3;
+            cy -= HANDLE_WIDTH + BALL_WIDTH - 3;
+            cxw += HANDLE_WIDTH + BALL_WIDTH - 3;
+         }
+         if ((xw>=cx) && (x<cxw) && (yh>=cy) && (y<cyh))
+         {
+            if (bptr->link1 == part1)
+            {
+               bptr->link1 = bptr->link2;
+               bptr->link2 = part1;
+            }
+            return(bptr->root_part);
+         }
+      }
+
+      rptr = rptr1;
+      for (i=0;i<2;i++)
+      {
+         if (rptr && (tim_sub_mode!=TSM_PLACE) &&
+             (part1->type != PT_PULLEY))
+         {
+            cx = part1->scrn_loc.x - ledge + part1->rope_loc[i].x + ROPETIE_X;
+            cy = part1->scrn_loc.y - tedge + part1->rope_loc[i].y + ROPETIE_Y;
+            cxw = cx + ROPETIE_W;
+            cyh = cy + ROPETIE_H;
+            if (rptr->root_part == prev_part)
+            {
+               cx -= HANDLE_WIDTH + BALL_WIDTH - 3;
+               cy -= HANDLE_WIDTH + BALL_WIDTH - 3;
+               cxw += HANDLE_WIDTH + BALL_WIDTH - 3;
+            }
+            if ((xw>=cx) && (x<cxw) && (yh>=cy) && (y<cyh))
+            {
+               if (rptr->link1 == part1)
+                  reverse_rope_links(rptr);
+               return(rptr->root_part);
+            }
+         }
+
+         rptr = rptr2;
+      }
+
+      return(part1);
+   }
+
+   return(0);
+}
+
+
+PART *mouse_over_part(PART *prev_part)
+{
+   PART *pptr;
+   PART *mop_part,*an_initial_mop_part;
+   unsigned char plane, initial_plane;
+
+   an_initial_mop_part = 0;
+   over_part = 0;
+   pptr = get_first_part(F1_STATIC_L|F1_MOVE_L);
+   while (pptr)
+   {
+      /* See if mouse is over this part */
+      mop_part = mouse_over_this_part(prev_part,pptr);
+
+      /* If mouse is over part and its an initial part, ignore it */
+      if (  mop_part && (mop_part->flags1 & F1_INITIAL)
+         && prev_part && (prev_part != mop_part))
+         mop_part = 0;
+
+      /* If mouse is over part, make it the initial part */
+      if (mop_part)
+      {
+         /* If active part is already initial part, save new one */
+         if(an_initial_mop_part && (an_initial_mop_part == active_part))
+            over_part = mop_part;
+
+         /* If over active part, make it the initial part */
+         else if(mop_part == active_part)
+         {
+            over_part = an_initial_mop_part;
+            an_initial_mop_part = mop_part;
+         }
+
+         /* Switch to new part based on planes */
+         else if (an_initial_mop_part && !(mop_part->flags1&F1_INITIAL))
+         {
+            initial_plane = prop[an_initial_mop_part->type].plane_num[0];
+            plane = prop[mop_part->type].plane_num[0];
+            if (initial_plane > plane)
+               an_initial_mop_part = mop_part;
+            over_part = an_initial_mop_part;
+         }
+
+         /* If an initial part has not been selected, select it now */
+         else 
+         {
+            over_part = mop_part;
+            if(   !(mop_part->flags1&F1_INITIAL)
+               || (active_part && (active_part->type == PT_ROPE))
+               || (active_part && (active_part->type == PT_PBELT)))
+               an_initial_mop_part = mop_part;
+         }
+      }
+      pptr = get_next_part(pptr,F1_MOVE_L);
+   }
+
+   if (an_initial_mop_part)
+      return(an_initial_mop_part);
+
+   if (active_part && (active_part->type == PT_ROPE))
+      return(0);
+                                     
+   return(prev_part);
+}
+
+
+
+PART *mouse_over_rope_tie(short *tie_num,PART *prev_part)
+{
+   short x1,x2,y1,y2;
+   PART *pptr;
+
+   if ((pptr=mouse_over_part(prev_part)) != 0)
+      if (pptr->flags2 & F2_ROPE1)
+      {
+         if (pptr->flags2 & F2_ROPE2)
+         {
+            x1 = x2 = pptr->scrn_loc.x - ledge;
+            x1 += pptr->rope_loc[0].x;
+            x2 += pptr->rope_loc[1].x;
+            y1 = y2 = pptr->scrn_loc.y - tedge;
+            y1 += pptr->rope_loc[0].y;
+            y2 += pptr->rope_loc[1].y;
+            if (abs((cursorx<<VIRTUALCOORDS)-x1) + abs((cursory<<VIRTUALCOORDS)-y1) <
+               abs((cursorx<<VIRTUALCOORDS)-x2) + abs((cursory<<VIRTUALCOORDS)-y2))
+               *tie_num = 0;
+            else
+               *tie_num = 1;
+         }
+         else
+            *tie_num = 0;
+
+         if (pptr->type == PT_PULLEY)
+         {
+            if (pptr->wpptr[0])
+               pptr = 0;
+         }
+         else
+            if (pptr->rope_tie[*tie_num])
+               pptr = 0;
+      }
+      else
+         pptr = 0;
+
+   return(pptr);
+}
+
+
+
+void choose_wait_icon()
+{
+   if (old_mouse_icon != 1)
+      last_icon = old_mouse_icon;
+   change_mouse_icon(1);
+}
+
+
+void choose_pause_icon()
+{
+   if (old_mouse_icon != 1)
+      last_icon = old_mouse_icon;
+   change_mouse_icon(IC_PAUSE);
+}
+
+
+void restore_icon()
+{
+   change_mouse_icon(last_icon);
+}
+
+
+extern short mouse_show_wait;
+void change_mouse_icon(short icon_num)
+{
+	switch (icon_num)
+		{
+		case IC_ROPE:
+		case IC_BELT:
+		case IC_HAND:
+		case IC_HANDR:
+		case IC_PICKUP:
+		case IC_QUESTION:
+			displaycursor = icon_num;
+			break;
+		}
+}
+
+
+
+/* * * * *
+*
+*  void reset_mouse_icon(void);
+*
+*  This function will reset the mouse icon to an arrow if no other call had
+*  changed it.
+*
+* * * * */
+void reset_mouse_icon(void)
+{
+   if (!icon_changed && (old_mouse_icon != IC_NONE))
+   {
+/*      mouse_init(*(mouse_shapes+IC_NONE),0,0); */
+      old_mouse_icon = IC_NONE;
+   }
+}
+
+
+
+short get_sub_mode_icons()
+{
+   short icon_num;
+
+   switch (tim_sub_mode)
+   {
+      case TSM_FLIP_LR:
+         icon_num = -1;
+         break;
+
+      case TSM_FLIP_TB:
+         icon_num = -1;
+         break;
+
+      case TSM_SIZE_L:
+         icon_num = IC_HAND;
+         break;
+      case TSM_SIZE_R:
+         icon_num = IC_HANDR;
+         break;
+
+      case TSM_SIZE_T:
+         icon_num = IC_HAND;
+         break;
+      case TSM_SIZE_B:
+         icon_num = IC_HANDR;
+         break;
+
+      case TSM_PICKUP:
+         icon_num = IC_QUESTION;
+         break;
+
+      case TSM_RECYCLE:
+         icon_num = -1;
+         break;
+
+      case TSM_PLACE:
+         if (active_part->type == PT_PBELT)
+            icon_num = IC_BELT;
+         else
+            if (active_part->type == PT_ROPE)
+               icon_num = IC_ROPE;
+            else
+               icon_num = IC_PICKUP;
+         break;
+
+      case TSM_UNLOCK:
+         icon_num = -1;
+         break;
+
+      default:
+         icon_num = IC_HAND;
+         break;
+   }
+
+   return(icon_num);
+}
+
+
+
+short get_ap_flags(PART *pptr)
+{
+   short return_val;
+
+   return_val = 0;
+
+   /* If free form, allow them to lock/unlock part (except ropes) */
+   if (  freeform_mode
+      && (pptr->type != PT_PBELT)
+      && (pptr->type != PT_ROPE))
+      return_val |= AP_UNLOCK;
+
+   /* If part is locked, do not let player do anything else */
+   if(   (pptr->flags3 & F3_LOCKED)
+      || (toon_puzzle_mode == LOCK_PUZZLE))
+      return(return_val);
+
+   /* Allow player to pickup and flush the part */
+   return_val |= AP_FLUSH|AP_PICKUP;
+
+   /* If part is a rope, that is all that can be done to it */
+   if(   (pptr->type == PT_PBELT)
+      || (pptr->type == PT_ROPE))
+      return(return_val);
+
+   if (pptr->flags2 & F2_RESIZE_X)
+      return_val |= AP_RESIZE_X;
+
+   if (pptr->flags2 & F2_RESIZE_Y)
+      return_val |= AP_RESIZE_Y;
+
+   /* handle hearty parts */
+   if (pptr->flags3 & F3_HEARTY_PART)
+      return_val |= AP_HEARTY_PART;
+
+   /* This is a special cludge to fix placement problem of the hatpin */
+   if (pptr->type == PT_HATPIN)
+   {
+      if (pptr->flags1 & F1_FLIPS_LR)
+         return_val |= AP_FLIPS_LR;
+      if (pptr->flags1 & F1_FLIPS_TB)
+         return_val |= AP_FLIPS_TB;
+   }
+   else
+   {
+      if (pptr->flags1 & F1_FLIPS_LR)
+      {
+         if (tim_sub_mode == TSM_PLACE)
+            return_val |= AP_FLIPS_LR;
+         else
+         {
+            ignore_erasing = TRUE;
+            prop[pptr->type].flip_func(pptr,TSM_FLIP_LR);
+            pptr->start_flags2 = pptr->flags2;
+            if (!part_overlap(pptr))
+               return_val |= AP_FLIPS_LR;
+            prop[pptr->type].flip_func(pptr,TSM_FLIP_LR);
+            pptr->start_flags2 = pptr->flags2;
+            ignore_erasing = FALSE;
+         }
+      }
+
+      if (pptr->flags1 & F1_FLIPS_TB)
+      {
+         if (tim_sub_mode == TSM_PLACE)
+            return_val |= AP_FLIPS_TB;
+         else
+         {
+            ignore_erasing = TRUE;
+            prop[pptr->type].flip_func(pptr,TSM_FLIP_TB);
+            pptr->start_flags2 = pptr->flags2;
+            if (!part_overlap(pptr))
+               return_val |= AP_FLIPS_TB;
+            prop[pptr->type].flip_func(pptr,TSM_FLIP_TB);
+            pptr->start_flags2 = pptr->flags2;
+            ignore_erasing = FALSE;
+         }
+      }
+   }
+
+   return(return_val);
+}
+
+
+
+short get_tim_sub_mode(PART *cur_part)
+{
+   short x0,x1,x2,y0,y1,y2;
+   short ox,oxw,oy,oyh;
+   short tie_num;
+   PART *pptr;
+   ROPE *rptr;
+   TIM_VEC my_loc,my_size;
+
+   ap_flags = get_ap_flags(cur_part);
+
+   /* Determine location and size of hilite rectangle */
+   my_loc = cur_part->adj_loc;
+   my_size = cur_part->size;
+   switch (cur_part->type)
+   {
+      case PT_PBELT:
+         if(cur_part->belt && cur_part->belt->link2)
+         {
+            pptr = cur_part->belt->link2;
+            my_loc.x = pptr->adj_loc.x + pptr->belt_loc.x;
+            my_loc.y = pptr->adj_loc.y + pptr->belt_loc.y;
+            my_size.x = pptr->belt_size;
+            if (pptr->belt_size > (my_size.y>>1))
+               my_size.y = 10;
+            else
+               my_size.y = pptr->belt_size;
+         }
+         break;
+      case PT_ROPE:
+         rptr = cur_part->rope_tie[0];
+         if(rptr && rptr->link2)
+         {
+            pptr = rptr->link2;
+            tie_num = rptr->l2_num;
+            my_loc.x = pptr->scrn_loc.x + pptr->rope_loc[tie_num].x + ROPETIE_X;
+            my_loc.y = pptr->scrn_loc.y + pptr->rope_loc[tie_num].y + ROPETIE_Y;
+            my_size.x = ROPETIE_W;
+            my_size.y = ROPETIE_H;
+         }
+         break;
+   }
+
+   /* Keep a copy of the rectangle the mouse should be over to pickup */
+   ox = my_loc.x - ledge;
+   oxw = ox + my_size.x;
+   oy = my_loc.y - tedge;
+   oyh = oy + my_size.y;
+
+   /* adjust for too small a shape to be fit by the handles */
+   if (my_size.x < HANDLE_WIDTH)
+   {
+      my_loc.x -= (HANDLE_WIDTH - my_size.x)>>1;
+      my_size.x = HANDLE_WIDTH;
+   }
+   if (my_size.y < HANDLE_WIDTH)
+   {
+      my_loc.y -= (HANDLE_WIDTH - my_size.y)>>1;
+      my_size.y = HANDLE_WIDTH;
+   }
+
+   x0 = my_loc.x - ledge - (BALL_WIDTH - 3);
+   x1 = x0 + ((my_size.x - HANDLE_WIDTH) >> 1) + (BALL_WIDTH - 3);
+   x2 = x0 + my_size.x + ((BALL_WIDTH - 3)<<1) - 3;
+   y0 = my_loc.y - tedge - (BALL_WIDTH - 3);
+   y1 = y0 + ((my_size.y - HANDLE_WIDTH) >> 1) + (BALL_WIDTH - 3);
+   y2 = y0 + my_size.y + ((BALL_WIDTH - 3)<<1) - 3;
+
+   if (power_buttons &&
+      (tim_sub_mode != TSM_PLACE) &&
+      !(tim_sub_mode & TSM_RESIZING))
+			{
+			power_buttons = FALSE;
+	      return(do_handles(cur_part, &my_loc, &my_size));
+			}
+
+#if 0
+   if (  (ap_flags & AP_UNLOCK)
+      && (cursorx>ap_unlock_x)
+      && (cursorx<(ap_unlock_x+HANDLE_WIDTH))
+      && (cursory>=(ap_unlock_y))
+      && (cursory<ap_unlock_y+HANDLE_WIDTH))
+   {
+      if(cur_part->flags3 & F3_LOCKED)
+         change_mouse_icon(IC_UNLOCK);
+      else
+         change_mouse_icon(IC_LOCK);
+      return(TSM_UNLOCK);
+   }
+
+   if (  (ap_flags & AP_FLUSH)
+      && (cursorx>=(x0-HANDLE_WIDTH)) && (cursorx<x0)
+      && (cursory>=(y0-HANDLE_WIDTH)) && (cursory<y0))
+   {
+      change_mouse_icon(IC_FLUSH);
+      return(TSM_RECYCLE);
+   }
+
+   if (ap_flags & AP_RESIZE_X)
+   {
+      if ((cursorx>=(x0-HANDLE_WIDTH)) && (cursorx<x0) &&
+          (cursory>=y1) && (cursory<(y1+HANDLE_WIDTH)))
+      {
+         change_mouse_icon(IC_SCALELEFT);
+         return(TSM_SIZE_L);
+      }
+      if ((cursorx>x2) && (cursorx<(x2+HANDLE_WIDTH)) &&
+          (cursory>=y1) && (cursory<(y1+HANDLE_WIDTH)))
+      {
+         change_mouse_icon(IC_SCALERIGHT);
+         return(TSM_SIZE_R);
+      }
+   }
+
+   if (ap_flags & AP_RESIZE_Y)
+   {
+      if ((cursory>=(y0-HANDLE_WIDTH)) && (cursory<y0) &&
+          (cursorx>=x1) && (cursorx<(x1+HANDLE_WIDTH)))
+      {
+         if (cur_part->type != PT_INCR_DECR)
+         {
+            change_mouse_icon(IC_SCALEUP);
+            return(TSM_SIZE_T);
+         }
+         else
+            return(TSM_NONE);
+      }
+      if ((cursory>y2) && (cursory<(y2+HANDLE_WIDTH)) &&
+          (cursorx>=x1) && (cursorx<(x1+HANDLE_WIDTH)))
+      {
+         change_mouse_icon(IC_SCALEDOWN);
+         return(TSM_SIZE_B);
+      }
+   }
+
+   if (ap_flags & AP_FLIPS_LR)
+      if ((cursorx>=(x0-HANDLE_WIDTH)) && (cursorx<x0) &&
+          (cursory>y2) && (cursory<(y2+HANDLE_WIDTH)))
+      {
+         change_mouse_icon(IC_FLIPVERT);
+         return(TSM_FLIP_LR);
+      }
+
+   if (ap_flags & AP_FLIPS_TB)
+      if ((cursorx>x2) && (cursorx<(x2+HANDLE_WIDTH)) &&
+          (cursory>y2) && (cursory<(y2+HANDLE_WIDTH)))
+      {
+         change_mouse_icon(IC_FLIPHORIZ);
+         return(TSM_FLIP_TB);
+      }
+
+   if (ap_flags & AP_HEARTY_PART)
+      if ((cursorx>x2) && (cursorx<(x2+HANDLE_WIDTH)) &&
+          (cursory>=y1) && (cursory<(y1+HANDLE_WIDTH)))
+      {
+         change_mouse_icon(IC_HEARTY);
+         return(TSM_HEARTY_PART);
+      }
+#endif
+
+	if ( ((cursorx<<VIRTUALCOORDS) >= ox) && ((cursorx<<VIRTUALCOORDS) < oxw)
+      && ((cursory<<VIRTUALCOORDS) >= oy) && ((cursory<<VIRTUALCOORDS) < oyh))
+		{
+		switch (active_part->type)
+			{
+			case PT_ROPE:
+				change_mouse_icon(IC_ROPE);
+				break;
+			case PT_PBELT:
+				change_mouse_icon(IC_BELT);
+				break;
+			default:
+				change_mouse_icon(IC_QUESTION);
+				break;
+			}
+	   if ((ap_flags & AP_PICKUP)
+	      && (  !over_part
+	         || (over_part == cur_part)
+	         || inside_border(0,cur_part)
+	         || (cur_part->type == PT_ROPE)
+	         || (cur_part->type == PT_PBELT)))
+	      return(TSM_PICKUP);
+		}
+
+   return(TSM_NONE);
+}
+
+
+
+/*void move_belt_location_to_mouse(PART *pptr) */
+/*{ */
+/*} */
+
+short valid_pulley(PBELT *bptr)
+{
+   PART *pptr1;
+   PART *pptr2;
+   short dx,dy;
+
+   if ((pptr1=bptr->link1) == 0)
+   {
+      if ((pptr1=mouse_over_part(0)) == 0)
+         return(0);
+
+      if ((pptr1->flags2&F2_BELT_USED) || (!(pptr1->flags2&F2_BELT)))
+         return(0);
+
+/*      if(pptr1->type == PT_HC_BELT) */
+/*         move_belt_location_to_mouse(pptr1); */
+
+      return(1);
+   }
+
+   if ((pptr2=bptr->link2) == 0)
+   {
+      if ((pptr2=mouse_over_part(0)) == 0)
+         return(0);
+
+      if ((pptr2->flags2&F2_BELT_USED) || (!(pptr2->flags2&F2_BELT)))
+         return(0);
+
+/*      if(pptr2->type == PT_HC_BELT) */
+/*         move_belt_location_to_mouse(pptr2); */
+   }
+
+   /* Make sure the distance between belts is valid */
+   dx = (pptr1->scrn_loc.x+pptr1->belt_loc.x) - (pptr2->scrn_loc.x+pptr2->belt_loc.x);
+   dy = (pptr1->scrn_loc.y+pptr1->belt_loc.y) - (pptr2->scrn_loc.y+pptr2->belt_loc.y);
+   if(((long)dx * dx) + ((long)dy * dy) > (MAX_PULLEY_DIST * MAX_PULLEY_DIST))
+      return(0);
+   else
+      return(1);
+}
+
+
+
+short get_angle_to_part(PART *pptr,PART *pptr1)
+{
+   short slope,tie_num;
+   long dx,dy;
+
+   if (pptr1 == 0)
+   {
+      dx = (long)(pptr->scrn_loc.x - ((cursorx<<VIRTUALCOORDS) + ledge));
+      dy = (long)(pptr->scrn_loc.y - ((cursory<<VIRTUALCOORDS) + tedge));
+   }
+   else
+      if (pptr1->type == PT_PULLEY)
+      {
+         dx = (long)(pptr->scrn_loc.x - pptr1->scrn_loc.x);
+         dy = (long)(pptr->scrn_loc.y - pptr1->scrn_loc.y);
+      }
+      else
+      {
+         tie_num = get_rope_return_tie_num(pptr,pptr1);
+         dx = (long)(pptr->scrn_loc.x -
+            (pptr1->scrn_loc.x + pptr1->rope_loc[tie_num].x));
+         dy = (long)(pptr->scrn_loc.y -
+            (pptr1->scrn_loc.y + pptr1->rope_loc[tie_num].y));
+      }
+
+   slope = angle_to(dx,dy);
+
+   return(slope);
+}
+
+
+
+void orient_pulleys(PART *pptr)
+{
+   PART *pptr1;
+   PART *pptr2;
+
+   pptr1 = pptr->wpptr[0];
+   pptr2 = pptr->wpptr[1];
+
+   if (pptr->type == PT_PULLEY)
+      orient_pulley(pptr);
+   if (pptr1 && (pptr1->type==PT_PULLEY))
+   {
+      orient_pulley(pptr1);
+      part_to_er(pptr1,1|2);
+      set_redraw(pptr1,2);
+   }
+   if (pptr2 && (pptr2->type==PT_PULLEY))
+   {
+      orient_pulley(pptr2);
+      part_to_er(pptr2,1|2);
+      set_redraw(pptr2,2);
+   }
+}
+
+
+void orient_pulley(PART *pptr)
+{
+   unsigned short slope1,slope2,avg_slope,delt_slope,slope_index;
+   short new_state;
+   PART *pptr1;
+   PART *pptr2;
+
+   if ((pptr1=pptr->wpptr[1]) != 0)
+   {
+      pptr2 = pptr->wpptr[0];
+
+      slope1 = (unsigned short) get_angle_to_part(pptr,pptr1);
+      slope1 += 0x2000;
+      slope2 = (unsigned short) get_angle_to_part(pptr,pptr2);
+      slope2 += 0x2000;
+      if ((delt_slope=(slope2-slope1)) < 0x8000)
+         avg_slope = slope1 + (delt_slope>>1);
+      else
+         avg_slope = slope2 + ((0-delt_slope)>>1);
+
+      slope_index = (avg_slope>>14) & 0x0003;
+
+      switch (slope_index)
+      {
+         case 0:
+         case 2:
+            if (slope_index==0)
+               pptr->rope_loc[0].y = pptr->rope_loc[1].y = 10;
+            else
+               pptr->rope_loc[0].y = pptr->rope_loc[1].y = 13;
+            if (((slope_index==0)&&(delt_slope<0x8000)) ||
+                ((slope_index==2)&&(delt_slope>=0x8000)))
+            {
+               pptr->rope_loc[0].x = 1;
+               pptr->rope_loc[1].x = 23;
+            }
+            else
+            {
+               pptr->rope_loc[1].x = 1;
+               pptr->rope_loc[0].x = 23;
+            }
+            break;
+
+         case 1:
+         case 3:
+            if (slope_index == 1)
+               pptr->rope_loc[0].x = pptr->rope_loc[1].x = 13;
+            else
+               pptr->rope_loc[0].x = pptr->rope_loc[1].x = 9;
+            if (((slope_index==1)&&(delt_slope<0x8000)) ||
+                ((slope_index==3)&&(delt_slope>=0x8000)))
+            {
+               pptr->rope_loc[0].y = 1;
+               pptr->rope_loc[1].y = 23;
+            }
+            else
+            {
+               pptr->rope_loc[1].y = 1;
+               pptr->rope_loc[0].y = 23;
+            }
+            break;
+      }
+
+      new_state = slope_index;
+      pptr->start_state = pptr->state = new_state;
+   }
+}
+
+
+
+void generate_pbelt_lines(PBELT *bptr)
+{
+   short part1_x1_offset,part1_y1_offset,part1_x2_offset,part1_y2_offset;
+   short part2_x1_offset,part2_y1_offset,part2_x2_offset,part2_y2_offset;
+   PART *part1;
+   PART *part2;
+
+   part1 = bptr->link1;
+   part2 = bptr->link2;
+   if(!part2)  part2 = part1;    /* added RichR */
+
+   bptr->pt1.x = part1->adj_loc.x + part1->belt_loc.x;
+   bptr->pt1.y = part1->adj_loc.y + part1->belt_loc.y;
+   bptr->pt2.x = part2->adj_loc.x + part2->belt_loc.x;
+   bptr->pt2.y = part2->adj_loc.y + part2->belt_loc.y;
+
+   if (abs(bptr->pt1.x-bptr->pt2.x) < abs(bptr->pt1.y-bptr->pt2.y))
+   {
+      part1_x1_offset = part2_x1_offset = 0;
+      part1_x2_offset = part1->belt_size;
+      part1_y1_offset = part1_y2_offset = part1_x2_offset >> 1;
+      part2_x2_offset = part2->belt_size;
+      part2_y1_offset = part2_y2_offset = part2_x2_offset >> 1;
+   }
+   else
+   {
+      part1_y1_offset = part2_y1_offset = 0;
+      part1_y2_offset = part1->belt_size;
+      part1_x1_offset = part1_x2_offset = part1_y2_offset >> 1;
+      part2_y2_offset = part2->belt_size;
+      part2_x1_offset = part2_x2_offset = part2_y2_offset >> 1;
+   }
+
+   bptr->pt3.x = bptr->pt1.x + part1_x2_offset;
+   bptr->pt3.y = bptr->pt1.y + part1_y2_offset;
+   bptr->pt4.x = bptr->pt2.x + part2_x2_offset;
+   bptr->pt4.y = bptr->pt2.y + part2_y2_offset;
+   bptr->pt1.x += part1_x1_offset;
+   bptr->pt1.y += part1_y1_offset;
+   bptr->pt2.x += part2_x1_offset;
+   bptr->pt2.y += part2_y1_offset;
+}
+
+
+
+void generate_rope_lines(ROPE *rptr)
+{
+   short tie_num1,tie_num2,i;
+   PART *part1,*part2;
+
+   if(!rptr)
+      return;
+   if ((part1=rptr->link1) != 0)
+   {
+      tie_num1 = rptr->l1_num;
+      rptr->pt[0].x = part1->scrn_loc.x + part1->rope_loc[tie_num1].x;
+      rptr->pt[0].y = part1->scrn_loc.y + part1->rope_loc[tie_num1].y;
+
+      if ((part2=rptr->link2) != 0)
+      {
+         tie_num2 = rptr->l2_num;
+         rptr->pt[1].x = part2->scrn_loc.x + part2->rope_loc[tie_num2].x;
+         rptr->pt[1].y = part2->scrn_loc.y + part2->rope_loc[tie_num2].y;
+      }
+
+      part1 = part1->wpptr[tie_num1];
+      while (part1 && (part1->type==PT_PULLEY))
+      {
+         for (i=0;i<2;i++)
+         {
+            part1->rope_tie[0]->pt[i].x = part1->scrn_loc.x + part1->rope_loc[i].x;
+            part1->rope_tie[0]->pt[i].y = part1->scrn_loc.y + part1->rope_loc[i].y;
+         }
+         part1 = part1->wpptr[0];
+      }
+
+      if (tim_mode != TM_RUN)
+      {
+         rptr->root_part->work_var = get_rope_len(rptr,3,0);
+         rptr->root_part->work_var1 = get_rope_len(rptr,3,1);
+      }
+   }
+}
+
+
+
+void connect_plug()
+{
+   #define ELECTRIC_WIDTH  16
+
+   unsigned char last_plug_num,new_plug_num;
+   PART *pptr;
+   PART *last_plug;
+   PART *new_plug;
+
+   new_plug = 0;
+   last_plug = active_part->wpptr[4];
+   last_plug_num = active_part->plug_num;
+   active_part->wpptr[4] = 0;
+
+   query_dist(active_part,F1_STATIC_L,-ELECTRIC_WIDTH,ELECTRIC_WIDTH,
+      -ELECTRIC_WIDTH,ELECTRIC_WIDTH);
+
+   pptr = active_part->qptr;
+   while (pptr)
+   {
+      if (pptr == last_plug)
+      {
+         new_plug = last_plug;
+         new_plug_num = last_plug_num;
+         pptr = 0;
+      }
+      else
+      {
+         if (pptr->flags3 & F3_ELECT_PLUG)
+         {
+            if (!pptr->wpptr[4])
+            {
+               new_plug = pptr;
+               new_plug_num = 0;
+               pptr = 0;
+            }
+            else
+            {
+               if (!pptr->wpptr[5])
+               {
+                  new_plug = pptr;
+                  new_plug_num = 1;
+                  pptr = 0;
+               }
+            }
+         }
+      }
+
+      if (pptr)
+         pptr = pptr->qptr;
+   }
+
+   if (last_plug && (new_plug != last_plug))
+   {
+      last_plug->wpptr[4+active_part->plug_num] = 0;
+      active_part->wpptr[4] = 0;
+      prop[last_plug->type].reinit_func(last_plug);
+      last_plug->start_state = last_plug->state;
+      part_to_er(last_plug,1|2);
+   }
+
+   if (new_plug)
+   {
+      new_plug->wpptr[4+new_plug_num] = active_part;
+      active_part->wpptr[4] = new_plug;
+      active_part->plug_num = new_plug_num;
+      prop[new_plug->type].reinit_func(new_plug);
+      new_plug->start_state = new_plug->state;
+      part_to_er(new_plug,1|2);
+   }
+}
+
+
+
+void disconnect_plug(PART *pptr)
+{
+   short i;
+   PART *pptr1;
+
+   if (pptr->flags3 & F3_ELECT_PLUG)
+   {
+      for (i=4;i<6;i++)
+      {
+         if ((pptr1=pptr->wpptr[i]) != 0)
+         {
+            pptr->wpptr[i] = 0;
+            pptr1->wpptr[4] = 0;
+            prop[pptr1->type].reinit_func(pptr1);
+         }
+      }
+
+      prop[pptr->type].reinit_func(pptr);
+      pptr->start_state = pptr->state;
+   }
+   else
+      if ((pptr1=pptr->wpptr[4]) != 0)
+      {
+         pptr1->wpptr[4+pptr->plug_num] = 0;
+         pptr->wpptr[4] = 0;
+         prop[pptr->type].reinit_func(pptr);
+         prop[pptr1->type].reinit_func(pptr1);
+         pptr1->start_state = pptr1->state;
+         part_to_er(pptr1,1|2);
+      }
+}
+
+
+
+void remove_pbelt(PART *bpart)
+{
+   PART *part1;
+   PART *part2;
+   PBELT *bptr;
+
+   if ((bptr=bpart->belt) != 0)
+   {
+      if ((part1=bptr->link1) != 0)
+      {
+         part1->flags2 &= F2_BELT_USED^0xffff;
+         part1->start_flags2 = part1->flags2;
+         part1->belt = 0;
+         bptr->link1 = 0;
+      }
+      if ((part2=bptr->link2) != 0)
+      {
+         part2->flags2 &= F2_BELT_USED^0xffff;
+         part2->start_flags2 = part2->flags2;
+         part2->belt = 0;
+         bptr->link2 = 0;
+      }
+      if (!(bpart->flags1&F1_AVAIL_L))
+         move_to_avail(bpart);
+   }
+}
+
+
+
+/* how_much: 0-remove last link, 1-remove all links */
+void remove_rope(PART *rpart,short how_much)
+{
+   short i,tie_num1; /* ,tie_num2; */
+   PART *part1;
+   PART *part2;
+   PART *pptr;
+   PART *next_pptr;
+   ROPE *rptr;
+
+   for (i=0;i<2;i++)
+   {
+      if ((rptr=rpart->rope_tie[i]) != 0)
+      {
+         if (how_much)
+         {
+            if ((part1=rptr->link1) != 0)
+            {
+               rptr->org_link1 = rptr->link1 = 0;
+
+               tie_num1 = rptr->l1_num;
+               part1->rope_tie[tie_num1] = 0;
+
+               pptr = part1->wpptr[tie_num1];
+               part1->wpptr[tie_num1] = part1->wpptr[tie_num1+2] = 0;
+
+               while (pptr && (pptr->type==PT_PULLEY))
+               {
+                  next_pptr = pptr->wpptr[0];
+                  for (i=0;i<4;i++)
+                     pptr->wpptr[i] = 0;
+                  pptr->rope_tie[1] = 0;
+
+                  pptr = next_pptr;
+               }
+               prop[part1->type].reinit_func(part1);
+               part_to_er(part1,1|2);
+               set_redraw(part1,2);
+            }
+         }
+         if ((part2=rptr->link2) != 0)
+         {
+#if 1
+            tie_num1 = rptr->l2_num;
+            part2->rope_tie[tie_num1] = 0;
+            rptr->org_link2 = rptr->link2 = 0;
+
+            pptr = part2->wpptr[tie_num1];
+            part2->wpptr[tie_num1] = part2->wpptr[tie_num1+2] = 0;
+            if (pptr && !how_much)
+            {
+               tie_num1 = get_rope_return_tie_num(part2,pptr);
+               pptr->wpptr[tie_num1] = pptr->wpptr[tie_num1+2] = 0;
+            }
+#else
+         /*
+         ** Part2 is the part we are removing the attachment from.
+         */
+            tie_num2 = rptr->l2_num;
+            part2->rope_tie[tie_num2] = 0;
+            rptr->org_link2 = rptr->link2 = 0;
+            pptr = part2->wpptr[tie_num2];
+            part2->wpptr[tie_num2] = part2->wpptr[tie_num2+2] = 0;
+            if (pptr && !how_much)
+            {
+                if (pptr->type != PT_PULLEY)
+                {
+                    if (pptr->rope_tie[0] == rptr)
+                    {   
+                        pptr->wpptr[0] = pptr->wpptr[2] = 0;
+                    }
+                    else if (pptr->rope_tie[1] == rptr)
+                    {
+                        pptr->wpptr[1] = pptr->wpptr[3] = 0;
+                    }
+                }
+                else
+                {
+                    tie_num1 = get_rope_return_tie_num(part2,pptr);
+                    pptr->wpptr[tie_num1] = pptr->wpptr[tie_num1+2] = 0; 
+                    
+                }
+            }
+#endif
+            prop[part2->type].reinit_func(part2);
+            part_to_er(part2,1|2);
+            set_redraw(part2,2);
+         }
+         if (!(rpart->flags1&F1_AVAIL_L))
+            move_to_avail(rpart);
+      }
+   }
+}
+
+
+
+void freeform_remove_part(PART *pptr)
+{
+   if (freeform_mode && (unique_pb==0))
+   {
+      remove_from_list(pptr);
+      free_a_part(pptr);
+   }
+   if (pptr == active_part)
+      active_part = 0;
+}
+
+
+
+void finish_removal()
+{
+   short i;
+   short tie_num1,tie_num2;
+   PART *b_part;
+   PART *r_part;
+   PART *pptr1;
+   PART *pptr2;
+   PBELT *bptr;
+   ROPE *rptr;
+
+   if (active_part && (active_part->flags1&F1_AVAIL_L))
+   {
+      if (active_part->flags3 & (F3_ELECT_PART|F3_ELECT_PLUG))
+         disconnect_plug(active_part);
+
+      bptr = active_part->belt;
+      if ((active_part->type != PT_PBELT) && bptr)
+      {
+         b_part = bptr->root_part;
+         remove_pbelt(b_part);
+         freeform_remove_part(b_part);
+      }
+      if (active_part->type == PT_PULLEY)
+      {
+         if ((pptr1=active_part->wpptr[0]) != 0)
+         {
+            tie_num1 = get_rope_return_tie_num(active_part,pptr1);
+            pptr2 = active_part->wpptr[1];
+            tie_num2 = get_rope_return_tie_num(active_part,pptr2);
+            pptr1->wpptr[tie_num1] = pptr1->wpptr[tie_num1+2] = pptr2;
+            pptr2->wpptr[tie_num2] = pptr2->wpptr[tie_num2+2] = pptr1;
+            if (pptr1->type == PT_PULLEY)
+            {
+               orient_pulley(pptr1);
+               part_to_er(pptr1,1|2);
+            }
+            if (pptr2->type == PT_PULLEY)
+            {
+               orient_pulley(pptr2);
+               part_to_er(pptr2,1|2);
+            }
+            set_redraw(active_part->rope_tie[1]->root_part,2);
+            for (i=0;i<4;i++)
+/*            for (i=0;i<2;i++) */
+               active_part->wpptr[i] = 0;
+            active_part->rope_tie[1] = 0;
+         }
+      }
+      else
+         if (active_part->type != PT_ROPE)
+            for (i=0;i<2;i++)
+            {
+               if ((rptr=active_part->rope_tie[i]) != 0)
+               {
+                  r_part = rptr->root_part;
+                  remove_rope(r_part,1);
+                  freeform_remove_part(r_part);
+               }
+            }
+
+      freeform_remove_part(active_part);
+   }
+}
+
+
+
+void remove_from_list(PART *pptr)
+{
+   if(pptr->prev)
+      pptr->prev->next = pptr->next;
+   if (pptr->next)
+      pptr->next->prev = pptr->prev;
+}
+
+
+
+void insert_into_list(PART *pptr,PART *list_ptr)
+{
+   short done,type,ltype;
+   short pb_num,lpb_num;
+   PART *cur_ptr;
+
+   type = pptr->type;
+   pb_num = prop[type].part_bin_order;
+   done = 0;
+   cur_ptr = list_ptr;
+   while (!done)
+   {
+      if (!cur_ptr->next)
+         done = 1;
+      else
+      {
+         ltype = cur_ptr->next->type;
+         lpb_num = prop[ltype].part_bin_order;
+         if (list_ptr == &avail_list)
+            done = (pb_num < lpb_num);
+
+         else
+         {
+            if (prop[type].mass == prop[ltype].mass)
+            {
+               if ((cur_ptr->type==PT_PHANTOM) || (cur_ptr->type==PT_ROPE))
+                  done = 1;
+               if ((pptr->type==PT_PHANTOM) || (pptr->type==PT_ROPE))
+                  done = 1;
+               if (cur_ptr->next->start_scrn_loc.y < pptr->start_scrn_loc.y)
+                  done = 1;
+               else
+                  if (cur_ptr->next->start_scrn_loc.y == pptr->start_scrn_loc.y)
+                     if (cur_ptr->next->start_scrn_loc.x < pptr->start_scrn_loc.x)
+                        done = 1;
+            }
+            else
+            {
+/*               if (list_ptr == &move_list) */
+                  done = (prop[type].mass < prop[ltype].mass);
+/*               else */
+/*                  done = 1; */
+            }
+         }
+      }
+
+      if (!done)
+         cur_ptr = cur_ptr->next;
+   }
+
+   /* Insert part into list */
+   pptr->next = cur_ptr->next;
+   pptr->prev = cur_ptr;
+   cur_ptr->next = pptr;
+   if (pptr->next)
+      pptr->next->prev = pptr;
+
+}
+
+
+
+void move_to_avail(PART *mpart)
+{
+   short i;
+
+   if (((tim_sub_mode!=TSM_RECYCLE) && (tim_sub_mode!=TSM_PICKUP)) ||
+        (tim_mode != TM_EDIT))
+   {
+      if (mpart->belt && (mpart->type != PT_PBELT))
+         remove_pbelt(mpart->belt->root_part);
+      if ((mpart->type!=PT_ROPE) && (mpart->type!=PT_PULLEY))
+         for (i=0;i<2;i++)
+            if (mpart->rope_tie[i])
+               remove_rope(mpart->rope_tie[i]->root_part,0);
+   }
+
+   mpart->flags1 = (mpart->flags1&((F1_STATIC_L|F1_MOVE_L)^0xffff)) | F1_AVAIL_L;
+   mpart->flags1 &= ~F1_INITIAL;  /* Can not be initial in the avail list */
+   remove_from_list(mpart);
+   insert_into_list(mpart,&avail_list);
+}
+
+
+
+void move_from_avail(PART *mpart)
+{
+   remove_from_list(mpart);
+   if (mpart->flags1 & F1_STATIC)
+   {
+      mpart->flags1 = (mpart->flags1&(F1_AVAIL_L^0xffff)) | F1_STATIC_L;
+      insert_into_list(mpart,&static_list);
+   }
+   else
+   {
+      mpart->flags1 = (mpart->flags1&(F1_AVAIL_L^0xffff)) | F1_MOVE_L;
+      insert_into_list(mpart,&move_list);
+   }
+
+   if (pb_part != &avail_list)
+      if (!pb_part->next)
+      {
+         pb_part = pb_part->prev;
+         redraw_rbi = 2;
+      }
+}
+
+
+
+void remove_all_parts()
+{
+   PART *tunnel_link, *pptr;
+
+   pptr = get_first_part(F1_STATIC_L|F1_MOVE_L);
+   while (pptr)
+   {
+      if (!(pptr->flags1&F1_INITIAL))
+      {
+         switch (pptr->type)
+         {
+            case PT_PBELT:
+               remove_pbelt(pptr);
+               break;
+            case PT_ROPE:
+               remove_rope(pptr,1);
+               break;
+            case PT_TUNNEL:
+               if ((tunnel_link = pptr->toon_link) != 0)
+               {
+                  tunnel_link->toon_link = pptr->toon_link = 0;
+                  remove_from_list(tunnel_link);
+                  free_a_part(tunnel_link);
+               }
+               move_to_avail(pptr);
+               break;
+            default:
+               move_to_avail(pptr);
+         }
+
+         active_part = pptr;
+         finish_removal();
+         active_part = 0;
+
+         pptr = get_first_part(F1_STATIC_L|F1_MOVE_L);
+      }
+      else
+         pptr = get_next_part(pptr,F1_MOVE_L);
+   }
+}
+
+
+PART *get_pb_part(short slot_num)
+{
+   short i,old_type;
+   PART *pptr;
+
+   if (slot_num < 0)
+   {
+      for (i=0,pptr=pb_part;i!=slot_num;i--)
+      {
+         old_type = pptr->type;
+         while ((pptr!=&avail_list) && (pptr->type==old_type))
+            if (pptr != &avail_list)
+               pptr = pptr->prev;
+      }
+   }
+   else
+   {
+      for (i=0,pptr=pb_part->next;pptr && (i!=slot_num);i++)
+      {
+         old_type = pptr->type;
+         while (pptr && (pptr->type==old_type))
+            pptr = pptr->next;
+      }
+   }
+
+   return(pptr);
+}
+
+
+PART *get_last_pb_part()
+{
+   PART *initial_pb_part;
+   PART *new_pb_part;
+   PART *ret_part;
+
+   initial_pb_part = pb_part;
+
+   new_pb_part = get_pb_part(5);
+   while (new_pb_part)
+   {
+      pb_part = new_pb_part;
+      new_pb_part = get_pb_part(5);
+   }
+
+   ret_part = pb_part;
+   pb_part = initial_pb_part;
+
+   return(ret_part);
+}
+
+
+
+void set_redraw(PART * cur_part, short count)
+{
+   short i;
+   PBELT *bptr;
+   ROPE *rptr;
+
+   /* If the ignore eraseing flag is set, just return */
+   if(ignore_erasing)
+      return;
+
+   /* If part is inactive, do not redraw it */
+   if(cur_part->flags2 & F2_INACTIVE)
+      return;
+
+   if (cur_part->type != PT_PHANTOM)
+      cur_part->redraw = count;
+   if (cur_part->type == PT_PULLEY)
+   {
+      if ((rptr=cur_part->rope_tie[1]) != 0)
+         rptr->root_part->redraw = count;
+   }
+   else
+   {
+      if ((bptr=cur_part->belt) != 0)
+      {
+         if (tim_mode == TM_EDIT)
+         {
+            generate_pbelt_lines(bptr);
+            if (valid_pulley(bptr))
+               bptr->root_part->redraw = count;
+         }
+         else
+            bptr->root_part->redraw = count;
+      }
+
+      if (tim_mode == TM_RUN)
+      {
+         if ((rptr=cur_part->rope_tie[0]) != 0)
+            if (!(rptr->root_part->redraw & 0x7f))
+            {
+               rptr->root_part->redraw = count;
+               generate_rope_lines(rptr);
+            }
+         if ((rptr=cur_part->rope_tie[1]) != 0)
+            if (!(rptr->root_part->redraw & 0x7f))
+            {
+               rptr->root_part->redraw = count;
+               generate_rope_lines(rptr);
+            }
+      }
+      else
+      {
+         for (i=0;i<2;i++)
+            if ((rptr=cur_part->rope_tie[i]) != 0)
+            {
+               rptr->root_part->redraw = count;
+               generate_rope_lines(rptr);
+            }
+      }
+   }
+}
+
+
+
+PART *copy_part(PART *from_part)
+{
+   short i,cant_do;
+   PART *new_part;
+   P_PART_BORDER new_border,from_border;
+
+   cant_do = 0;
+   if ((new_part = (PART *) tn_calloc(1,sizeof(PART))) == 0)
+   {
+      cant_do = 1;
+      goto all_done;
+   }
+   new_part->type = from_part->type;
+   new_part->flags1 = from_part->flags1;
+   new_part->flags2 = from_part->flags2;
+   new_part->flags3 = from_part->flags3;
+   new_part->state = from_part->state;
+   new_part->old_state = from_part->old_state;
+   new_part->old_old_state = from_part->old_old_state;
+   new_part->sub_state = from_part->sub_state;
+   new_part->base_size = from_part->base_size;
+   new_part->size = from_part->size;
+   new_part->place_size = from_part->place_size;
+   if (new_part->type == PT_PBELT)
+   {
+      if ((new_part->belt = (PBELT *) tn_calloc(1,sizeof(PBELT))) == 0)
+      {
+         cant_do = 1;
+         goto all_done;
+      }
+      new_part->belt->root_part = new_part;
+   }
+   new_part->belt_loc = from_part->belt_loc;
+   new_part->belt_size = from_part->belt_size;
+   if ((new_part->type==PT_ROPE) || (new_part->type==PT_PULLEY))
+   {
+      if ((new_part->rope_tie[0] = (ROPE *) tn_calloc(1,sizeof(ROPE))) == 0)
+      {
+         cant_do = 1;
+         goto all_done;
+      }
+      new_part->rope_tie[0]->root_part = new_part;
+   }
+   new_part->rope_loc[0] = from_part->rope_loc[0];
+   new_part->rope_loc[1] = from_part->rope_loc[1];
+   switch (new_part->type)
+   {
+      case PT_HC_BELT:
+      case PT_PBELT:
+      case PT_ROPE:
+      case PT_WALL0:
+      case PT_WALL1:
+      case PT_WALL2:
+      case PT_WALL3:
+      case PT_WALL4:
+      case PT_WALL5:
+      case PT_INCR_DECR:
+         if ((new_part->num_borders=prop[from_part->type].num_borders) != 0)
+         {
+            from_border = from_part->border;
+            new_border = new_part->border = (P_PART_BORDER)
+               vm_hmalloc(new_part->num_borders*sizeof(PART_BORDER),MEMF_CLEAR);
+            if (new_border == 0)
+            {
+               cant_do = 1;
+               goto all_done;
+            }
+
+            for (i=0;i<new_part->num_borders;i++,new_border++,from_border++)
+                  *new_border = *from_border;
+         }
+         break;
+      default:
+/* new_part->num_borders=prop[from_part->type].num_borders; */
+         new_part->num_borders=from_part->num_borders; 
+         new_part->border = from_part->border;
+         break;
+   }
+
+   new_part->memory = from_part->memory;
+   new_part->start_memory = from_part->start_memory;
+   new_part->toon_state = from_part->toon_state;
+   new_part->start_state = from_part->start_state;
+   new_part->start_sub_state = from_part->start_sub_state;
+   new_part->start_flags2 = from_part->start_flags2;
+
+all_done:
+   if (cant_do)
+   {
+      free_a_part(new_part);
+      return(0);
+   }
+
+   return(new_part);
+}
+
+
+
+PART *get_first_part(short types)
+{
+   if (static_list.next && (types&F1_STATIC_L))
+      return(static_list.next);
+
+   if (move_list.next && (types&F1_MOVE_L))
+      return(move_list.next);
+
+   if (avail_list.next && (types&F1_AVAIL_L))
+      return(avail_list.next);
+
+   return(0);
+}
+
+
+
+PART *get_next_part(PART *cur_part,short types)
+{
+   if (cur_part->next)
+       return(cur_part->next);
+
+   if (cur_part->flags1 & F1_STATIC_L)
+      return(get_first_part(types));
+
+   if ((cur_part->flags1 & F1_MOVE_L) && (types & F1_AVAIL_L))
+      return(avail_list.next);
+
+   return(0);
+}
+
+
+
+void set_adjusted_loc_size(PART *pptr)
+{
+   set_part_size(pptr);
+   pptr->adj_loc = pptr->scrn_loc;
+   pptr->adj_loc.x += pptr->offset.x;
+   pptr->adj_loc.y += pptr->offset.y;
+}
+
+
+
+void set_part_size(PART *pptr)
+{
+   short type;
+   P_PART_ELEMENTS elements;
+   short temp;
+	short w,h;
+
+   /* Set default sizes and offsets */
+   type = pptr->type;
+   pptr->offset.x = pptr->offset.y = 0;
+   pptr->border_offset.x = pptr->border_offset.y = 0;
+   pptr->size.x = pptr->size.y = 0;
+   
+   /* Set size and offsets if part is not the pully belt or a rope */
+   if ((type!=PT_PBELT) && (type!=PT_ROPE))
+   {
+      /* If part is a multi-draw part, set size based on place_size */
+      if ((pptr->flags1 & F1_MULTIDRAW) || (type==PT_HC_BELT) ||
+         (type==PT_INCR_DECR))
+      {
+         pptr->size.x = pptr->place_size.x;
+         pptr->size.y = pptr->place_size.y;
+      }
+
+      /* If part is a pulley, make size a constant */
+      else if(pptr->type == PT_PULLEY)
+         pptr->size.x = pptr->size.y = 12<<VIRTUALCOORDS;
+
+      /* For all other parts, use the shape_size table */
+      else
+      {
+         /* Use the shape_size table for the size */
+         elements = &prop[type];
+         if (elements->shape_size)
+         {
+            pptr->size.x = (elements->shape_size+pptr->state)->x;
+            pptr->size.y = (elements->shape_size+pptr->state)->y;
+         }
+
+         /* If there is no shape_size tabe, use the bitmaps instead */
+         else if(elements->part_shapes)
+         {
+            GetFrameWH(0, pptr->state, elements->part_shapes, &w, &h);
+            pptr->size.x = w<<VIRTUALCOORDS;
+            pptr->size.y = h<<VIRTUALCOORDS;
+         }
+
+         /* As a last resort, use base size */
+         else
+            pptr->size = pptr->base_size;
+
+         /* Determine the offsets based on the shp_offset table */
+         if (elements->shp_offset)
+         {
+            /* If part is flipped horizontally, set the x-offsets */
+            temp = (elements->shp_offset+pptr->state)->x;
+            if (pptr->flags2 & F2_FLIP_H_DRAW)
+            {
+               pptr->offset.x = pptr->base_size.x - temp - pptr->size.x;
+               if (  (pptr->type != PT_AL_CAT)
+                  && (pptr->type != PT_SID_MOUSE))
+                  pptr->border_offset.x = pptr->offset.x - temp;
+            }
+            else
+               pptr->offset.x = temp;
+
+            /* If part is flipped vertically, set the y-offsets */
+            temp = (elements->shp_offset+pptr->state)->y;
+            if (pptr->flags2 & F2_FLIP_V_DRAW)
+            {
+               pptr->offset.y = pptr->base_size.y - temp - pptr->size.y;
+               if (  (pptr->type != PT_AL_CAT)
+                  && (pptr->type != PT_SID_MOUSE))
+                  pptr->border_offset.x = pptr->offset.x - temp;
+            }
+            else
+               pptr->offset.y = temp;
+         }
+      }
+   }
+
+   /* If base size has not been set, set it now. */
+   /* initalize_a_part call set_part_size() for  */
+   /* each part at the beginning of the program. */
+   if(!pptr->base_size.x || !pptr->base_size.y)
+      pptr->base_size = pptr->size;    /* size is the root frame (state=0) */
+}
+
+
+
+void set_border_slope(PART * pptr)
+{
+   P_PART_BORDER bptr;
+   char num_borders;
+
+   bptr = pptr->border;
+   num_borders = pptr->num_borders;
+   my_set_border_slope(bptr, num_borders);
+}
+
+
+
+void my_set_border_slope(P_PART_BORDER border, char num_borders)
+{
+   short i;
+   short dx,dy;
+   P_PART_BORDER bptr;
+   LINE_SEG seg;
+
+   for (i=1,bptr=border;i<num_borders;i++,bptr++)
+   {
+      seg.x0 = bptr->x;
+      seg.y0 = bptr->y;
+      seg.x1 = (bptr+1)->x;
+      seg.y1 = (bptr+1)->y;
+      adjust_segment_slope(&seg);
+      dx = seg.x1 - seg.x0;
+      dy = seg.y1 - seg.y0;
+      bptr->slope = 0xc000 - angle_to((long)dx,(long)dy);
+   }
+
+   seg.x0 = bptr->x;
+   seg.y0 = bptr->y;
+   seg.x1 = border->x;
+   seg.y1 = border->y;
+   adjust_segment_slope(&seg);
+   dx = seg.x1 - seg.x0;
+   dy = seg.y1 - seg.y0;
+   bptr->slope = 0xc000 - angle_to((long)dx,(long)dy);
+}
+
+
+
+void clear_er()
+{
+#if _MSDOS
+   ERASE_RECT far *er_ptr;
+   ERASE_RECT far *prev_er_ptr;
+
+   if (er_list)
+   {
+      prev_er_ptr = er_list;
+      er_ptr = prev_er_ptr->next;
+      while (er_ptr)
+      {
+         prev_er_ptr = er_ptr;
+         er_ptr = er_ptr->next;
+      }
+      prev_er_ptr->next = er_avail;
+      er_avail = er_list;
+      er_list = 0;
+   }
+#endif
+}
+
+
+
+void sub_parts_to_er(PART *pptr,short mode)
+{
+   PBELT *bptr;
+   ROPE *rptr;
+
+   /* If the ignore eraseing flag is set, just return */
+   if(ignore_erasing)
+      return;
+
+   if (pptr->type == PT_PULLEY)
+   {
+      if ((rptr=pptr->rope_tie[1]) != 0)
+         rope_to_er(rptr->root_part,mode);
+   }
+   else
+      if ((pptr->type!=PT_PBELT) && (pptr->type!=PT_ROPE))
+      {
+         if (tim_mode != TM_RUN)
+            if ((bptr=pptr->belt) != 0)
+               belt_to_er(bptr->root_part,mode);
+
+         if ((rptr=pptr->rope_tie[0]) != 0)
+            rope_to_er(rptr->root_part,mode);
+
+         if ((rptr=pptr->rope_tie[1]) != 0)
+            rope_to_er(rptr->root_part,mode);
+      }
+}
+
+
+
+void belt_to_er(PART *pptr,short mode)
+{
+   PBELT *bptr;
+
+   bptr = pptr->belt;
+   if (mode & 1)
+   {
+      add_to_er(&bptr->old_old_pt1,&bptr->old_old_pt2,ER_LINE,1,0);
+      add_to_er(&bptr->old_old_pt3,&bptr->old_old_pt4,ER_LINE,1,0);
+   }
+   if (mode & 2)
+   {
+      add_to_er(&bptr->old_pt1,&bptr->old_pt2,ER_LINE,2,0);
+      add_to_er(&bptr->old_pt3,&bptr->old_pt4,ER_LINE,2,0);
+   }
+}
+
+
+void rope_to_er(PART *pptr,short mode)
+{
+   short i;
+   short len_diff;
+   TIM_VEC my_loc,my_size;
+   TIM_VEC *loc1,*loc2;
+   PART *part1;
+   PART *part2;
+   ROPE *rptr;
+
+   rptr = pptr->rope_tie[0];
+   my_size.x = ROPETIE_W;
+   my_size.y = ROPETIE_H;
+
+   /* If rope is not linked to anything, just return */
+   if(!rptr->link1)
+      return;
+
+   if (tim_mode == TM_RUN)
+   {
+      part1 = rptr->link1;
+      part2 = part1->wpptr[rptr->l1_num];
+      if (mode & 1)
+      {
+         if (part2->type == PT_PULLEY)
+            loc2 = &part2->rope_tie[0]->old_old_pt[0];
+         else
+            loc2 = &rptr->old_old_pt[1];
+
+         len_diff = get_len_diff(part1,rptr,1);
+         add_to_er(&rptr->old_old_pt[0],loc2,ER_LINE,1,len_diff);
+
+         for (i=0;i<2;i++)
+         {
+            my_loc.x = rptr->old_old_pt[i].x + ROPETIE_X;
+            my_loc.y = rptr->old_old_pt[i].y + ROPETIE_Y;
+            add_to_er(&my_loc,&my_size,ER_FILL,1,0);
+         }
+      }
+      if (mode & 2)
+      {
+         if (part2->type == PT_PULLEY)
+            loc2 = &part2->rope_tie[0]->old_pt[0];
+         else
+            loc2 = &rptr->old_pt[1];
+
+         len_diff = get_len_diff(part1,rptr,2);
+         add_to_er(&rptr->old_pt[0],loc2,ER_LINE,2,len_diff);
+
+         for (i=0;i<2;i++)
+         {
+            my_loc.x = rptr->old_old_pt[i].x + ROPETIE_X;
+            my_loc.y = rptr->old_old_pt[i].y + ROPETIE_Y;
+            add_to_er(&my_loc,&my_size,ER_FILL,2,0);
+         }
+      }
+
+      if (part2 != rptr->link2)
+      {
+         part2 = rptr->link2;
+         part1 = part2->wpptr[rptr->l2_num];
+
+         if (mode & 1)
+         {
+            if (part1->type == PT_PULLEY)
+               loc1 = &part1->rope_tie[0]->old_old_pt[1];
+            else
+               loc1 = &rptr->old_old_pt[0];
+
+            len_diff = get_len_diff(part1,rptr,1);
+            add_to_er(loc1,&rptr->old_old_pt[1],ER_LINE,1,len_diff);
+
+            for (i=0;i<2;i++)
+            {
+               my_loc.x = rptr->old_old_pt[i].x + ROPETIE_X;
+               my_loc.y = rptr->old_old_pt[i].y + ROPETIE_Y;
+               add_to_er(&my_loc,&my_size,ER_FILL,1,0);
+            }
+         }
+         if (mode & 2)
+         {
+            if (part2->type == PT_PULLEY)
+               loc1 = &part1->rope_tie[0]->old_pt[1];
+            else
+               loc1 = &rptr->old_pt[0];
+
+            len_diff = get_len_diff(part1,rptr,2);
+            add_to_er(loc1,&rptr->old_pt[1],ER_LINE,2,len_diff);
+
+            for (i=0;i<2;i++)
+            {
+               my_loc.x = rptr->old_old_pt[i].x + ROPETIE_X;
+               my_loc.y = rptr->old_old_pt[i].y + ROPETIE_Y;
+               add_to_er(&my_loc,&my_size,ER_FILL,2,0);
+            }
+         }
+      }
+   }
+   else     /*tim mode is not TM_RUN */
+   {
+      if (mode & 1)
+      {
+         part1 = rptr->link1;
+         part2 = part1->wpptr[rptr->l1_num];
+         while (part1 && part2)
+         {
+            if (part1->type == PT_PULLEY)
+               loc1 = &part1->rope_tie[0]->old_old_pt[1];
+            else
+               loc1 = &rptr->old_old_pt[0];
+            if (part2->type == PT_PULLEY)
+               loc2 = &part2->rope_tie[0]->old_old_pt[0];
+            else
+               loc2 = &rptr->old_old_pt[1];
+
+            len_diff = get_len_diff(part1,rptr,1);
+            add_to_er(loc1,loc2,ER_LINE,1,len_diff);
+
+            part1 = part2;
+            if (part1->type != PT_PULLEY)
+               part2 = 0;
+            else
+            part2 = part2->wpptr[0];
+         }
+         for (i=0;i<2;i++)
+         {
+            my_loc.x = rptr->old_old_pt[i].x + ROPETIE_X;
+            my_loc.y = rptr->old_old_pt[i].y + ROPETIE_Y;
+            add_to_er(&my_loc,&my_size,ER_FILL,1,0);
+         }
+      }
+
+      if (mode & 2)
+      {
+         part1 = rptr->link1;
+         part2 = part1->wpptr[rptr->l1_num];
+         while (part1 && part2)
+         {
+            if (part1->type == PT_PULLEY)
+               loc1 = &part1->rope_tie[0]->old_pt[1];
+            else
+               loc1 = &rptr->old_pt[0];
+            if (part2->type == PT_PULLEY)
+               loc2 = &part2->rope_tie[0]->old_pt[0];
+            else
+               loc2 = &rptr->old_pt[1];
+
+            len_diff = get_len_diff(part1,rptr,2);
+            add_to_er(loc1,loc2,ER_LINE,2,len_diff);
+
+            part1 = part2;
+            if (part1->type != PT_PULLEY)
+               part2 = 0;
+            else
+               part2 = part2->wpptr[0];
+         }
+
+         for (i=0;i<2;i++)
+         {
+            my_loc.x = rptr->old_pt[i].x + ROPETIE_X;
+            my_loc.y = rptr->old_pt[i].y + ROPETIE_Y;
+            add_to_er(&my_loc,&my_size,ER_FILL,2,0);
+         }
+      }
+   }
+}
+
+
+void norm_to_er(PART *pptr,short mode)
+{
+   if (mode & 1)
+      add_to_er(&pptr->old_old_adj_loc,&pptr->old_old_size,ER_FILL,1,0);
+   if (mode & 2)
+      add_to_er(&pptr->old_adj_loc,&pptr->old_size,ER_FILL,2,0);
+}
+
+
+void part_to_er(PART *pptr,short mode)
+{
+   /* If the ignore eraseing flag is set, just return */
+   if(ignore_erasing)
+      return;
+
+   switch (pptr->type)
+   {
+      case PT_PBELT:
+         belt_to_er(pptr,mode);
+         break;
+      case PT_ROPE:
+         rope_to_er(pptr,mode);
+         break;
+      default:
+         norm_to_er(pptr,mode);
+   }
+}
+
+
+void add_to_er(TIM_VEC *loc,TIM_VEC *size,char flags,char count,short slack)
+{
+#ifdef _MSDOS_
+
+   ERASE_RECT far *er_ptr;
+   short dx, dy;
+
+   #if !FINAL
+   static short total_er = NUM_ER;
+   short i;
+   if(!er_avail)
+   {
+      er_avail = er_ptr = (ERASE_RECT far *) my_emm_malloc(sizeof(
+         ERASE_RECT)*50,MEMF_CLEAR);
+      for (i=0;i<(50-1);i++)
+      {
+         er_ptr->next = er_ptr+1;
+         er_ptr++;
+      }
+      total_er += 50;
+      log_error(25, "Additional erase rectangles allocated.  Total = %d", total_er);
+   }
+   #endif
+
+   /* If out of erase rectangle, just return (this is bad!) */
+   if(!er_avail)
+      return;
+
+   /* Special check added to fix a rope_erase bug with pulleys */
+   if((flags & ER_LINE) && ((!loc->x && !loc->y) || (!size->x && !size->y)))
+      return;
+
+   er_ptr = er_avail;
+   er_avail = er_avail->next;
+   er_ptr->next = er_list;
+   er_list = er_ptr;
+
+   if (er_ptr)
+   {
+      er_ptr->flags = flags;
+      er_ptr->count = count;
+      er_ptr->loc = *loc;
+      er_ptr->size = *size;
+      er_ptr->slack = slack;
+      if (count == 1)
+      {
+         er_ptr->loc.x -= old_old_ledge;
+         er_ptr->loc.y -= old_old_tedge;
+         if (flags & ER_LINE)
+         {
+            er_ptr->size.x -= old_old_ledge;
+            er_ptr->size.y -= old_old_tedge;
+         }
+      }
+      else
+      {
+         er_ptr->loc.x -= old_ledge;
+         er_ptr->loc.y -= old_tedge;
+         if (flags & ER_LINE)
+         {
+            er_ptr->size.x -= old_ledge;
+            er_ptr->size.y -= old_tedge;
+         }
+      }
+
+      if (er_ptr->flags & ER_LINE)
+      {
+         dx = (abs(er_ptr->loc.x-er_ptr->size.x) < abs(er_ptr->loc.y-er_ptr->size.y));
+         dy = !dx;
+         if (er_ptr->loc.x < er_ptr->size.x)
+         {
+            er_ptr->cx = er_ptr->loc.x - dx;
+            er_ptr->cxw = er_ptr->size.x + dx;
+         }
+         else
+         {
+            er_ptr->cx = er_ptr->size.x - dx;
+            er_ptr->cxw = er_ptr->loc.x + dx;
+         }
+         if (er_ptr->loc.y < er_ptr->size.y)
+         {
+            er_ptr->cy = er_ptr->loc.y - dy;
+            er_ptr->cyh = er_ptr->size.y + dy;
+         }
+         else
+         {
+            er_ptr->cy = er_ptr->size.y - dy;
+            er_ptr->cyh = er_ptr->loc.y + dy;
+         }
+         er_ptr->cyh += (er_ptr->slack>>1);
+      }
+      else
+      {
+         /* Due to VM not clipping on absolute pixels, do adjustment */
+         er_ptr->size.x = (er_ptr->size.x + (er_ptr->loc.x & 7) + 7) & (~7);
+         er_ptr->loc.x &= ~7;
+
+         /* Adjust location and size based on clipping window */
+         if(vm_clip)
+         {
+            if(er_ptr->loc.x < vm_lclip)
+            {
+               er_ptr->size.x -= vm_lclip - er_ptr->loc.x;
+               er_ptr->loc.x = vm_lclip;
+            }
+            if(er_ptr->loc.x+er_ptr->size.x > vm_rclip)
+               er_ptr->size.x = vm_rclip - er_ptr->loc.x + 1;
+            if(er_ptr->loc.y < vm_tclip)
+            {
+               er_ptr->size.y -= vm_tclip - er_ptr->loc.y;
+               er_ptr->loc.y = vm_tclip;
+            }
+            if(er_ptr->loc.y+er_ptr->size.y > vm_bclip)
+               er_ptr->size.y = vm_bclip - er_ptr->loc.y + 1;
+         }
+
+         er_ptr->cx = er_ptr->loc.x;
+         er_ptr->cy = er_ptr->loc.y;
+         er_ptr->cxw = er_ptr->cx + er_ptr->size.x - 1;  /* -1 for clip */
+         er_ptr->cyh = er_ptr->cy + er_ptr->size.y - 1;
+      }
+   }
+#endif
+}
+
+
+
+void process_er()
+{
+#ifdef _MSDOS_
+   short x,y,w,h;
+   short len_diff;
+   ERASE_RECT far *er_ptr;
+   ERASE_RECT far *next_er_ptr;
+   ERASE_RECT far *prev_er_ptr;
+
+   #if !FINAL
+      if(noflip && vm_keystatus(2)) /* 1 key */
+         show_process_er();
+   #endif
+
+   set_game_scrn_clip();
+   vm_clip = 1;
+   vm_fcolor = vm_lcolor = background_color;
+   vm_dstptr = vm_buffptr;
+
+   prev_er_ptr = 0;
+   er_ptr = er_list;
+   while (er_ptr)
+   {
+      next_er_ptr = er_ptr->next;
+
+      if (--(er_ptr->count) == 0)
+      {
+         x = er_ptr->loc.x;
+         y = er_ptr->loc.y;
+         w = er_ptr->size.x;
+         h = er_ptr->size.y;
+         len_diff = er_ptr->slack;
+         my_mouse_off();
+         if (er_ptr->flags & ER_LINE)
+            draw_curved_line(x,y,w,h,len_diff);
+         else
+         {
+            vm_fill = er_ptr->flags & ER_FILL;
+#if 0
+            if ((x<=vm_rclip) && ((x+w)>vm_lclip) &&
+                (y<=vm_bclip) && ((y+h)>vm_tclip) )
+               vm_rect(x,y,w,h);
+#endif
+         }
+         my_mouse_on();
+
+         if (prev_er_ptr)
+            prev_er_ptr->next = next_er_ptr;
+         else
+            er_list = next_er_ptr;
+         er_ptr->next = er_processed;
+         er_processed = er_ptr;
+      }
+      else
+         prev_er_ptr = er_ptr;
+
+      er_ptr = next_er_ptr;
+   }
+#endif
+}
+#if !FINAL
+void show_process_er(void)
+{
+   short x,y,w,h;
+   short len_diff;
+   ERASE_RECT far *er_ptr;
+
+   set_game_scrn_clip();
+   vm_clip = 1;
+   vm_fcolor = background_color;
+   vm_lcolor = 3; /* Grey */
+   vm_dstptr = vm_buffptr;
+
+   er_ptr = er_list;
+   while (er_ptr)
+   {
+      if (er_ptr->count == 1)
+      {
+         x = er_ptr->loc.x;
+         y = er_ptr->loc.y;
+         w = er_ptr->size.x;
+         h = er_ptr->size.y;
+         len_diff = er_ptr->slack;
+         my_mouse_off();
+         if (er_ptr->flags & ER_LINE)
+            draw_curved_line(x,y,w,h,len_diff);
+         else
+         {
+            vm_fill = er_ptr->flags & ER_FILL;
+
+            if ((x<vm_rclip) && ((x+w)>vm_lclip) &&
+                (y<vm_bclip) && ((y+h)>vm_tclip) )
+               vm_rect(x,y,w,h);
+         }
+         my_mouse_on();
+      }
+      er_ptr = er_ptr->next;
+   }
+}
+#endif
+
+
+
+void set_redraw_from_er()
+{
+#ifdef _MSDOS_
+   short x,y,xw,yh;
+   PART *part_ptr;
+   PBELT *bptr;
+   ERASE_RECT far *er_ptr;
+   short smart_end1, smart_end2;
+
+   part_ptr = get_first_part(F1_STATIC_L|F1_MOVE_L);
+   while (part_ptr)
+   {
+      /* If redraw is 0x80, the special erase flag bit needs cleared */
+      if(part_ptr->redraw == 0x80)
+         part_ptr->redraw = 0;
+
+      /* Check if there are smart ends */
+      smart_end1 = part_ptr->smart_end1;
+      smart_end2 = part_ptr->smart_end2;
+
+      if ((!part_ptr->redraw) && (!(part_ptr->flags2&F2_INACTIVE)))
+      {
+         if (part_ptr->type == PT_ROPE)
+            set_rope_redraw_from_er(part_ptr);
+         else
+         {
+            if (part_ptr->type == PT_PBELT)
+            {
+               bptr = part_ptr->belt;
+               if (!valid_pulley(bptr))
+                  goto srfe_next_part;
+               if (tim_sub_mode==TSM_PLACE)
+                  if ((bptr->link1==active_part) || (bptr->link2==active_part))
+                     if (!mouse_over_playfield())
+                        goto srfe_next_part;
+
+               if (bptr->pt1.x < bptr->pt2.x)
+               {
+                  xw = x = bptr->pt1.x - ledge;
+                  xw += (bptr->pt4.x - bptr->pt1.x);
+               }
+               else
+               {
+                  xw = x = bptr->pt2.x - ledge;
+                  xw += (bptr->pt3.x - bptr->pt2.x);
+               }
+               if (bptr->pt1.y < bptr->pt2.y)
+               {
+                  yh = y = bptr->pt1.y - tedge;
+                  yh += (bptr->pt4.y - bptr->pt1.y);
+               }
+               else
+               {
+                  yh = y = bptr->pt2.y - tedge;
+                  yh += (bptr->pt3.y - bptr->pt2.y);
+               }
+            }
+            else
+            {
+               x = part_ptr->adj_loc.x - ledge;
+               y = part_ptr->adj_loc.y - tedge;
+               xw = x + part_ptr->size.x;
+               yh = y + part_ptr->size.y;
+            }
+
+            er_ptr = er_list;
+            while (er_ptr)
+            {
+               if (  (  (er_ptr->cx<xw) && (er_ptr->cxw>=x)
+                     && (er_ptr->cy<yh) && (er_ptr->cyh>=y))
+                  || (  (smart_end1 || smart_end2)
+                     && check_smart_ends(part_ptr, er_ptr)) )
+               {
+                  /* 0x80 is a flag that part was drawn because of er_ptr */
+                  #if !FINAL
+                     if(!clip_draw)
+                        set_redraw(part_ptr,1);
+                     else
+                  #endif
+                  set_redraw(part_ptr,0x80|1); /* er_ptr->count); */
+                  er_ptr = 0;
+               }
+               else
+                  er_ptr = er_ptr->next;
+            }
+         }
+      }
+
+   srfe_next_part:
+      part_ptr = get_next_part(part_ptr,F1_MOVE_L);
+   }
+#endif
+}
+
+
+
+void set_rope_redraw_from_er(PART *pptr)
+{
+#ifdef _MSDOS_
+   short x1,y1,x2,y2;
+   short x,y,xw,yh;
+   short len_diff;
+   short tie_num1,tie_num2;
+   PART *part1;
+   PART *part2;
+   PART *start_part;
+   PART *end_part;
+   ROPE *rptr;
+   ERASE_RECT far *er_ptr;
+
+   rptr = pptr->rope_tie[0];
+   part1 = start_part = rptr->link1;
+   end_part = rptr->link2;
+   tie_num1 = rptr->l1_num;
+   tie_num2 = 0;
+   part2 = part1->wpptr[tie_num1];
+   len_diff = get_len_diff(part1,rptr,3);
+
+   while (part1 && part2)
+   {
+      if (part1 != start_part)
+      {
+         tie_num1 = 1;
+         len_diff = 0;
+      }
+      x1 = part1->scrn_loc.x + part1->rope_loc[tie_num1].x;
+      y1 = part1->scrn_loc.y + part1->rope_loc[tie_num1].y;
+/*      x1 = part1->adj_loc.x + part1->rope_loc[tie_num1].x; */
+/*      y1 = part1->adj_loc.y + part1->rope_loc[tie_num1].y; */
+
+      if (part2 == end_part)
+      {
+         tie_num2 = rptr->l2_num;
+         len_diff = get_len_diff(part1,rptr,3);
+      }
+      x2 = part2->scrn_loc.x + part2->rope_loc[tie_num2].x;
+      y2 = part2->scrn_loc.y + part2->rope_loc[tie_num2].y;
+/*      x2 = part2->adj_loc.x + part2->rope_loc[tie_num2].x; */
+/*      y2 = part2->adj_loc.y + part2->rope_loc[tie_num2].y; */
+
+      if (x1 < x2)
+      {
+         x = x1 - ledge;
+         xw = x2 - ledge;
+      }
+      else
+      {
+         x = x2 - ledge;
+         xw = x1 - ledge;
+      }
+      if (y1 < y2)
+      {
+         y = y1 - tedge;
+         yh = y2 - tedge;
+      }
+      else
+      {
+         y = y2 - tedge;
+         yh = y1 - tedge;
+      }
+      if (len_diff > 0)
+         yh += (len_diff>>1);
+
+      er_ptr = er_list;
+      while (er_ptr)
+      {
+         if (  (er_ptr->cx<=xw)
+            && (er_ptr->cxw>x)
+            && (er_ptr->cy<=yh)
+            && (er_ptr->cyh>y))
+         {
+            set_redraw(pptr,1);
+            er_ptr = 0;
+            part2 = end_part;
+         }
+         else
+            er_ptr = er_ptr->next;
+      }
+
+      if (part2 == end_part)
+         part1 = part2 = 0;
+      else
+      {
+         part1 = part2;
+         part2 = part2->wpptr[0];
+      }
+   }
+#endif
+}
+
+
+
+void set_redraw_from_draw()
+{
+#ifdef _MSDOS_
+   unsigned char i,plane_num;
+   short x,y,xw,yh;
+   short cx,cy,cxw,cyh;
+   PART *pptr;
+   PART *cpptr;
+   PBELT *bptr;
+   P_PART_ELEMENTS elements;
+
+   for (i=6;i>0;i--)
+   {
+      plane_num = i - 1;
+      pptr = draw_plane[plane_num];
+      while (pptr)
+      {
+         elements = &prop[pptr->type];
+         if (elements->plane_num[0] != 255)
+            if ((elements->plane_num[0]<plane_num) && (elements->plane_num[0]>6))
+               goto skip_this_part1;
+         if (elements->plane_num[0] != 255)
+            if ((elements->plane_num[1]<plane_num) && (elements->plane_num[1]>6))
+               goto skip_this_part1;
+
+         if(   (pptr->redraw & 0x80) /* only being redrawn because of erase */
+            && (pptr->type != PT_ROPE))
+            goto skip_this_part1;
+
+         x = pptr->adj_loc.x;
+         y = pptr->adj_loc.y;
+         xw = x + pptr->size.x;
+         yh = y + pptr->size.y;
+
+         cpptr = get_first_part(F1_STATIC_L|F1_MOVE_L);
+         while (cpptr)
+         {
+            if ((cpptr->flags3&F3_IN_DRAW_LIST) || (cpptr->flags2&F2_INACTIVE))
+               goto skip_this_part2;
+            if ((cpptr->type==PT_ROPE) || (cpptr->type==PT_PHANTOM))
+               goto skip_this_part2;
+
+            elements = &prop[cpptr->type];
+            if ((elements->plane_num[0]>plane_num) && (elements->plane_num[0]!=255))
+               goto skip_this_part2;
+            if ((elements->plane_num[1]>plane_num) && (elements->plane_num[1]!=255))
+               goto skip_this_part2;
+
+            if (cpptr->type==PT_PBELT)
+            {
+               bptr = cpptr->belt;
+               if (!valid_pulley(bptr))
+                  goto skip_this_part2;
+               if (tim_sub_mode==TSM_PLACE)
+                  if ((bptr->link1==active_part) || (bptr->link2==active_part))
+                     if (!mouse_over_playfield())
+                        goto skip_this_part2;
+
+               if (bptr->pt1.x < bptr->pt2.x)
+               {
+                  cxw = cx = bptr->pt1.x;
+                  cxw += (bptr->pt4.x - bptr->pt1.x);
+               }
+               else
+               {
+                  cxw = cx = bptr->pt2.x;
+                  cxw += (bptr->pt3.x - bptr->pt2.x);
+               }
+               if (bptr->pt1.y < bptr->pt2.y)
+               {
+                  cyh = cy = bptr->pt1.y;
+                  cyh += (bptr->pt4.y - bptr->pt1.y);
+               }
+               else
+               {
+                  cyh = cy = bptr->pt2.y;
+                  cyh += (bptr->pt3.y - bptr->pt2.y);
+               }
+            }
+            else
+            {
+               cx = cpptr->adj_loc.x;
+               cy = cpptr->adj_loc.y;
+               cxw = cx + cpptr->size.x;
+               cyh = cy + cpptr->size.y;
+            }
+
+            if ((cx<xw) && (cxw>x) && (cy<yh) && (cyh>y))
+               add_to_draw_list(cpptr);
+
+         skip_this_part2:
+            cpptr = get_next_part(cpptr,F1_MOVE_L);
+         }
+
+      skip_this_part1:
+         if (pptr->plane_num == plane_num)
+            pptr = pptr->draw_list[0];
+         else
+            pptr = pptr->draw_list[1];
+         
+      }
+   }
+#endif
+}
+
+
+
+void erase_and_draw(PART * pptr)
+{
+   set_redraw(pptr,1);
+#if 0
+   sub_parts_to_er(pptr,1);
+   if (pptr->type != PT_PHANTOM)
+      part_to_er(pptr,1);
+#endif
+}
+
+
+
+PART *get_belt_link(PART *cur_part)
+{
+   PBELT *bptr;
+
+   if ((bptr=cur_part->belt) != 0)
+   {
+      if (cur_part == bptr->link1)
+         return(bptr->link2);
+      else
+         return(bptr->link1);
+   }
+
+   return(0);
+}
+
+
+
+short get_rope_action(ROPE *rptr,short end_pt,short dir)
+{
+   short other_end_pt;
+   short tie_num1,tie_num2;
+   short end_pt1,end_pt2;
+   short pull_dir;
+   ROPE *rptr1,*rptr2;
+   PART *pptr1;
+   PART *pptr2;
+   PART *pptr3;
+   PART *pptr4;
+
+   other_end_pt = 1 - end_pt;
+   if (end_pt)
+   {
+      pptr1 = rptr->link2;
+      tie_num1 = rptr->l2_num;
+      pptr2 = rptr->link1;
+      tie_num2 = rptr->l1_num;
+   }
+   else
+   {
+      pptr1 = rptr->link1;
+      tie_num1 = rptr->l1_num;
+      pptr2 = rptr->link2;
+      tie_num2 = rptr->l2_num;
+   }
+   pptr3 = pptr1->wpptr[tie_num1];
+   pptr4 = pptr2->wpptr[tie_num2];
+
+   if (pptr2 == pptr3)
+   {
+      rptr1 = rptr2 = rptr;
+      end_pt1 = other_end_pt;
+      end_pt2 = end_pt;
+   }
+   else
+   {
+      rptr1 = pptr3->rope_tie[0];
+      rptr2 = pptr4->rope_tie[0];
+      end_pt1 = 1 - end_pt;
+      end_pt2 = 1 - other_end_pt;
+   }
+
+   if (rptr->pt[other_end_pt].x > rptr2->pt[end_pt2].x)
+      pull_dir = RP_PULL_LEFT;
+   else
+      pull_dir = RP_PULL_RIGHT;
+
+   if (dir == MOVING_UP)
+   {
+      if (rptr->pt[end_pt].y > rptr1->pt[end_pt1].y)
+         return(RP_SLACK);
+
+      if (rptr->pt[other_end_pt].y > rptr2->pt[end_pt2].y)
+         return(RP_PULL_UP|pull_dir);
+
+      return(RP_PULL_DOWN|pull_dir);
+   }
+
+   if (rptr->pt[end_pt].y < rptr1->pt[end_pt1].y)
+      return(RP_SLACK);
+
+   if (rptr->pt[other_end_pt].y < rptr2->pt[end_pt2].y)
+      return(RP_PULL_DOWN|pull_dir);
+
+   return(RP_PULL_UP|pull_dir);
+}
+
+
+short get_rope_return_tie_num(PART *from_ptr,PART *to_ptr)
+{
+   if (to_ptr->wpptr[0] == from_ptr)
+      return(0);
+
+   if (to_ptr->wpptr[1] == from_ptr)
+      return(1);
+
+   return(-1);
+}
+
+
+PART *get_rope_link( PART *cur_part, ROPE *rptr)
+{
+   if (rptr)
+   {
+      if (cur_part == rptr->link1)
+         return(rptr->link2);
+      else
+         return(rptr->link1);
+   }
+
+   return(0);
+}
+
+
+
+short get_rope_len(ROPE * rptr, short mode, short end_point)
+{
+   short dx,dy,length;
+   short pt_idx0,pt_idx1;
+   PART *pptr;
+   ROPE *rptr1,*rptr2;
+
+   rptr1 = rptr;
+   if (!end_point || !rptr->link2)  /* line2 check added RichR */
+   {
+      pt_idx0 = 0;
+      pptr = rptr->link1->wpptr[rptr->l1_num];
+      if (pptr == rptr->link2)
+      {
+         rptr2 = rptr;
+         pt_idx1 = 1;
+      }
+      else
+      {
+         rptr2 = pptr->rope_tie[0];
+         pt_idx1 = 0;
+      }
+   }
+   else
+   {
+      pt_idx0 = 1;
+      pptr = rptr->link2->wpptr[rptr->l2_num];
+      if (pptr == rptr->link1)
+      {
+         rptr2 = rptr;
+         pt_idx1 = 0;
+      }
+      else
+      {
+         rptr2 = pptr->rope_tie[0];
+         pt_idx1 = 1;
+      }
+   }
+
+   if (rptr2 == 0)
+      return(0);
+
+   if (mode == 1)
+   {
+      dx = abs(rptr1->old_old_pt[pt_idx0].x - rptr2->old_old_pt[pt_idx1].x);
+      dy = abs(rptr1->old_old_pt[pt_idx0].y - rptr2->old_old_pt[pt_idx1].y);
+   }
+   else
+      if (mode == 2)
+      {
+         dx = abs(rptr1->old_pt[pt_idx0].x - rptr2->old_pt[pt_idx1].x);
+         dy = abs(rptr1->old_pt[pt_idx0].y - rptr2->old_pt[pt_idx1].y);
+      }
+      else
+      {
+         dx = abs(rptr1->pt[pt_idx0].x - rptr2->pt[pt_idx1].x);
+         dy = abs(rptr1->pt[pt_idx0].y - rptr2->pt[pt_idx1].y);
+      }
+
+   length = QUICK_DIST(dx,dy);
+
+   return(length);
+}
+
+
+short get_len_diff(PART *part1,ROPE *rptr,short mode)
+{
+   short len_diff,rope_len;
+   PART *part2;
+   PART *pptr;
+
+   if (part1->type == PT_PULLEY)
+      part2 = part1->wpptr[0];
+   else
+      part2 = part1->wpptr[rptr->l1_num];
+
+   pptr = rptr->root_part;
+   if (part1 == rptr->link1)
+   {
+      if (mode == 1)
+         rope_len = pptr->old_old_work_var;
+      else
+         if (mode == 2)
+            rope_len = pptr->old_work_var;
+         else
+            rope_len = pptr->work_var;
+
+      len_diff = rope_len - get_rope_len(rptr,mode,0);
+   }
+   else
+      if (part2 && (part2==rptr->link2))
+      {
+         if (mode == 1)
+            rope_len = pptr->old_old_work_var1;
+         else
+            if (mode == 2)
+               rope_len = pptr->old_work_var1;
+            else
+               rope_len = pptr->work_var1;
+
+         len_diff = rope_len - get_rope_len(rptr,mode,1);
+      }
+      else
+         len_diff = 0;
+
+   return(len_diff);
+}
+
+
+
+short get_blink_rot(PART * cur_part)
+{
+   PART *link_part;
+
+   if ((link_part=get_belt_link(cur_part)) != 0)
+      return(link_part->sub_state);
+
+   return(0);
+}
+
+
+
+void set_part_speed(PART *pptr,short push_angle,short push_speed)
+{
+   long new_speedx,new_speedy;
+
+   new_speedx = smuls(push_speed,ts_sin(push_angle));
+   new_speedy = smuls(push_speed,ts_cos(push_angle));
+   pptr->speed.x = (short) (new_speedx>>TRIGSHIFT);
+   pptr->speed.y = (short) (new_speedy>>TRIGSHIFT);
+}
+
+
+
+void set_speed_from_loc(PART *pptr,short x_shift,short y_shift,short flags)
+{
+   /* change x? */
+   if (flags & 1)
+   {
+      pptr->speed.x = pptr->scrn_loc.x - pptr->old_scrn_loc.x;
+      pptr->speed.x <<= (SCALE_SHIFT-x_shift);
+   }
+   /* change y? */
+   if (flags & 2)
+   {
+      pptr->speed.y = pptr->scrn_loc.y - pptr->old_scrn_loc.y;
+      pptr->speed.y <<= (SCALE_SHIFT-y_shift);
+   }
+
+   check_term_velocity(pptr);
+}
+
+
+
+short let_rope_adj_loc(PART *pptr)
+{
+   short rope_len,cur_len,slack,other_slack;
+   short other_rope_len,other_len,tie_num,i;
+   short dx,dy,new_dx,new_dy,temp_dx,temp_dy,dl;
+   short end_point_num,other_tie_num,rope_type,pptr_move_dir;
+   short location_adjusted,new_sub_state,org_tim_mode;
+   short adj_amount,pulley_present;
+   long work_val;
+   PART *rpart;
+   PART *lpart;
+   PART *part1;
+   PART *next_part;
+   ROPE *rptr;
+
+   location_adjusted = 0;
+
+   /* RichR - added check to see if wpptr[0] is NULL */
+   if (pptr->wpptr[0] && (pptr->wpptr[0]->type == PT_PULLEY))
+      pulley_present = 1;
+   else
+      pulley_present = 0;
+
+   if (pptr->scrn_loc.y < pptr->old_scrn_loc.y)
+      pptr_move_dir = MOVING_UP;
+   else
+      if (pptr->scrn_loc.y > pptr->old_scrn_loc.y)
+         pptr_move_dir = MOVING_DOWN;
+      else
+         pptr_move_dir = MOVING_NEITHER;
+
+   rptr = pptr->rope_tie[0];
+   rpart = rptr->root_part;
+   lpart = get_rope_link(pptr,rptr);
+
+   if (rptr->link1 == pptr)
+   {
+      end_point_num = 0;
+      other_tie_num = rptr->l2_num;
+      rope_len = rpart->work_var;
+      other_rope_len = rpart->work_var1;
+   }
+   else
+   {
+      end_point_num = 1;
+      other_tie_num = rptr->l1_num;
+      rope_len = rpart->work_var1;
+      other_rope_len = rpart->work_var;
+   }
+
+   other_len = get_cur_rope_len(rptr,lpart,&temp_dx,&temp_dy);
+   cur_len = get_cur_rope_len(rptr,pptr,&dx,&dy);
+
+   slack = cur_len - rope_len;
+   other_slack = other_len - other_rope_len;
+   if (pptr->type != PT_PHANTOM)
+   {
+      if(pulley_present)   /* added by RichR */
+      {
+         slack += other_slack;
+         other_slack = 0;
+         if(cur_len > slack)
+         {
+            if (rptr->link1 == pptr)
+            {
+               rpart->work_var = rope_len = cur_len - slack;
+               rpart->work_var1 = other_rope_len = other_len;
+            }
+            else
+            {
+               rpart->work_var1 = rope_len = cur_len - slack;
+               rpart->work_var = other_rope_len = other_len;
+            }
+         }
+         else
+         {
+            if (rptr->link1 == pptr)
+            {
+               rpart->work_var = cur_len - slack;
+               rpart->work_var1 = other_rope_len = other_len;
+            }
+            else
+            {
+               rpart->work_var1 = cur_len - slack;
+               rpart->work_var = other_rope_len = other_len;
+            }
+            if(rope_len == -cur_len)
+               return(0);
+            slack = cur_len;
+            rope_len = 0;
+         }
+      }
+
+      if ((slack>0) && (other_slack<0))
+      {
+         slack += other_slack;
+         if (slack > 0)
+            other_slack = 0;
+         else
+         {
+            other_slack = slack;
+            slack = 0;
+         }
+         if (rptr->link1 == pptr)
+         {
+            rpart->work_var = rope_len = cur_len - slack;
+            rpart->work_var1 = other_rope_len = other_len - other_slack;
+         }
+         else
+         {
+            rpart->work_var1 = rope_len = cur_len - slack;
+            rpart->work_var = other_rope_len = other_len - other_slack;
+         }
+      }
+   }
+
+   if (slack > 0)
+   {
+      if ((lpart->flags1 & F1_MOVE_L) && (lpart->type!=PT_PHANTOM) &&
+          (pptr->type!=PT_PHANTOM))
+      {
+         if (pptr->mass > lpart->mass)
+         {
+            work_val = smuls(abs(slack),pptr->mass-lpart->mass);
+            adj_amount = (short)((work_val+pptr->mass)/pptr->mass);
+            adj_amount = min(max(adj_amount,1),abs(other_rope_len));
+
+            if (adj_amount)
+            {
+               if (rptr->link1 == pptr)
+               {
+                  rpart->work_var1 -= adj_amount;
+                  other_rope_len = rpart->work_var1;
+                  let_rope_adj_loc(lpart);
+                  lpart->flags1 &= ((F1_ROLLING|F1_COLLIDE|F1_IMPACT|F1_DID_IMPACT)^0xffff);
+                  collide(lpart);
+                  other_len = get_cur_rope_len(rptr,lpart,&temp_dx,&temp_dy);
+                  other_slack = other_len - other_rope_len;
+                  if (other_slack)
+                  {
+                     rpart->work_var1 += other_slack;
+                     adj_amount -= other_slack;
+                  }
+                  if (adj_amount)
+                  {
+                     rpart->work_var += adj_amount;
+                     rope_len = rpart->work_var;
+                     slack = cur_len - rope_len;
+                  }
+               }
+               else
+               {
+                  rpart->work_var -= adj_amount;
+                  other_rope_len = rpart->work_var;
+                  let_rope_adj_loc(lpart);
+                  lpart->flags1 &= ((F1_ROLLING|F1_COLLIDE|F1_IMPACT|F1_DID_IMPACT)^0xffff);
+                  collide(lpart);
+                  other_len = get_cur_rope_len(rptr,lpart,&temp_dx,&temp_dy);
+                  other_slack = other_len - other_rope_len;
+                  if (other_slack)
+                  {
+                     rpart->work_var += other_slack;
+                     adj_amount -= other_slack;
+                  }
+                  if (adj_amount)
+                  {
+                     rpart->work_var1 += adj_amount;
+                     rope_len = rpart->work_var1;
+                     slack = cur_len - rope_len;
+                  }
+               }
+            }
+         }
+      }
+   }
+
+   if (slack > 0)
+   {
+      if ((lpart->type==PT_PHANTOM) && (pptr->type!=PT_PHANTOM))
+      {
+         if (pulley_present)
+         {
+            if (rptr->link1 == lpart)
+            {
+               rpart->work_var -= slack;
+               if (rpart->work_var < 0)
+               {
+                  slack += rpart->work_var;
+
+                  org_tim_mode = tim_mode;
+                  tim_mode = TM_EDIT;    /*force complete erase */
+                  rope_to_er(rpart,1|2);
+                  tim_mode = org_tim_mode;
+
+                  part1 = lpart->wpptr[rptr->l1_num];
+                  next_part = part1->wpptr[0];
+                  tie_num = get_rope_return_tie_num(part1,next_part);
+                  lpart->wpptr[rptr->l1_num] = next_part;
+                  next_part->wpptr[tie_num] = lpart;
+                  for (i=0;i<2;i++)
+                     part1->wpptr[i] = 0;
+                  rptr->root_part->work_var = get_rope_len(rptr,3,0);
+               }
+               rpart->work_var1 += slack;
+            }
+            else
+            {
+               rpart->work_var1 -= slack;
+               if (rpart->work_var1 < 0)
+               {
+                  slack += rpart->work_var1;
+
+                  org_tim_mode = tim_mode;
+                  tim_mode = TM_EDIT;    /*force complete erase */
+                  rope_to_er(rpart,1|2);
+                  tim_mode = org_tim_mode;
+
+                  part1 = lpart->wpptr[rptr->l2_num];
+                  next_part = part1->wpptr[1];
+                  tie_num = get_rope_return_tie_num(part1,next_part);
+                  lpart->wpptr[rptr->l2_num] = next_part;
+                  next_part->wpptr[tie_num] = lpart;
+                  for (i=0;i<2;i++)
+                     part1->wpptr[i] = 0;
+                  rptr->root_part->work_var1 = get_rope_len(rptr,3,1);
+               }
+               rpart->work_var += slack;
+            }
+         }
+      }
+      else
+      {
+         location_adjusted = 1;
+         if(!pulley_present)
+         {
+            work_val = smuls(dx,rope_len);
+            new_dx = (short) (work_val/cur_len) - dx;
+            work_val = smuls(dy,rope_len);
+            new_dy = (short) (work_val/cur_len) - dy;
+         }
+         else
+         {
+            dl = rope_len; /* + (other_rope_len-other_len); */
+            new_dx = smuls(dl, dx)/cur_len - dx;
+            new_dy = smuls(dl, dy)/cur_len - dy;
+         }
+
+         pptr->scrn_loc.x += new_dx;
+         pptr->scrn_loc.y += new_dy;
+         pptr->loc.x = pptr->scrn_loc.x;
+         pptr->loc.x <<= SCALE_SHIFT;
+         pptr->loc.y = pptr->scrn_loc.y;
+         pptr->loc.y <<= SCALE_SHIFT;
+         set_adjusted_loc_size(pptr);
+         set_speed_from_loc(pptr,0,0,1);
+
+         if (pptr->scrn_loc.x == pptr->old_scrn_loc.x)
+            pptr->speed.y = 0;
+
+         if (pptr->type != PT_PHANTOM)
+         {
+            if (pptr_move_dir != MOVING_NEITHER)
+            {
+               if (pptr_move_dir == MOVING_UP)
+                  rope_type = get_rope_action(rptr,end_point_num,MOVING_UP);
+               else
+                  rope_type = get_rope_action(rptr,end_point_num,MOVING_DOWN);
+
+               if (lpart->type == PT_TT)
+               {
+                  new_sub_state = 0;
+                  if (rope_type & RP_PULL_DOWN)
+                  {
+                     if (other_tie_num == 0)
+                     {
+                        if (lpart->state > 0)
+                           new_sub_state = -1;
+                     }
+                     else
+                        if (lpart->state < 2)
+                           new_sub_state = 1;
+                  }
+                  else
+                  {
+                     if (other_tie_num == 0)
+                     {
+                        if (lpart->state < 2)
+                           new_sub_state = 1;
+                     }
+                     else
+                        if (lpart->state > 0)
+                           new_sub_state = -1;
+                  }
+
+                  if (add_to_ft(pptr,lpart))
+                  {
+                     lpart->sub_state = new_sub_state;
+                     lpart->force = pptr->force;
+                  }
+               }
+               else
+                  prop[lpart->type].rope_func(pptr,lpart,0,rope_type,prop[pptr->type].mass,pptr->force);
+            }
+         }
+
+      }
+   }
+   else if(pptr->type != PT_PHANTOM)
+   {
+      if (lpart->type==PT_PHANTOM)
+      {
+         if (pulley_present)
+         {
+            if (rptr->link1 == lpart)
+            {
+               rpart->work_var -= slack;
+               if (rpart->work_var < 0)
+               {
+                  slack += rpart->work_var;
+
+                  org_tim_mode = tim_mode;
+                  tim_mode = TM_EDIT;    /*force complete erase */
+                  rope_to_er(rpart,1|2);
+                  tim_mode = org_tim_mode;
+
+                  part1 = lpart->wpptr[rptr->l1_num];
+                  next_part = part1->wpptr[0];
+                  tie_num = get_rope_return_tie_num(part1,next_part);
+                  lpart->wpptr[rptr->l1_num] = next_part;
+                  next_part->wpptr[tie_num] = lpart;
+                  for (i=0;i<2;i++)
+                     part1->wpptr[i] = 0;
+                  rptr->root_part->work_var = get_rope_len(rptr,3,0);
+               }
+               rpart->work_var1 += slack;
+            }
+            else
+            {
+               rpart->work_var1 -= slack;
+               if (rpart->work_var1 < 0)
+               {
+                  slack += rpart->work_var1;
+
+                  org_tim_mode = tim_mode;
+                  tim_mode = TM_EDIT;    /*force complete erase */
+                  rope_to_er(rpart,1|2);
+                  tim_mode = org_tim_mode;
+
+                  part1 = lpart->wpptr[rptr->l2_num];
+                  next_part = part1->wpptr[1];
+                  tie_num = get_rope_return_tie_num(part1,next_part);
+                  lpart->wpptr[rptr->l2_num] = next_part;
+                  next_part->wpptr[tie_num] = lpart;
+                  for (i=0;i<2;i++)
+                     part1->wpptr[i] = 0;
+                  rptr->root_part->work_var1 = get_rope_len(rptr,3,1);
+               }
+               rpart->work_var += slack;
+            }
+         }
+      }
+      else if((pptr_move_dir != MOVING_NEITHER) || pptr->speed.y)
+      {
+         if(pptr_move_dir == MOVING_NEITHER)
+            if(pptr->speed.y < 0)
+               pptr_move_dir = MOVING_UP;
+            else
+               pptr_move_dir = MOVING_DOWN;
+
+         switch(lpart->type)
+         {
+            case PT_MESSAGER:
+            case PT_TRANS_ROT:
+               rope_type = get_rope_action(rptr,end_point_num,pptr_move_dir);
+               prop[lpart->type].rope_func(pptr,lpart,0,rope_type,prop[pptr->type].mass,pptr->force);
+               break;
+         }
+      }
+   }
+
+   return(location_adjusted);
+}
+
+
+short get_cur_rope_len(ROPE *rptr,PART *pptr,short *dx,short *dy)
+{
+   short l1_num,l2_num,cur_len;
+   TIM_VEC loc1,loc2;
+   PART *lpptr;
+
+   if (rptr->link1 == pptr)
+   {
+      l1_num = rptr->l1_num;
+      loc1.x = pptr->scrn_loc.x + pptr->rope_loc[l1_num].x;
+      loc1.y = pptr->scrn_loc.y + pptr->rope_loc[l1_num].y;
+/*      loc1.x = pptr->adj_loc.x + pptr->rope_loc[l1_num].x; */
+/*      loc1.y = pptr->adj_loc.y + pptr->rope_loc[l1_num].y; */
+
+      lpptr = pptr->wpptr[l1_num];
+      l2_num = get_rope_return_tie_num(pptr,lpptr);
+      if (lpptr->type == PT_PULLEY)
+      {
+         loc2.x = lpptr->rope_tie[0]->pt[1-l2_num].x;
+         loc2.y = lpptr->rope_tie[0]->pt[1-l2_num].y;
+      }
+      else
+      {
+         loc2.x = lpptr->scrn_loc.x + lpptr->rope_loc[l2_num].x;
+         loc2.y = lpptr->scrn_loc.y + lpptr->rope_loc[l2_num].y;
+/*         loc2.x = lpptr->adj_loc.x + lpptr->rope_loc[l2_num].x; */
+/*         loc2.y = lpptr->adj_loc.y + lpptr->rope_loc[l2_num].y; */
+      }
+   }
+   else
+   {
+      lpptr =  rptr->link2;
+      l2_num = rptr->l2_num;
+      loc1.x = lpptr->scrn_loc.x + lpptr->rope_loc[l2_num].x;
+      loc1.y = lpptr->scrn_loc.y + lpptr->rope_loc[l2_num].y;
+/*      loc1.x = lpptr->adj_loc.x + lpptr->rope_loc[l2_num].x; */
+/*      loc1.y = lpptr->adj_loc.y + lpptr->rope_loc[l2_num].y; */
+
+      pptr = lpptr->wpptr[l2_num];
+      l1_num = get_rope_return_tie_num(lpptr,pptr);
+      if (pptr->type == PT_PULLEY)
+      {
+         loc2.x = pptr->rope_tie[0]->pt[1-l1_num].x;
+         loc2.y = pptr->rope_tie[0]->pt[1-l1_num].y;
+      }
+      else
+      {
+         loc2.x = pptr->scrn_loc.x + pptr->rope_loc[l1_num].x;
+         loc2.y = pptr->scrn_loc.y + pptr->rope_loc[l1_num].y;
+/*         loc2.x = pptr->adj_loc.x + pptr->rope_loc[l1_num].x; */
+/*         loc2.y = pptr->adj_loc.y + pptr->rope_loc[l1_num].y; */
+      }
+   }
+
+   *dx = loc1.x - loc2.x;
+   *dy = loc1.y - loc2.y;
+   cur_len = QUICK_DIST(abs(*dx),abs(*dy));
+
+   return(cur_len);
+}
+
+
+
+void clear_ft()
+{
+   FORCE_TRANSFER *ft_ptr,*prev_ft_ptr;
+
+   if (ft_list)
+   {
+      prev_ft_ptr = ft_list;
+      ft_ptr = prev_ft_ptr->next;
+      while (ft_ptr)
+      {
+         prev_ft_ptr = ft_ptr;
+         ft_ptr = ft_ptr->next;
+      }
+      prev_ft_ptr->next = ft_avail;
+      ft_avail = ft_list;
+      ft_list = 0;
+   }
+}
+
+
+
+short add_to_ft(PART *cur_part,PART *trans_part)
+{
+   long force;
+   FORCE_TRANSFER *ft_ptr,*prev_ft_ptr;
+
+   force = cur_part->force;
+
+   ft_ptr = ft_list;
+   while (ft_ptr)
+   {
+      if (ft_ptr->pptr == trans_part)
+         if (force <= ft_ptr->force)
+            return(0);
+      ft_ptr = ft_ptr->next;
+   }
+
+   if ((!ft_list) || (force>ft_list->force))
+   {
+      ft_ptr = ft_avail;
+      ft_avail = ft_avail->next;
+      ft_ptr->next = ft_list;
+      ft_list = ft_ptr;
+   }
+   else
+   {
+      prev_ft_ptr = ft_list;
+      ft_ptr = ft_list->next;
+      while (ft_ptr && (force<ft_ptr->force))
+      {
+         prev_ft_ptr = ft_ptr;
+         ft_ptr = ft_ptr->next;
+      }
+      ft_ptr = ft_avail;
+      ft_avail = ft_avail->next;
+      ft_ptr->next = prev_ft_ptr->next;
+      prev_ft_ptr->next = ft_ptr;
+   }
+
+   ft_ptr->pptr = trans_part;
+   ft_ptr->force = force;
+
+   return(1);
+}
+
+
+
+/*
+void set_bucket_mass(PART *pptr1)
+{
+   PART *pptr2;
+
+   pptr2 = pptr1->qptr;
+   while (pptr2)
+   {
+      add_to_mass(pptr1,pptr2);
+
+      pptr2 = pptr2->qptr;
+   }
+}
+*/
+
+
+void add_to_mass(PART *pptr1,PART *pptr2)
+{
+   long work_mass;
+
+   work_mass = (long) pptr1->mass;
+   work_mass += (long) pptr2->mass;
+   if (work_mass > 32000L)
+      work_mass = 32000L;
+
+   pptr1->mass = (short) work_mass;
+}
+
+
+void save_old_part_info()
+{
+   PART *cur_part;
+
+   if (active_part)
+      save_opi(active_part);
+
+   cur_part = get_first_part(F1_STATIC_L|F1_MOVE_L);
+   while (cur_part)
+   {
+      if (cur_part != active_part)
+         save_opi(cur_part);
+      cur_part = get_next_part(cur_part,F1_MOVE_L);
+   }
+}
+
+
+void save_opi(PART *pptr)
+{
+   PBELT *bptr;
+   ROPE *rptr;
+
+   pptr->old_old_scrn_loc = pptr->old_scrn_loc;
+   pptr->old_scrn_loc = pptr->scrn_loc;
+
+   pptr->old_old_adj_loc = pptr->old_adj_loc;
+   pptr->old_adj_loc = pptr->adj_loc;
+
+   pptr->old_old_size = pptr->old_size;
+   pptr->old_size = pptr->size;
+
+   pptr->old_old_state = pptr->old_state;
+   pptr->old_state = pptr->state;
+
+   if ((pptr->type==PT_PBELT) && (tim_mode==TM_EDIT))
+   {
+      bptr = pptr->belt;
+      bptr->old_old_pt1 = bptr->old_pt1;
+      bptr->old_pt1 = bptr->pt1;
+      bptr->old_old_pt2 = bptr->old_pt2;
+      bptr->old_pt2 = bptr->pt2;
+      bptr->old_old_pt3 = bptr->old_pt3;
+      bptr->old_pt3 = bptr->pt3;
+      bptr->old_old_pt4 = bptr->old_pt4;
+      bptr->old_pt4 = bptr->pt4;
+   }
+
+   if ((pptr->type==PT_ROPE) || (pptr->type==PT_PULLEY))
+   {
+      rptr = pptr->rope_tie[0];
+      rptr->old_old_slack = rptr->old_slack;
+      rptr->old_slack = rptr->slack;
+      rptr->old_old_pt[0] = rptr->old_pt[0];
+      rptr->old_pt[0] = rptr->pt[0];
+      rptr->old_old_pt[1] = rptr->old_pt[1];
+      rptr->old_pt[1] = rptr->pt[1];
+   }
+
+   pptr->old_old_work_var = pptr->old_work_var;
+   pptr->old_work_var = pptr->work_var;
+
+   pptr->old_old_work_var1 = pptr->old_work_var1;
+   pptr->old_work_var1 = pptr->work_var1;
+}
+
+
+
+void reinit_parts()
+{
+   short i;
+   PART *cur_part;
+   PART *next_part;
+   PART *part1;
+   PART *part2;
+   ROPE *rptr;
+
+   /* explicitly remove character parts from the static list. */
+   cur_part = get_first_part(F1_STATIC_L);
+   while (cur_part)
+   {
+      next_part = cur_part->next;
+      switch (cur_part->type)
+      {
+         case PT_SID_MOUSE:
+         case PT_AL_CAT:
+            cur_part->toon_link = 0;
+            character_from_static_to_move(cur_part);
+            break;
+     }
+      cur_part = next_part;
+   }
+      
+   /* explicitly remove character parts from the move list. */
+   cur_part = get_first_part(F1_MOVE_L);
+   while (cur_part)
+   {
+      next_part = cur_part->next;
+      switch (cur_part->type)
+      {
+         case PT_RUG:
+            cur_part->toon_link = 0;
+            character_from_move_to_static(cur_part);
+            break;
+     }
+      cur_part = next_part;
+   }
+
+   cur_part = get_first_part(F1_STATIC_L|F1_MOVE_L);
+   while (cur_part)
+   {
+      next_part = get_next_part(cur_part,F1_MOVE_L);
+
+      if (cur_part->flags1 & F1_CREATED)
+      {
+         remove_from_list(cur_part);
+         free_a_part(cur_part);
+      }
+      else
+      {
+         cur_part->flags1 &= ((F1_ROLLING|F1_COLLIDE|F1_IMPACT|F1_DID_IMPACT)^0xffff);
+         cur_part->flags2 = cur_part->start_flags2;
+         cur_part->flags3 &= ((F3_IN_HOUSE|F3_IN_VACUUM)^0xffff);
+         cur_part->scrn_loc.x = cur_part->old_scrn_loc.x =
+            cur_part->old_old_scrn_loc.x = cur_part->start_scrn_loc.x;
+         cur_part->scrn_loc.y = cur_part->old_scrn_loc.y =
+            cur_part->old_old_scrn_loc.y = cur_part->start_scrn_loc.y;
+         cur_part->loc.x = cur_part->scrn_loc.x;
+         cur_part->loc.y = cur_part->scrn_loc.y;
+         cur_part->loc.x <<= SCALE_SHIFT;
+         cur_part->loc.y <<= SCALE_SHIFT;
+         cur_part->state = cur_part->toon_state = cur_part->old_old_state =
+            cur_part->old_state = cur_part->start_state;
+         cur_part->memory = cur_part->start_memory;
+         if(cur_part->type != PT_TUNNEL)
+            cur_part->toon_link = 0;
+
+         set_adjusted_loc_size(cur_part);
+         cur_part->old_old_adj_loc = cur_part->old_adj_loc =
+            cur_part->adj_loc;
+         cur_part->old_old_size = cur_part->old_size =
+            cur_part->size;
+
+         cur_part->mass = prop[cur_part->type].mass;
+
+         cur_part->col_info.part = 0;
+         cur_part->sub_state = cur_part->start_sub_state;
+         cur_part->speed.x = cur_part->speed.y = 0;
+         cur_part->work_var = cur_part->old_work_var =
+            cur_part->old_old_work_var = 0;
+         cur_part->work_var1 = cur_part->old_work_var1 =
+            cur_part->old_old_work_var1 = 0;
+         if (cur_part->type != PT_GEAR)
+            for (i=0;i<2;i++)
+               cur_part->wpptr[i] = cur_part->wpptr[i+2];
+
+         prop[cur_part->type].reinit_func(cur_part);
+         cur_part->start_state = cur_part->state;
+      }
+
+      cur_part = next_part;
+   }
+
+   cur_part = get_first_part(F1_STATIC_L|F1_MOVE_L);
+   while (cur_part)
+   {
+      if (cur_part->type == PT_PBELT)
+         generate_pbelt_lines(cur_part->belt);
+      else
+         if (cur_part->type == PT_ROPE)
+         {
+            rptr = cur_part->rope_tie[0];
+            rptr->link1 = rptr->org_link1;
+            rptr->link2 = rptr->org_link2;
+            rptr->l1_num = rptr->org_l1;
+            rptr->l2_num = rptr->org_l2;
+            rptr->link1->rope_tie[rptr->l1_num] = rptr;
+            rptr->link2->rope_tie[rptr->l2_num] = rptr;
+
+            part1 = rptr->link1;
+            part2 = part1->wpptr[rptr->l1_num];
+            while (part1)
+            {
+               if (part1->type == PT_PULLEY)
+                  part1->rope_tie[1] = rptr;
+
+               if (part1 == rptr->link2)
+                  part1 = 0;
+               else
+               {
+                  part1 = part2;
+                  part2 = part2->wpptr[0];
+               }
+            }
+
+            generate_rope_lines(rptr);
+            cur_part->work_var = cur_part->old_work_var =
+               cur_part->old_old_work_var = get_rope_len(rptr,3,0);
+            cur_part->work_var1 = cur_part->old_work_var1 =
+               cur_part->old_old_work_var1 = get_rope_len(rptr,3,1);
+            rptr->slack = rptr->old_slack = rptr->old_old_slack = 0;
+         }
+
+      cur_part = get_next_part(cur_part,F1_MOVE_L);
+   }
+}
+
+
+
+/* * * * *
+*
+*  void reinit_sounds(void);
+*
+*  This function will load only the sounds necessary for the puzzle currently
+*  in memory. 
+*
+* * * * */
+void reinit_sounds(void)
+{
+/*   jtp_sx_load(SX_CONV_BELT); */
+/*   jtp_sx_load(SX_VACUME); */
+/*   jtp_sx_load(SX_TEAPOT); */
+}
+
+
+
+
+/* * * * *
+*
+*  void reset_sounds(void);
+*
+*  This function will free all the sounds used by the currently loaded puzzle.
+*
+* * * * */
+void reset_sounds(void)
+{
+#if 0
+   jtp_sx_free(JTP_SX_SFX);
+   jtp_sx_free(JTP_SX_SFX_HDS);
+#endif
+}
+
+
+
+short mouse_over_playfield()
+{
+   short right_edge = PLAYFIELD_RCLIP;
+   if(   control_button
+      && (tim_sub_mode!=TSM_PLACE)
+      && !(tim_sub_mode&TSM_RESIZING))
+      right_edge = PLAYFIELD_RCLIP;
+
+   if (((cursorx<<VIRTUALCOORDS)>=PLAYFIELD_LCLIP) && 
+			((cursorx<<VIRTUALCOORDS)<=right_edge) &&
+       ((cursory<<VIRTUALCOORDS)>=PLAYFIELD_TCLIP) && 
+		 	((cursory<<VIRTUALCOORDS)<=PLAYFIELD_BCLIP) )
+      return(1);
+   else
+      return(0);
+}
+
+
+
+void turn_mouse_off()
+{
+}
+
+
+
+void turn_mouse_on()
+{
+}
+
+
+
+void my_mouse_off()
+{
+}
+
+
+
+void my_mouse_on()
+{
+}
+
+
+
+void my_mouse_move()
+{
+}
+
+
+
+void my_flip(short wait)
+{
+	UWORD temp;
+	extern void		Free_Line_Buffers(void );
+
+#if 1
+	SendSprList();
+
+	globPriority = 0xbf;				/* top priority to start */
+
+	spriteChar = SYS_LastChar = startSprChar1;
+	startSprChar1 = startSprChar2;
+	startSprChar2 = spriteChar;
+
+	/* this toggles the end of the page buffers so we can determine 
+		if they get full or not. */
+	temp = endSprChar1;
+	endSprChar1 = endSprChar2;
+	endSprChar2 = temp;
+
+	Free_Line_Buffers();
+
+#else
+#if 0
+	/* This is the routine that copies the screen to the VDP */
+	SYS_WaitFrame();
+	SYS_DMA((ULONG)vm_schar << 5, 32000L, vm_scrnptr);
+#else
+	extern void	vm_update(void);
+
+	SYS_WaitFrame();
+	vm_update();
+#endif
+#endif
+}
+
+void flip_and_copy()
+{
+}
+
+
+
+void copy_and_flip()
+{
+}
+
+
+
+void set_playfield_clip()
+{
+   vm_lclip = pf_lclip;
+   vm_tclip = pf_tclip;
+   vm_bclip = pf_bclip;
+   if (puzzle_edit_button)
+      vm_rclip = pf_rclip2;
+   else
+      vm_rclip = pf_rclip1;
+}
+
+
+
+void set_game_scrn_clip()
+{
+   vm_clip = 1;
+   vm_tclip = PLAYFIELD_TCLIP;
+   vm_lclip = PLAYFIELD_LCLIP;
+   vm_bclip = PLAYFIELD_BCLIP;
+   if (control_button)
+      vm_rclip = PLAYFIELD_RCLIP;
+   else
+      vm_rclip = PLAYFIELD_RCLIP;
+}
+
+
+
+void set_full_scrn_clip()
+{
+   vm_clip =1;
+   vm_tclip = vm_lclip = 0;
+   vm_rclip = 639;
+   vm_bclip = 399;
+}
+
+
+
+/*
+void start_music(short music_num)
+{
+   if (music_num != current_music)
+   {
+      if (current_music != MUS_NONE)
+      {
+         stop_sound(current_music);
+         sx_free(current_music);
+      }
+
+      if (music_num != MUS_NONE)
+      {
+         sx_load(sx_fp,music_num);
+         start_sound(music_num);
+      }
+      current_music = music_num;
+   }
+}
+*/
+
+
+/*
+void start_sound(short snd_num)
+{
+   if (tim_sound_volume != 0)
+   {
+      if (snd_num < MUS_TITLE)
+      {
+         if (free_k >= snd_mem_needed[snd_num-1])
+            sx_start(snd_tag[snd_num-1]);
+      }
+      else
+         sx_start(snd_num);
+   }
+}
+*/
+
+
+/*
+void stop_sound(short snd_num)
+{
+   short i;
+
+   if ((snd_num==ALL_SX) || (snd_num==ALL_SOUNDS))
+   {
+      for (i=SND_BELT;i<=SND_BUMPER;i++)
+         sx_stop(snd_tag[i-1]);
+
+      if (snd_num == ALL_SOUNDS)
+         for (i=MUS_TITLE;i<=MUS_EAST;i++)
+            sx_stop(i);
+   }
+   else
+      if (snd_num < MUS_TITLE)
+         sx_stop(snd_tag[snd_num-1]);
+      else
+         sx_stop(snd_num);
+}
+*/
+
+
+
+void my_my_free(void *mem_ptr)
+{
+   my_heapcheck();
+   vm_hfree(mem_ptr);
+   my_heapcheck();
+}
+
+
+
+short my_heapcheck()
+{
+#if __BORLANDC__
+   return (heapcheck() == _HEAPCORRUPT);
+#endif
+}
+

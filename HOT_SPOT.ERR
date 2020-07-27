@@ -1,0 +1,11 @@
+MAKE Version 3.6  Copyright (c) 1992 Borland International
+
+Available memory 6359424 bytes
+
+        echo Compiling hot_spot.c68
+Compiling hot_spot.c68
+
+        com68 -Iinclude -Oa2s2 -q -g1 -Q hot_spot.c68 objs\tmpxxx.s
+DOS/16M error: [32]  DPMI host error (possibly insufficient memory)
+
+** error 8 ** deleting objs\hot_spot.o

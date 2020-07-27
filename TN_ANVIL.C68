@@ -1,0 +1,81 @@
+/* * * * *
+*
+*  TN_ANVIL.C
+*
+*  This file contains all the code associated with the anvil.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  06/28/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+
+/* * * * *
+*
+*  void anvil_reinit(PART *anvil);
+*
+*  This function will reinitiallize the borders of the anvil character.
+*
+* * * * */
+void anvil_reinit(PART *anvil)
+{
+   #define ANVIL_ROPE_X       28
+   #define ANVIL_ROPE_Y       5    
+
+   static PART_BORDER_C far bord0[9] = {{7,0},{21,0},{27,2},{22,6},{23,12},{11,15},{5,12},{6,7},{0,4}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!anvil)
+   {
+      set_border_slopes(PT_ANVIL, 0, bord0, 0, 0);
+      return;
+   }
+
+   /* check if there is a rope attached to the anvil */
+   if (anvil->rope_tie[0])
+      anvil->state = 1;
+   else
+      anvil->state = 0;
+
+   anvil->rope_loc[0].x = ANVIL_ROPE_X;
+   anvil->rope_loc[0].y = ANVIL_ROPE_Y;
+   anvil->border = bord0;
+   set_adjusted_loc_size(anvil);
+}
+
+
+
+/* * * * *
+*
+*  short anvil_collide(PART *cur_part);
+*
+*  This is the main collision rountine.
+*
+* * * * */
+/*
+short anvil_collide(PART *cur_part)
+{
+   return(1);
+}
+*/
+
+/* * * * *
+*
+*  void anvil_internal(PART *anvil);
+*
+* * * * */
+#pragma argsused
+void anvil_internal(PART *anvil)
+{
+
+}
+
+
+
+

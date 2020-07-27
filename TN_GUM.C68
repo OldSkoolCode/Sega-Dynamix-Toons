@@ -1,0 +1,36 @@
+/* * * * *
+*
+*  TN_GUM.C
+*
+*  This file contains all the code associated with the gum.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/13/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+
+void gum_reinit(PART *gum)
+{
+   /* border definitions for part 54 (gum) */
+   static PART_BORDER_C far part54_1_bord[GUM_BORDERS] =
+      {{5,0,0},{14,5,0},{14,9,0},{8,10,0},{0,4,0},{0,0,0}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!gum)
+   {
+      set_border_slopes(PT_GUM, 0, part54_1_bord, 0, 0);
+      return;
+   }
+
+   gum->border = part54_1_bord;
+   set_adjusted_loc_size(gum);
+}
+
+

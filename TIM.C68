@@ -1,0 +1,419 @@
+/* * * * *
+*
+*  TIM.C
+*
+*  This file contains the main routine.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  02/14/92 Kevin Ryan  File created
+*
+* * * * */
+#include <stdio.h>
+#include <string.h>
+#include "vm.h"
+#include "vm_bfile.h"
+#include "vm_mylib.h"
+#include "emm.h"
+#include "volume.h"
+#include "sx.h"
+#include "keyboard.h"
+#include "mouse.h"
+#include "tim.h"
+#include "tim_text.h"
+#include "config.h"
+#include "text_res.h"
+
+#ifdef DEBUG
+#if    DEBUG
+   #include "heap.h"
+   #include "watch.h"
+   #include "mono.h"
+#endif
+#endif
+
+#ifndef __BORLANDC__
+   #include <dos.h>
+   #define GETCS() ((unsigned short)asm(0x8C,0xC8))
+   #define CS_PTR(func) (MK_FP(GETCS(),((unsigned)(func))))
+#else
+   #define CS_PTR(func) func
+#endif
+
+
+
+/* external routines */
+/*extern void exit( short); */
+
+
+/* catch <CNTR>-<ESC> and <CNTR>-<ALT>-<DEL> */
+/*void quit ( short); */
+
+/* Stuff related to overlays */
+unsigned _ovrbuffer = 1344;
+extern int FAR _OvrInitEms(unsigned, unsigned, unsigned);
+
+
+/* local routines */
+static void init_all( void);
+
+#if !FINAL
+   static char show_title = 1;
+#endif
+
+extern void decrypt(char *);
+char dongle = 1;
+char nointr=0;
+char noflip=0;
+char clip_draw=1; /* Default is 1 */
+char debug_mode = 0;
+char reserve_memory = 0;
+char puzzle_master = 0; /* 1 if the player is creating real puzzles */
+
+extern char *sx_filename;
+
+/* * * * *
+*
+*  void main(short argc, char **argv);
+*
+* * * * */
+void main(short argc, char **argv)
+{
+   #ifdef __BORLANDC__
+      config_midi = SX_SPEAKER;
+   #else
+      sx_filename = "TOONSHMI.SX";
+   #endif
+
+   /* Set stack size and read in the configuration file */
+   _stklen = 2048;
+   read_config_file();
+   toons_edit = 0;
+
+   /* Process the command line variables */
+   while(argc-- && *argv)
+   {
+#if !FINAL
+      if(argv[0][0] == '/')
+      {
+         switch(argv[0][1])
+         {
+            case 'd':
+               debug_mode = TRUE;
+               break;
+            case 'f':
+               freeform_mode = TRUE;
+               break;
+            case 't':
+               show_title = FALSE;
+               break;
+            case '?':
+               printf("/d debug mode, /f freeform mode\n");
+               quit(1);
+               break;
+         }
+      }
+#endif
+#if DEBUG
+         else if(!stricmp(*argv,"WATCH"))
+         {
+            watch_on = 3;
+            mono_flag = 1;
+            mono_cls();
+         }
+         else if(!stricmp(*argv,"HEAP"))
+         {
+            heap_on = 3;
+            watch_on = 3;
+            mono_flag = 1;
+            mono_cls();
+         }
+#endif
+      #if !FINAL
+         else if(!strcmpi(*argv,"NOINTR"))
+            nointr=1;
+         else if(!strcmpi(*argv,"NOFLIP"))
+            noflip=1;
+         else if(!strcmpi(*argv,"LOWMEM"))
+            reserve_memory = 1;
+         else if( !strcmpi(*argv,"PM")
+               || !strcmpi(*argv,"PUZZLEMASTER")
+               || (!strcmpi(*argv,"PUZZLE") && argv[1] && !strcmpi(argv[1],"MASTER")))
+               puzzle_master = 1;
+      #endif
+
+      /* Allow command line override of sound/music choices */
+      if(!strcmpi(*argv,"SPEAKER"))
+         config_midi = SX_SPEAKER;
+      else if(!strcmpi(*argv,"ADLIB"))
+         config_midi = SX_ADLIB;
+      else if(!strcmpi(*argv,"ROLAND") || !strcmpi(*argv,"MT32"))
+         config_midi = SX_ROLAND;
+      else if(!strcmpi(*argv,"SB") || !strcmpi(*argv,"SBLAST"))
+      {
+         config_midi = SX_ADLIB;
+         config_audio = SX_AUDBLAST;
+      }
+      else if(!strcmpi(*argv,"PS1"))
+      {
+         config_midi = SX_PS1;
+         config_audio = SX_AUDPS;
+      }
+      else if(!strcmpi(*argv,"PRO") || !strcmpi(*argv,"PROAUDIO"))
+      {
+         config_midi = SX_PRO;
+         config_audio = SX_AUDPRO;
+      }
+      else if(!strcmpi(*argv,"GENMIDI"))
+         config_midi = SX_GEN_MIDI;
+
+      /* Allow command line override for memory */
+      else if(!strcmpi(*argv,"OVERRIDE"))
+         config_override = TRUE;
+
+      /* Allow a different database file to be specified */
+      else if(strchr(*argv,'.') && !strcmpi(strchr(*argv,'.'),".SAV"))
+         database_filename = *argv;
+
+      argv++;
+   }
+
+   /* Configure the memory */
+   configure_memory(570000, 737280);      /* min_far and min_ems */
+
+   fix_char_data(PT_AL_CAT);
+   fix_char_data(PT_SID_MOUSE);
+   init_all();
+   load_database();
+   #if !FINAL
+   if(show_title)
+   #endif
+   {
+      title();
+      if(!check_database_checksum(0))
+         do_toon_copy_protection();
+      check_database_checksum(1);
+      if(get_num_puzzles_left())
+         show_jigsaw_puzzle();
+      else
+         show_grand_finale();
+   }
+   check_dongle();
+   init_game();
+   init_toon_level();
+   do_toon_edit_panel();
+   quit(1);
+}
+
+
+
+
+
+void init_all()
+{
+   short machine,i;
+   FORCE_TRANSFER *ft_ptr;
+   ERASE_RECT far *er_ptr;
+
+   set_special_dates();
+
+   time_to_quit = 0;
+   force_fail = 0;
+   old_mouse_icon = -1;
+
+   volume_init();
+
+   background_color = 4;
+   pb_color = 11;
+
+   HEAP_STRING("VM Video Driver");
+   machine = vm_init(VGA640x400,VGA_BIT,"vm.ovl");
+   HEAP_STRING(0);
+   if (!machine)
+   {
+/*      printf(no_vm_msg); */
+      exit(0);
+   }
+   if(noflip)
+   {
+      vm_buffptr = 0xa000;
+      vm_scrnptr = 0xa800;
+   }
+
+
+   vm_init_keybd(0);
+   vm_init_ovfl();
+   if((config_midi != SX_NO_INIT) || (config_audio != SX_NO_INIT))
+      if(!nointr)
+         vm_init_timer(13);
+
+   vm_init_mouse();
+   vm_set_mouse(10,10);
+   vm_timer_insert( CS_PTR(mouse_intr), 4);
+
+   #if !FINAL
+   if(!reserve_memory)
+   #endif
+   if (!nointr && jtp_sx_init(config_midi,config_audio,0))
+      quit(1);
+   jtp_sx_master_volume(master_volume);
+
+   HEAP_STRING("Text Resources");
+   text_init(2, 2);
+   HEAP_STRING("GAME.PAL");
+   tim_pal = vm_palload("game.pal");
+   HEAP_STRING("BLACK.PAL");
+   vm_palselect(black_pal = vm_palload("black.pal"));
+   HEAP_STRING("SSD14_22.FNT");
+   vm_fontselect(tim_font = vm_fontload("ssd14_22.fnt"));
+   HEAP_STRING("MESSAGER FONT");
+   messager_font = vm_fontload("broadw25.fnt");
+   HEAP_STRING("MOUSE.BMP");
+   mouse_shapes = vm2_shapeload("mouse.bmp");
+   icon_shapes = load_bitmap_file("icons.bmp");
+   #if !FINAL
+   if(freeform_mode)
+      corners = edit_corners = load_bitmap_file("tn_ed_cn.bmp");
+   else
+   #endif
+   corners = play_corners = load_bitmap_file("tn_pl_cn.bmp");
+   button_shapes = 0;
+   toon_cp_shapes = load_bitmap_file("tn_l_btn.bmp");
+   toon_rcp_shapes = load_bitmap_file("tn_r_btn.bmp");
+   handle_shapes = load_bitmap_file("handles.bmp");
+   HEAP_STRING(0);
+
+   change_mouse_icon(0);
+   turn_mouse_off();
+   mouse_speed(3);
+
+   init_hs();
+   init_bin_order();
+
+   ft_list = 0;
+   ft_avail = ft_ptr =
+      (FORCE_TRANSFER *) my_calloc(NUM_FT,sizeof(FORCE_TRANSFER));
+   for (i=NUM_FT-1;i; i--)
+   {
+      ft_ptr->next = ft_ptr+1;
+      ft_ptr++;
+   }
+
+   er_list = 0;
+   er_avail = er_ptr = (ERASE_RECT far *) my_emm_malloc(sizeof(
+      ERASE_RECT)*NUM_ER,MEMF_CLEAR);
+   for (i=0;i<(NUM_ER-1);i++)
+   {
+      er_ptr->next = er_ptr+1;
+      er_ptr++;
+   }
+}
+
+
+
+
+void quit(short temp)
+{
+   /* for the dongle message */
+   char *registered = "surfs up";
+
+   char gb_text[240];
+#if 0
+   FORCE_TRANSFER *ft_ptr,*next_ft_ptr;
+#endif
+
+   #if !FINAL
+      temp = 1;
+   #endif
+   if (temp == 0)
+      time_to_quit = 1;
+   else
+   {
+         gb_text[0] = 0;
+#if 0
+      my_emm_free((void far *)er_avail);
+
+      ft_ptr = ft_avail;
+      while (ft_ptr)
+      {
+         next_ft_ptr = ft_ptr->next;
+         my_free(ft_ptr);
+         ft_ptr = next_ft_ptr;
+      }
+
+      reset_hs();
+
+      free_part_shapes();
+
+      free_bitmap_file(icon_shapes);
+      free_bitmap_file(bord_shapes);
+      free_bitmap_file(cp_shapes);
+      free_bitmap_file(mouse_shapes);
+      vm_fontfree(tim_font);
+      vm_palfree(black_pal);
+      vm_palfree(tim_pal);
+#endif
+      text_reset();
+      jtp_sx_reset();
+/*      vm_bclose(sx_fp); */
+/*      volume_reset(); */
+/*      vm_reset_keybd(); */
+      vm_reset();
+      vm_reset_keybd();
+      vm_reset_mouse();
+/*      vm_reset_ovfl(); */
+      vm_reset_timer();
+      vm_restore();
+      my_emm_reset();
+      free_emm_bitmap_handles();
+
+      /* dongle exit */
+      if (!dongle)
+         printf("I'm sorry, this is a registered version of Toons.\n");
+      else
+      {
+         #ifdef DONGLE
+         #if    DONGLE
+            registered = my_malloc(sizeof(char)*128);
+
+            decrypt(registered);
+         #endif
+         #endif
+        
+         printf(registered);
+
+         #ifdef DONGLE
+         #if    DONGLE
+            free(registered);
+         #endif
+         #endif
+      }
+      if(error_text)
+         printf(error_text);
+      exit(0);
+   }
+}
+
+void check_dongle(void)
+{
+#ifdef DONGLE
+#if    DONGLE
+   char *registered;
+
+   registered = my_malloc(sizeof(char)*128);
+
+   decrypt(registered);
+   if(*(registered)=='\0')
+   {
+      dongle = 0;
+      quit(1);
+   }
+   
+   my_free(registered);
+#endif
+#endif
+}
+
+

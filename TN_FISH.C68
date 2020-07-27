@@ -1,0 +1,42 @@
+/* * * * *
+*
+*  TN_FISH.C
+*
+*  This file contains all the code associated with the fish part
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  08/08/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void fish_reinit(PART *fish)
+{
+   /* border definitions. */
+   static PART_BORDER_C far fish1_bord[FISH_BORDERS] =
+      {{0,4,0},{19,0,0},{21,4,0},{33,4,0},
+      {25,6,0},{30,9,0},{0,8,0}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!fish)
+   {
+      set_border_slopes(PT_FISH, 0, fish1_bord, 0, 0);
+      return;
+   }
+
+   fish->border = fish1_bord;
+   set_adjusted_loc_size(fish);
+}
+
+
+

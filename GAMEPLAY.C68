@@ -1,0 +1,39 @@
+/* * * * *
+*
+*  GAMEPLAY.C
+*
+*  This file contains routines to run gameplay.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/21/92 Kevin Ryan  File created
+*
+* * * * */
+
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "toons.h"
+
+
+void init_game()
+{
+   short i;
+
+   /* For every type of part, call its initalization function */
+   /* so it can do its own static initalization.  This would  */
+   /* include setting its border slopes and creating its flip */
+   /* borders.                                                */
+   for(i=0; i<TN_NUM_PARTS; i++)
+		{
+      if(prop[i].reinit_func)
+         prop[i].reinit_func(0);
+		}
+   /* Create all of the initial parts that will be in partbin */
+   make_partbin();
+   clear_the_pb();
+}
+
+

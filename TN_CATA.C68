@@ -1,0 +1,261 @@
+/* * * * *
+*
+*  TN_CATA.C
+*
+*  This file contains the catapult routines.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/19/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "simlib.h"
+
+
+
+/* * * * *
+*
+*  local defines.
+*
+* * * * */
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CATAPULT                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        Catapult man launches a rock. The root shape is #1. The sequence for 
+   this is: 1,2,3,4,5,6,7,8,8,9,10,10,10,11,12,13,14,14,14,14,14,15,16,15,
+   17,17,18,1,19.
+        The rock should apprear at supershape #5 (after supershape #4) at
+   the offset (12,-84) from the root shape to the rock.
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C catapult1_2 = {0, CATAPULT_PLANE1, {3,9,12,18},
+   {{18,2},{39,0},{39,17},{29,23}}};
+static F_SSHAPE_C catapult1 = {&catapult1_2, CATAPULT_PLANE, {16,0,15,17},
+   {{21,13},{0,20},{26,11},{34,14}}};
+static F_SSHAPE_C catapult2_2 = {0, CATAPULT_PLANE1, {3,9,18,13},
+   {{18,2},{39,0},{29,23},{39,19}}};
+static F_SSHAPE_C catapult2 = {&catapult2_2, CATAPULT_PLANE, {16,0,15,17},
+   {{21,13},{0,20},{26,11},{34,14}}};
+static F_SSHAPE_C catapult3_2 = {0, CATAPULT_PLANE1, {4,14,10,18},
+   {{18,3},{39,19},{45,-7},{29,23}}};
+static F_SSHAPE_C catapult3 = {&catapult3_2, CATAPULT_PLANE, {16,0,15,17},
+   {{21,13},{0,20},{26,11},{34,14}}};
+static F_SSHAPE_C catapult4_2 = {0, CATAPULT_PLANE1, {5,13,11,18},
+   {{18,-13},{39,20},{27,-23},{29,25}}};
+static F_SSHAPE_C catapult4 = {&catapult4_2, CATAPULT_PLANE, {16,1,15,17},
+   {{21,15},{0,21},{26,13},{34,16}}};
+static F_SSHAPE_C catapult5_2 = {0, CATAPULT_PLANE1, {6,13,18,255},
+   {{0,-17},{39,19},{29,23},{0,0}}};
+static F_SSHAPE_C catapult5 = {&catapult5_2, CATAPULT_PLANE, {16,0,15,17},
+   {{21,13},{0,20},{26,11},{34,14}}};
+static F_SSHAPE_C catapult6_2 = {0, CATAPULT_PLANE1, {17,13,18,255},
+   {{34,11},{39,16},{29,20},{0,0}}};
+static F_SSHAPE_C catapult6 = {&catapult6_2, CATAPULT_PLANE, {16,2,7,15},
+   {{21,11},{0,17},{17,-25},{26,9}}};
+static F_SSHAPE_C catapult7_2 = {0, CATAPULT_PLANE1, {8,13,18,255},
+   {{17,-20},{39,19},{29,23},{0,0}}};
+static F_SSHAPE_C catapult7 = {&catapult7_2, CATAPULT_PLANE, {16,0,15,17},
+   {{21,13},{0,20},{26,11},{34,14}}};
+static F_SSHAPE_C catapult8_2 = {0, CATAPULT_PLANE1, {17,13,18,255},
+   {{34,14},{39,19},{29,23},{0,0}}};
+static F_SSHAPE_C catapult8 = {&catapult8_2, CATAPULT_PLANE, {16,0,7,15},
+   {{21,13},{0,20},{17,-22},{26,11}}};
+static F_SSHAPE_C catapult9_2 = {0, CATAPULT_PLANE1, {17,13,18,255},
+   {{34,14},{39,19},{29,23},{0,0}}};
+static F_SSHAPE_C catapult9 = {&catapult9_2, CATAPULT_PLANE, {19,0,7,15},
+   {{21,11},{0,20},{17,-22},{26,11}}};
+static F_SSHAPE_C catapult10_2 = {0, CATAPULT_PLANE1, {13,18,20,255},
+   {{39,19},{29,23},{16,0},{0,0}}};
+static F_SSHAPE_C catapult10 = {&catapult10_2, CATAPULT_PLANE, {0,7,15,17},
+   {{0,20},{17,-22},{26,11},{34,14}}};
+static F_SSHAPE_C catapult11_2 = {0, CATAPULT_PLANE1, {18,5,21,255},
+   {{29,23},{18,-14},{22,-3},{0,0}}};
+static F_SSHAPE_C catapult11 = {&catapult11_2, CATAPULT_PLANE, {0,15,17,13},
+   {{0,20},{26,11},{34,14},{39,19}}};
+static F_SSHAPE_C catapult12_2 = {0, CATAPULT_PLANE1, {24,25,13,255},
+   {{37,13},{29,23},{39,19},{0,0}}};
+static F_SSHAPE_C catapult12 = {&catapult12_2, CATAPULT_PLANE, {4,0,22,23},
+   {{17,3},{0,20},{21,11},{24,3}}};
+static F_SSHAPE_C catapult13_2 = {0, CATAPULT_PLANE1, {12,26,25,255},
+   {{39,19},{22,6},{29,24},{0,0}}};
+static F_SSHAPE_C catapult13 = {&catapult13_2, CATAPULT_PLANE, {24,1,22,3},
+   {{37,14},{0,21},{22,12},{18,3}}};
+static F_SSHAPE_C catapult14_2 = {0, CATAPULT_PLANE1, {3,12,18,255},
+   {{18,2},{39,17},{29,23},{0,0}}};
+static F_SSHAPE_C catapult14 = {&catapult14_2, CATAPULT_PLANE, {16,0,15,17},
+   {{21,13},{0,20},{26,11},{34,14}}};
+static F_SSHAPE_C catapult15_2 = {0, CATAPULT_PLANE1, {12,18,27,255},
+   {{39,17},{29,23},{34,11},{0,0}}};
+static F_SSHAPE_C catapult15 = {&catapult15_2, CATAPULT_PLANE, {16,0,15,3},
+   {{21,13},{0,20},{26,11},{18,2}}};
+static F_SSHAPE_C catapult16_2 = {0, CATAPULT_PLANE1, {12,18,28,255},
+   {{39,17},{29,23},{34,13},{0,0}}};
+static F_SSHAPE_C catapult16 = {&catapult16_2, CATAPULT_PLANE, {16,0,15,3},
+   {{21,13},{0,20},{26,11},{18,2}}};
+static F_SSHAPE_C catapult17_2 = {0, CATAPULT_PLANE1, {12,10,29,18},
+   {{39,17},{34,-10},{34,2},{29,23}}};
+static F_SSHAPE_C catapult17 = {&catapult17_2, CATAPULT_PLANE, {16,0,15,3},
+   {{21,13},{0,20},{26,11},{18,2}}};
+static F_SSHAPE_C catapult18_2 = {0, CATAPULT_PLANE1, {9,12,30,18},
+   {{39,1},{39,19},{33,-4},{29,24}}};
+static F_SSHAPE_C catapult18 = {&catapult18_2, CATAPULT_PLANE, {16,1,15,3},
+   {{21,15},{0,21},{26,13},{18,3}}};
+static F_SSHAPE_C catapult19_2 = {0, CATAPULT_PLANE1, {3,9,12,18},
+   {{18,0},{39,-2},{39,15},{29,20}}};
+static F_SSHAPE_C catapult19 = {&catapult19_2, CATAPULT_PLANE, {16,2,15,17},
+   {{21,11},{0,17},{26,9},{34,11}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far catapult_ss_tab[CATAPULT_NUM_STATES] = 
+   {&catapult1,&catapult2,&catapult3,&catapult4,&catapult5,&catapult6,
+    &catapult7,&catapult8,&catapult9,&catapult10,&catapult11,&catapult12,
+    &catapult13,&catapult14,&catapult15,&catapult16,&catapult17,&catapult18,
+    &catapult19};
+
+/* size. */
+TIM_VEC_C far catapult_size[CATAPULT_NUM_STATES] = 
+   {{63,35},{64,41},{63,42},{64,65},{64,58},{64,63},
+    {64,61},{64,63},{64,63},{64,63},{64,55},{64,41},
+    {63,35},{63,35},{63,35},{63,35},{63,45},{63,39},
+    {63,36}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far catapult_os[CATAPULT_NUM_STATES] = 
+   {{0,0},{0,0},{0,-14},{0,-46},{0,-34},{0,-50},{0,-40},{0,-45},
+    {0,-45},{0,-45},{0,-29},{0,0},{0,0},{0,0},{0,0},{0,0},
+    {0,-20},{0,-8},{0,-5}};
+
+/* border definitions. */
+static PART_BORDER_C far catapult1_bord[CATAPULT_BORDERS] =
+   {{2,24,0},{24,5,0},{50,0,0},{56,4,0},
+    {58,20,0},{42,30,0},{0,30,0}};
+
+/* border tables */
+PC_PART_BORDER_C far catapult_bord_tab[CATAPULT_NUM_STATES] =
+   {catapult1_bord,catapult1_bord,catapult1_bord,catapult1_bord,
+    catapult1_bord,catapult1_bord,catapult1_bord,catapult1_bord,
+    catapult1_bord,catapult1_bord,catapult1_bord,catapult1_bord,
+    catapult1_bord,catapult1_bord,catapult1_bord,catapult1_bord,
+    catapult1_bord,catapult1_bord,catapult1_bord};
+P_PART_BORDER far catapult_fbord_tab[CATAPULT_NUM_STATES];
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void catapult_reinit(PART *catapult)
+{
+   /* If initalizing for the first time, create flip borders */
+   if(!catapult)
+   {
+      set_border_table_slopes(PT_CATAPULT, 1, catapult_bord_tab,
+                                    catapult_fbord_tab, CATAPULT_NUM_STATES);
+      return;
+   }
+
+   if (catapult->flags2 & F2_FLIP_H_DRAW)
+      catapult->border = catapult_fbord_tab[catapult->state];
+   else
+      catapult->border = catapult_bord_tab[catapult->state];
+
+   set_adjusted_loc_size(catapult);
+}
+
+
+short catapult_bounce(PART *cur_part)
+{
+   PART *c_part;
+
+   c_part = cur_part->col_info.part;
+   c_part->sub_state = 1;
+
+   return (1);
+}
+
+
+void catapult_internal(PART *catapult)
+{
+   static const char far state_array[] =
+   {
+      1,2,3,4,5,6,7,8,8,9,10,10,10,11,12,13,14,14,14,14,14,15,16,15,
+      17,17,18,1,19
+   };
+   #define CATAPULT_STATES       (sizeof(state_array)/sizeof(char))
+   #define CATAPULT_RELEASE      4
+   #define CATAPULT_RELOAD       13
+
+   /* check if the catapult has been hit and if it should fire. */
+   if (  catapult->sub_state
+      && !catapult->work_var
+      && catapult->memory)
+   {
+      jtp_sx_play(SX_CATAPULT,2,0);
+      catapult->work_var++;
+      catapult->memory--;
+   }
+
+   if (catapult->work_var)
+   {
+      /* check if the catapult should not reload. */
+      if (  !catapult->memory
+         && (catapult->state == CATAPULT_RELOAD))
+      {
+         catapult->work_var = 0;
+         return;
+      }
+
+      catapult->state = state_array[catapult->work_var] - 1;
+
+      if (++catapult->work_var == CATAPULT_STATES)
+         catapult->work_var = catapult->state = 0;
+
+      if (catapult->state == CATAPULT_RELEASE)
+      {
+         if (catapult->flags2 & F2_FLIP_H_DRAW)
+            create_part(PT_ROCK,
+               catapult->scrn_loc.x+catapult->base_size.x-42-36,
+               catapult->scrn_loc.y-54,
+               catapult->scrn_loc.x+catapult->base_size.x-42-36,
+               catapult->scrn_loc.y-54,
+               FOUR_PIX+TWO_PIX,-EIGHT_PIX-TWO_PIX,0,F2_FLIP_H_DRAW);
+         else
+            create_part(PT_ROCK,
+               catapult->scrn_loc.x+42,
+               catapult->scrn_loc.y-54,
+               catapult->scrn_loc.x+42,
+               catapult->scrn_loc.y-54,
+               -FOUR_PIX-TWO_PIX,-EIGHT_PIX-TWO_PIX,0,0);
+      }
+
+      catapult_reinit(catapult);
+      catapult->sub_state = 0;
+   }
+}
+
+
+#pragma argsused
+void catapult_flip(PART *catapult,short flip_mode)
+{
+   catapult->flags2 ^= F2_FLIP_H_DRAW;
+   catapult_reinit(catapult);
+
+   set_adjusted_loc_size(catapult);
+   part_to_er(catapult,1|2);
+   set_redraw(catapult,2);
+}
+
+

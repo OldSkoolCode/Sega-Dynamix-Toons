@@ -1,0 +1,23 @@
+
+Sierra Systems ASM68K 3.1     test.asm               2/27/94  1:14  Page    1
+
+   1 T                          
+   2 T                          		tsection	.text
+       SECTION: .text 
+   3 T                          
+   4 T 00000000                 start:
+   5 T 00000000 027C 0700       		andi.w	#$700,sr
+   6 T 00000004 007C 0700       		ori.w	#$700,sr
+   7 T 00000008 0A7C 0700       		eori.w	#$700,sr
+   8 T 0000000C 46FC 0700       		move.w	#$700,sr
+
+Total Errors:      0
+Total Warnings:    0
+
+
+SYMBOL TABLE
+
+Value     Section/Type  Name
+
+00000000  .text         start
+

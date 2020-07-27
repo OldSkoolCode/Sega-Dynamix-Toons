@@ -1,0 +1,17 @@
+
+
+
+
+#
+#
+#
+INCLUDE=e:\\graphics\\
+
+LIBPATH=e:\\graphics\\
+
+.asm.obj:
+	tasm -zi -i$(INCLUDE) $*.asm
+	
+
+tile.exe: tile.obj
+	tlink -v /L$(LIBPATH) /l /m $*.obj,$*.exe,,object.lib

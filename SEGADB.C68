@@ -1,0 +1,41 @@
+
+
+#include "vm.h"
+#include "tim.h"
+
+/* * * * *
+*
+*  draw_part_border(part);
+*
+*  This function will draw the border that surrounds the specified part.
+*  The borders is drawn RED.
+*
+* * * * */
+void draw_part_border(PART *part)
+{
+   P_PART_BORDER bptr;
+   short i, x, y, ox, oy, nx, ny;
+
+   bptr = part->border;
+   if(bptr)
+   {
+      vm_lcolor = 7;
+      x = part->scrn_loc.x + part->border_offset.x - ledge;
+      y = part->scrn_loc.y + part->border_offset.y - tedge;
+
+      ox = x + (bptr+part->num_borders-1)->x;
+      oy = y + (bptr+part->num_borders-1)->y;
+      for(i=part->num_borders; i; i--)
+      {
+         nx = x + bptr->x;
+         ny = y + bptr->y;
+         bptr++;
+         vm_line(ox,oy,nx,ny);
+         ox = nx;
+         oy = ny;
+      }
+
+   }
+}
+
+

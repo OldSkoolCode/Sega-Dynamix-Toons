@@ -1,0 +1,227 @@
+/* * * * *
+*
+*  INTERACT.C
+*
+*  This file contains routines to handle interactions between the
+*  different parts.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  02/14/92 Kevin Ryan  File created
+*
+* * * * */
+#include <stdio.h>
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+
+/*local routines */
+static void move_and_collide( PART *);
+
+
+
+void interactions()
+{
+   short flags2,i;
+   PART *cur_part, *next_part;
+   FORCE_TRANSFER *ft_ptr;
+   ROPE *rptr;
+
+   /* turn the following flags off. */
+   for(i=0; i<2; i++)
+   {
+      cur_part = i ? static_list.next : move_list.next;
+      while (cur_part)
+      {
+         cur_part->flags2 &= ((F2_INTERNAL|F2_FROZEN|F2_NOT_FROZEN)^0xffff);
+         cur_part = cur_part->next;
+      }
+   }
+
+   /* This essentially processes the teeter totter */
+   ft_ptr = ft_list;
+   while (ft_ptr)
+   {
+      cur_part = ft_ptr->pptr;
+      if ((cur_part->flags2&F2_INTERNAL) == 0)
+         prop[cur_part->type].internal_func(cur_part);
+      ft_ptr = ft_ptr->next;
+   }
+   clear_ft();
+
+   /* This processes the rotation generating parts (mouse cage, etc.) */
+   cur_part = static_list.next;
+   while (cur_part)
+   {
+      flags2 = cur_part->flags2;
+      if ((flags2 & F2_ROT_PROVIDE)&&!(flags2&(F2_INTERNAL|F2_INACTIVE)))
+         prop[cur_part->type].internal_func(cur_part);
+
+      cur_part = cur_part->next;
+   }
+
+   /* This processes the gears. */
+   cur_part = static_list.next;
+   while (cur_part)
+   {
+      if ((cur_part->type == PT_GEAR)&&
+         !(cur_part->flags2&(F2_INTERNAL|F2_INACTIVE)))
+         prop[cur_part->type].internal_func(cur_part);
+
+      cur_part = cur_part->next;
+   }
+
+   /* This processes all other static parts. */
+   cur_part = static_list.next;
+   while (cur_part)
+   {
+      flags2 = cur_part->flags2;
+
+      if (!(flags2&(F2_INTERNAL|F2_ROT_PROVIDE|F2_INACTIVE)))
+         prop[cur_part->type].internal_func(cur_part);
+
+      cur_part = cur_part->next;
+   }
+
+   /* This processes all the movement of all the moving parts. */
+   cur_part = move_list.next;
+   while (cur_part)
+   {
+      next_part = cur_part->next;
+      if (!(cur_part->flags2&F2_INACTIVE))
+      {
+         adjust_falling(cur_part);
+         cur_part->mass = prop[cur_part->type].mass;
+         cur_part->flags3 &= (F3_INSIDE^0xffff);
+      }
+      cur_part = next_part;
+   }
+
+   /* This processes all the physical collisions of all the moving parts. */
+   /* Inside move_and_collide the internal function of all the parts will be */
+   /* called. */
+   cur_part = move_list.next;
+   while (cur_part)
+   {
+      next_part = cur_part->next;
+      move_and_collide(cur_part);
+      cur_part = next_part;
+   }
+
+   /* This is the main processer for the moving parts. The internal function */
+   /* would have already been called at this point. */
+   cur_part = move_list.next;
+   while (cur_part)
+   {
+      next_part = cur_part->next;
+      if ((!(cur_part->flags1&F1_DID_IMPACT))&&
+         (!(cur_part->flags2&F2_INACTIVE)))
+      {
+         switch (cur_part->type)
+         {
+            case PT_AL_CAT:
+            case PT_SID_MOUSE:
+            case PT_BALLOON:
+            case PT_PIANO:
+            case PT_EGG:
+            case PT_WWII_BOMB:
+               if (cur_part->flags1 & (F1_COLLIDE|F1_IMPACT))
+                  prop[cur_part->type].bounce_func(cur_part);
+         }
+         if (cur_part->flags1 & F1_COLLIDE)
+         {
+            if (prop[cur_part->col_info.part->type].bounce_func(cur_part))
+            {
+               if (cur_part->flags1&F1_ROLLING)
+                  roll_part(cur_part);
+               else
+                  bounce(cur_part);
+            }
+         }
+         else
+            if (cur_part->flags1 & F1_IMPACT)
+               if (prop[cur_part->col_info.part->type].bounce_func(cur_part))
+                  impact(cur_part);
+      }
+
+      cur_part = next_part;
+   }
+
+   /* This places the erase rectangles on the list */
+   cur_part = get_first_part(F1_STATIC_L|F1_MOVE_L);
+   while (cur_part)
+   {
+      if (!(cur_part->flags2&F2_INACTIVE))
+      {
+			if ((!(cur_part->flags1 & F1_STATIC)) ||
+				(cur_part->flags3 & F3_FINE_PLACE))
+   	      erase_and_draw(cur_part);
+			else
+	         if ((cur_part->scrn_loc.x!=cur_part->old_old_scrn_loc.x) ||
+   	          (cur_part->scrn_loc.y!=cur_part->old_old_scrn_loc.y) ||
+      	       (cur_part->state!=cur_part->old_old_state) )
+         	   erase_and_draw(cur_part);
+	         else
+   	         if ((cur_part->scrn_loc.x!=cur_part->old_scrn_loc.x) ||
+      	          (cur_part->scrn_loc.y!=cur_part->old_scrn_loc.y) ||
+         	       (cur_part->state!=cur_part->old_state) )
+            	   for (i=0;i<2;i++)
+               	   if ((rptr=cur_part->rope_tie[i]) != 0)
+                  	{
+	                     rptr->pt[0] = rptr->old_old_pt[0];
+   	                  rptr->pt[1] = rptr->old_old_pt[1];
+      	            }
+      }
+
+      cur_part = get_next_part(cur_part,F1_MOVE_L);
+   }
+}
+
+
+
+static void move_and_collide(PART *cur_part)
+{
+   short location_adjusted;
+   char locs,rocs;
+   COLLIDE_INFO *ci_ptr;
+   PART *last_col_part;
+
+   if (!(cur_part->flags2&F2_INACTIVE))
+   {
+/*      if (cur_part->type != PT_TEAPOT) */
+         prop[cur_part->type].internal_func(cur_part);
+
+      move_part(cur_part);
+
+      cur_part->flags1 &= ((F1_ROLLING|F1_COLLIDE|F1_IMPACT|F1_DID_IMPACT)^0xffff);
+      collide(cur_part);
+      if (cur_part->rope_tie[0])
+      {
+         location_adjusted = let_rope_adj_loc(cur_part);
+
+         if (location_adjusted)
+            cur_part->flags1 &= ((F1_ROLLING|F1_COLLIDE|F1_IMPACT|F1_DID_IMPACT)^0xffff);
+         else
+         {
+            ci_ptr = &cur_part->col_info;
+            last_col_part = ci_ptr->part;
+            locs = ci_ptr->left_of_cog_supported;
+            rocs = ci_ptr->right_of_cog_supported;
+            ci_ptr->part = 0;
+         }
+         collide(cur_part);
+         if ((location_adjusted==0) && (ci_ptr->part==0))   /* RichR */
+         {
+            ci_ptr->part = last_col_part;
+            ci_ptr->left_of_cog_supported = locs;
+            ci_ptr->right_of_cog_supported = rocs;
+         }
+      }
+   }
+}
+
+

@@ -1,0 +1,225 @@
+/* * * * *
+*
+*  TN_MESG.C
+*
+*  This file contains all the code associated with the message machine.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/13/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+#define MESSAGE_UP      1
+#define MESSAGE_DOWN   -1
+#define MESSAGE_RATE    0
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                               MESSAGE MACHINE                              *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* supershape structure definition */
+static F_SSHAPE_C message1_2 = {0, MESSAGE_PLANE1, {5,255,255,255},
+   {{10,32},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C message1 = {&message1_2, MESSAGE_PLANE, {4,1,7,2},
+   {{12,-7},{3,4},{14,30},{4,10}}};
+static F_SSHAPE_C message2_2 = {0, MESSAGE_PLANE1, {6,255,255,255},
+   {{10,31},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C message2 = {&message2_2, MESSAGE_PLANE, {4,1,2,7},
+   {{12,-7},{3,4},{4,10},{14,30}}};
+static F_SSHAPE_C message3 = {0, MESSAGE_PLANE, {7,4,5,3},
+   {{14,30},{12,-7},{10,32},{3,7}}};
+static F_SSHAPE_C message4 = {0, MESSAGE_PLANE, {4,8,5,255},
+   {{12,-7},{3,2},{10,32},{0,0}}};
+static F_SSHAPE_C message5 = {0, MESSAGE_PLANE, {4,5,8,255},
+   {{12,-7},{10,32},{3,2},{0,0}}};
+static F_SSHAPE_C message6 = {0, MESSAGE_PLANE, {4,9,5,255},
+   {{12,-7},{4,3},{10,32},{0,0}}};
+static F_SSHAPE_C message7 = {0, MESSAGE_PLANE, {1,4,5,255},
+   {{3,4},{12,-7},{10,32},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far message_ss_tab[MESSAGE_NUM_STATES] = 
+   {&message1,&message2,&message3,&message4,&message5,&message6,
+    &message7};
+
+/* size. */
+TIM_VEC_C far message_size[MESSAGE_NUM_STATES] = 
+   {{32,45},{32,47},{32,47},{32,45},{32,45},{32,45},
+    {32,45}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far message_os[MESSAGE_NUM_STATES] = 
+   {{0,-5},{0,-8},{0,-7},{0,-5},{0,-5},{0,-5},{0,-5}};
+
+/* border definitions. */
+static PART_BORDER_C far message1_bord[MESSAGE_BORDERS] =
+   {{11,-5,0},{25,3,0},{25,25,0},{11,31,0},
+    {0,25,0},{0,6,0}};
+static PART_BORDER_C far message2_bord[MESSAGE_BORDERS] =
+   {{11,-5,0},{25,3,0},{25,25,0},{11,31,0},
+    {0,25,0},{0,6,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far message_bord_tab[MESSAGE_NUM_STATES] =
+   {message1_bord,message1_bord,message1_bord,message2_bord,
+    message2_bord,message2_bord,message2_bord};
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void message_reinit(PART *message)
+{
+   static const signed char far top_rope_tie_y[MESSAGE_NUM_STATES] =
+   {
+      0,-3,-2,1,0,0,0
+   };
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!message)
+   {
+      set_border_table_slopes(PT_MESSAGER, 0, message_bord_tab, 0,
+                                                         MESSAGE_NUM_STATES);
+      return;
+   }
+   
+   message->border = message_bord_tab[message->state];
+   message->rope_loc[0].x = (7<<VIRTUALCOORDS);
+   message->rope_loc[0].y = top_rope_tie_y[message->state];
+   set_adjusted_loc_size(message);
+}
+
+void message_internal(PART *message)
+{
+   short direction, message_link, other_tie, rope_action;
+   ROPE *rptr;
+   PART *other_part;
+
+   static const char far state_array[] =
+   {
+      1,2,3,4,5,6,5,6,5,6,5,6,7
+   };
+   #define NUM_STATES   (sizeof(state_array)/sizeof(char))
+
+   /* check if the message machine was triggered */
+   if (message->sub_state)
+   {
+      if (++message->work_var < NUM_STATES)
+      {
+         message->state = state_array[message->work_var] - 1;
+         message_reinit(message);
+
+         if (message->state == 3)
+            jtp_sx_play(SX_MESSAGE,0,1);
+
+         /* pull the rope */
+         direction = MOVING_UP;
+         if((rptr = message->rope_tie[0]) != 0)
+         {
+            if (rptr->link1 == message)
+            {
+               message_link = 0;
+               other_tie = rptr->l2_num;
+            }
+            else
+            {
+               message_link = 1;
+               other_tie = rptr->l1_num;
+            }
+            rope_action = get_rope_action(rptr, message_link, direction);
+            other_part = get_rope_link(message,rptr);
+            prop[other_part->type].rope_func(message,other_part,other_tie,
+               rope_action,0,MAX_FORCE);
+         }
+      }
+      else
+      {
+         message->work_var = NUM_STATES;
+         message->sub_state = 0;
+      }
+   }
+}
+
+short message_bounce(PART *cur_part)
+{
+   #define PLUNGER_BORD_NUM  2
+
+   short bord_num;
+   PART *message;
+
+   message = cur_part->col_info.part;
+   bord_num = cur_part->col_info.border_num;
+
+   switch (bord_num)
+   {
+      case PLUNGER_BORD_NUM:
+      case PLUNGER_BORD_NUM + 1:
+         message->sub_state = 1;
+         break;
+   }
+
+   return(1);
+}
+
+#pragma argsused
+short message_rope(PART *from_part,PART *message,short tie_num,short rope_type,short mass,long force)
+{
+   rope_type &= (RP_SLACK|RP_PULL_UP);
+   switch(rope_type)
+   {
+      case RP_PULL_UP:
+         message->sub_state = 1;
+         break;
+      case RP_SLACK:
+         message->rope_tie[tie_num]->slack++;
+         break;
+   }
+   return(0);
+}
+
+
+void draw_messager(PART *messager,UCHAR plane,SHORT loc_scale_adj,SHORT size_scale_adj)
+{
+   #define FOREGROUND            8
+   #define BACKGROUND           12
+
+   void *shape_table;
+   short x,y, old_font;
+   signed char *letter;
+
+   /* draw the curtain */
+   draw_norm_part(messager,plane,loc_scale_adj,size_scale_adj);
+
+   x = messager->scrn_loc.x - ledge;
+   y = messager->scrn_loc.y - tedge;
+   /* draw the letter in the box */
+   x += (21/4)<<VIRTUALCOORDS;    /* center of window */
+   y += (20/4)<<VIRTUALCOORDS;
+   letter = (char *)(&messager->memory);
+#if 0
+   old_font = vm_fontselect(0);
+   vm_fontselect(messager_font);
+   vm_fgcolor = FOREGROUND;
+   vm_bgcolor = BACKGROUND;
+   draw_shadow_text(letter, x-vm_str_width(letter)/2, y-vm_fontheight(0)/2, 1);
+   vm_fontselect(old_font);
+#endif
+
+   x = messager->scrn_loc.x - ledge;
+   y = messager->scrn_loc.y - tedge;
+   shape_table = prop[messager->type].part_shapes;
+   draw_bitmap(shape_table,x,y,0,0);
+
+}
+
+
+

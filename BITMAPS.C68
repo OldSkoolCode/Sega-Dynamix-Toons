@@ -1,0 +1,927 @@
+/* * * * *
+*
+*  BITMAPS.C
+*
+*  This file handles the loading and freeing of the bitmaps
+*  used in Incredible Toons.  The functions in this file
+*  are written to be used with Incredible Toons only!
+*
+*  By Rich Rayl -- (c) 1993 Dynamix, Inc.  (Jeff Tunnell Productions)
+*
+*  Modification History:
+*  ---------------------
+*  06/22/93 RichR    File created
+*
+* * * * */
+
+#include <stdio.h>
+#include <string.h>
+#include "vm.h"
+#include "tim.h"
+
+/* Define the local data */
+short set_cat_bitmaps(short id, void *table);
+short set_mouse_bitmaps(short id, void *table);
+extern void *partTable[];
+extern void *catTable[];
+extern void *sidTable[];
+void erase_sbitmap(UWORD *fpa_file, short x, short y, short flip, short frame);
+
+short runfirsttime;
+
+extern UWORD part26;
+extern UWORD part27;
+extern UWORD part28;
+extern UWORD part29;
+extern UWORD part45;
+extern UWORD part46;
+extern UWORD part47;
+extern UWORD part48;
+extern UWORD part49;
+extern UWORD part50;
+extern UWORD part51;
+extern UWORD part82;
+extern UWORD part83;
+extern UWORD part84;
+
+
+/***
+ *		load_part_chars:	This routine loads the characters involved in
+ *								an animation into the VRAM for latter use.  It
+ *								is for the backgrounds.
+ ***/
+
+static const UWORD	spr_sizes[16] = {
+	1,2,3,4,		/* ?V 0H */
+	2,4,6,8,		/* ?V 1H */
+	3,6,9,12,	/* ?V 2H */
+	4,8,12,16	/* ?V 3H */
+};
+
+void
+load_part_chars(UWORD *fpa_file,UWORD base_chr,UWORD from,UWORD to)
+{
+	short	i,j,k;
+	UWORD	l;
+	UWORD	base;
+	UWORD	*anim_ptr;
+	UWORD	*spr_ptr;
+	UWORD	*char_ptr;
+	UWORD	*data_ptr;
+	BYTE	*bptr;
+
+	/* Point to base of character definitions */
+	char_ptr = (UWORD *)((BYTE *)fpa_file + *(fpa_file + 5));
+	char_ptr++;	/* Skip number of characters */
+	/* Point to animation to frame list */
+	anim_ptr = (UWORD *)((BYTE *)fpa_file + *(fpa_file + 2));
+	base = base_chr << 5;
+	anim_ptr += from;
+	SYS_VDPAccess = FALSE;
+	WVCTRL = 0x8F02;
+	for (i = from; i <= to; i++) {
+		/* Point to sprite definitions */
+		spr_ptr = (UWORD *)((BYTE *)fpa_file + *anim_ptr);
+		j = *spr_ptr;
+		spr_ptr += 4;
+		bptr = (BYTE *)spr_ptr;
+		spr_ptr += 4 * j;
+		while (j) {
+			/* For each sprite, load a set of characters */
+			k = spr_sizes[*(bptr + 2)];
+			l = ((*(UWORD *)(bptr + 4)) & 0x07FF) << 4;
+			data_ptr = char_ptr + l;
+			SYS_SetVAddr(base);
+			while (k) {
+				for (l=0; l < 16; l++)
+					VDATA = *data_ptr++;
+				base += 32;
+				k--;
+			}
+			bptr += 8;
+			j--;
+		}
+		anim_ptr++;
+	}
+	SYS_VDPAccess = TRUE;
+}
+
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     load_part_bitmaps(id);
+*
+*     This function will load the bitmap file associated
+*     with the specified part.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     id             short / Id of the part that needs its bitmaps loaded.
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void load_part_bitmaps(short id)
+{
+   char filename[13];
+	P_PART_ELEMENTS tptr;
+
+   /* Don't load the cat or mouse parts */
+   if((id == PT_AL_CAT) || (id == PT_SID_MOUSE))
+      return;
+
+	tptr  = &prop[id];
+   /* If bitmaps are already in memory, just return */
+	if ((tptr->part_shapes == partTable[id]) && !runfirsttime)
+		return;
+
+	tptr->part_shapes = partTable[id];
+
+	switch (id)
+		{
+		case PT_WALL0:
+			load_part_chars(&part26,2+0,0,5);
+			break;
+		case PT_WALL1:
+			load_part_chars(&part27,2+6,0,11);
+			break;
+		case PT_WALL2:
+			load_part_chars(&part28,2+18,0,11);
+			break;
+		case PT_WALL3:
+			load_part_chars(&part29,2+30,0,11);
+			break;
+		case PT_WALL4:
+			load_part_chars(&part82,2+122,0,9);
+			break;
+		case PT_WALL5:
+			load_part_chars(&part83,2+132,0,9);
+			break;
+		case PT_LADDER:
+			load_part_chars(&part45,2+162,0,5);
+			break;
+		case PT_TUNNEL:
+			load_part_chars(&part46,2+188,0,0);
+			break;
+		case PT_INCLINE0:
+			load_part_chars(&part47,2+168,0,3);
+			break;
+		case PT_INCLINE1:
+			load_part_chars(&part48,2+42,0,3);
+			break;
+		case PT_INCLINE2:
+			load_part_chars(&part49,2+62,0,3);
+			break;
+		case PT_INCLINE3:
+			load_part_chars(&part50,2+82,0,3);
+			break;
+		case PT_INCLINE4:
+			load_part_chars(&part51,2+102,0,3);
+			break;
+		case PT_INCLINE5:
+			load_part_chars(&part84,2+142,0,3);
+			break;
+		}
+}
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     load_cat_bitmaps(id);
+*
+*     This function will load the cat bitmap files associated
+*     with the specified id.
+*     
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     id             short / Id of which cat bitmap file should be loaded.
+*                    Id is an index into the cat_shape_tables[].
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void load_cat_bitmaps(short id)
+{
+   /* Handle special case where bitmap is used more than once */
+   id = set_cat_bitmaps(id, cat_shape_tables[id]);
+
+   /* If bitmaps are already loaded, return now */
+   if(cat_shape_tables[id])
+      return;
+
+   set_cat_bitmaps(id, catTable[id]);
+}
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     load_mouse_bitmaps(id);
+*
+*     This function will load the mouse bitmap files associated
+*     with the specified id.
+*     
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     id             short / Id of which mouse bitmap file should be loaded.
+*                    Id is an index into the mouse_shape_tables[].
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void load_mouse_bitmaps(short id)
+{
+   /* Handle special case where bitmap is used more than once */
+   id = set_mouse_bitmaps(id, mouse_shape_tables[id]);
+
+   /* If bitmaps are already loaded, return now */
+   if(mouse_shape_tables[id])
+      return;
+
+   /* Load bitmap file */
+   set_mouse_bitmaps(id,sidTable[id]);
+}
+
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     free_bitmap_file(table);
+*
+*     This function will free the specified shape table.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     table          void* / Table is a pointer the shape
+*                    table that is to be freed.
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+*     If EMM.H is included, then any bitmap file that is loaded
+*     via the load_bitmap_file() function, MUST call this function
+*     to free the bitmaps.
+*
+*     This function call be called with pointer to shape tables
+*     that were not allocated by load_bitmap_file().  In these
+*     cases, the table will simply be passed to vm2_shapefree().
+*
+* * * * */
+void free_bitmap_file(void *table)
+{
+}
+
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     free_cat_bitmaps(id);
+*
+*     This function will free the cat bitmap files associated
+*     with the specified id.
+*     
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     id             short / Id of which cat bitmap file should be freed.
+*                    Id is an index into the cat_shape_tables[].
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void free_cat_bitmaps(short id)
+{
+}
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     free_mouse_bitmaps(id);
+*
+*     This function will free the mouse bitmap files associated
+*     with the specified id.
+*     
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     id             short / Id of which mouse bitmap file should be freed.
+*                    Id is an index into the mouse_shape_tables[].
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void free_mouse_bitmaps(short id)
+{
+}
+
+/* * * * *
+*
+*  Syntax:
+*
+*     short remove_bitmap_file(void);
+*
+*     This function will free the bitmap file that has not been used
+*     the longest.  Only parts, cat and mouse bitmap files are freed.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     none
+*
+*  Return Value:
+*     If successful, this function will return a TRUE.  Otherwise
+*     this function will return FALSE.
+*
+*  Comments:
+*
+* * * * */
+short remove_bitmap_file(void)
+{
+   return(0);
+}
+
+
+/***
+ *		draw_sbitmap:		Draw a static sprite on screen B.
+ ***/
+
+#define	VDATA			(*((UWORD *)0xC00000))
+#define	ScrollB		(56*1024)						/* 8K boundary */
+
+void draw_sbitmap(UWORD *fpa_file, short x, short y, short flip, short frame)
+{
+	short tx,ty;
+	short	i,j,k;
+	UWORD tChar;
+	UWORD	screen_addr;
+	UWORD	base;
+	UWORD	tmp_addr;
+	UWORD	*anim_ptr;
+	UWORD	*spr_ptr;
+	BYTE	*bptr;
+	extern UWORD part3;
+	extern UWORD part26;
+	extern UWORD part27;
+	extern UWORD part28;
+	extern UWORD part29;
+	extern UWORD part45;
+	extern UWORD part46;
+	extern UWORD part47;
+	extern UWORD part48;
+	extern UWORD part49;
+	extern UWORD part50;
+	extern UWORD part51;
+	extern UWORD part82;
+	extern UWORD part83;
+	extern UWORD part84;
+
+	if (globalErase)
+		erase_sbitmap(fpa_file, x, y, flip, frame);
+
+	/* when in the part bin draw as a sprite */
+	if (is_partbin) {
+		draw_bitmap(fpa_file,x,y,flip,frame);
+		return;
+	}
+
+	/* Code to draw background, kinda a kludge, but... (KLM) */
+	i = -1;
+	if (fpa_file == &part26) {
+		i = 5;
+		base = 2+0;
+	} else
+	if (fpa_file == &part27) {
+		i = 11;
+		base = 2+6;
+	} else
+	if (fpa_file == &part28) {
+		i = 11;
+		base = 2+18;
+	} else
+	if (fpa_file == &part29) {
+		i = 11;
+		base = 2+30;
+	} else
+	if (fpa_file == &part48) {
+		i = 3;
+		base = 2+42;
+	} else
+	if (fpa_file == &part49) {
+		i = 3;
+		base = 2+62;
+	} else
+	if (fpa_file == &part50) {
+		i = 3;
+		base = 2+82;
+	} else
+	if (fpa_file == &part51) {
+		i = 3;
+		base = 2+102;
+	} else
+	if (fpa_file == &part82) {
+		i = 9;
+		base = 2+122;
+	} else
+	if (fpa_file == &part83) {
+		i = 9;
+		base = 2+132;
+	} else
+	if (fpa_file == &part84) {
+		i = 3;
+		base = 2+142;
+	} else
+	if (fpa_file == &part45) {
+		i = 6;
+		base = 2+162;
+	} else
+	if (fpa_file == &part47) {
+		i = 6;
+		base = 2+168;
+	} else
+	if (fpa_file == &part46) {
+		i = 0;
+		base = 2+188;
+	} 
+
+	if (frame > i) {
+		draw_bitmap(fpa_file,x,y,flip,frame);
+		return;
+	}
+
+	if (!runfirsttime)
+		return;
+		
+#if 1
+	tChar = 0;
+	if (flip & FLIP_HORIZONTAL)
+		tChar |= 0x0800;
+	if (flip & FLIP_VERTICAL)
+		tChar |= 0x1000;
+#endif
+
+//	x %= 512;
+//	y %= 256;
+
+	tx = x>>VIRTUALCOORDS;
+	ty = y>>VIRTUALCOORDS;
+	screen_addr = ScrollB + ((ty >> 3) * 128) + ((tx >> 3) * 2);
+
+	/* Point to animation to frame list */
+	anim_ptr = (UWORD *)((BYTE *)fpa_file + *(fpa_file + 2));
+	/* Point to sprite definitions */
+	spr_ptr = (UWORD *)((BYTE *)fpa_file + *(anim_ptr + frame));
+	j = *spr_ptr;
+	spr_ptr += 4;
+	bptr = (BYTE *)spr_ptr;
+	/* Assume one sprite for now... */
+	i = *(bptr + 2) >> 2;
+	base += ((*(UWORD *)(bptr + 4)) & 0x07FF);
+	if (flip & FLIP_HORIZONTAL)
+		tx = i;
+	else
+		tx = 0;
+#if 0
+	if (flip & FLIP_VERTICAL)
+		screen_addr += 128 * (*(bptr + 2) & 3);
+#endif
+	SYS_VDPAccess = FALSE;
+	WVCTRL = 0x8F02;
+	while (i >= 0) {
+		j = *(bptr + 2) & 3;
+		tmp_addr = screen_addr + (tx * 2);
+		while (j >= 0) {
+			SYS_SetVAddr(tmp_addr);
+			VDATA = base | tChar;
+#if 0
+			if (flip & FLIP_VERTICAL)
+				tmp_addr -= 128;
+			else
+#endif
+				tmp_addr += 128;
+			base++;
+			j--;
+		}
+		if (flip & FLIP_HORIZONTAL)
+			tx--;
+		else
+			tx++;
+		i--;
+	}
+	SYS_VDPAccess = TRUE;
+
+}
+
+
+
+void erase_sbitmap(UWORD *fpa_file, short x, short y, short flip, short frame)
+{
+	short tx,ty;
+	short	i,j,k;
+	UWORD tChar;
+	UWORD	screen_addr;
+	UWORD	base;
+	UWORD	tmp_addr;
+	UWORD	*anim_ptr;
+	UWORD	*spr_ptr;
+	BYTE	*bptr;
+
+	/* Code to erase background, kinda a kludge, but... (KLM) */
+	i = -1;
+	if (fpa_file == &part26) {
+		i = 5;
+		base = 2+0;
+	} else
+	if (fpa_file == &part27) {
+		i = 11;
+		base = 2+6;
+	} else
+	if (fpa_file == &part28) {
+		i = 11;
+		base = 2+18;
+	} else
+	if (fpa_file == &part29) {
+		i = 11;
+		base = 2+30;
+	} else
+	if (fpa_file == &part48) {
+		i = 3;
+		base = 2+42;
+	} else
+	if (fpa_file == &part49) {
+		i = 3;
+		base = 2+62;
+	} else
+	if (fpa_file == &part50) {
+		i = 3;
+		base = 2+82;
+	} else
+	if (fpa_file == &part51) {
+		i = 3;
+		base = 2+102;
+	} else
+	if (fpa_file == &part82) {
+		i = 9;
+		base = 2+122;
+	} else
+	if (fpa_file == &part83) {
+		i = 9;
+		base = 2+132;
+	} else
+	if (fpa_file == &part84) {
+		i = 3;
+		base = 2+142;
+	} else
+	if (fpa_file == &part45) {
+		i = 6;
+		base = 2+162;
+	} else
+	if (fpa_file == &part47) {
+		i = 6;
+		base = 2+168;
+	} else
+	if (fpa_file == &part46) {
+		i = 0;
+		base = 2+188;
+	} 
+
+	if (frame > i)
+		return;
+
+//	x %= 512;
+//	y %= 256;
+
+	tx = x>>VIRTUALCOORDS;
+	ty = y>>VIRTUALCOORDS;
+	screen_addr = ScrollB + ((ty >> 3) * 128) + ((tx >> 3) * 2);
+
+	/* Point to animation to frame list */
+	anim_ptr = (UWORD *)((BYTE *)fpa_file + *(fpa_file + 2));
+	/* Point to sprite definitions */
+	spr_ptr = (UWORD *)((BYTE *)fpa_file + *(anim_ptr + frame));
+	j = *spr_ptr;
+	spr_ptr += 4;
+	bptr = (BYTE *)spr_ptr;
+	/* Assume one sprite for now... */
+	i = *(bptr + 2) >> 2;
+	base += ((*(UWORD *)(bptr + 4)) & 0x07FF);
+	if (flip & FLIP_HORIZONTAL)
+		tx = i;
+	else
+		tx = 0;
+
+	SYS_VDPAccess = FALSE;
+	WVCTRL = 0x8F02;
+	while (i >= 0) {
+		j = *(bptr + 2) & 3;
+		tmp_addr = screen_addr + (tx * 2);
+		while (j >= 0) {
+			SYS_SetVAddr(tmp_addr);
+			VDATA = 0;
+				tmp_addr += 128;
+			base++;
+			j--;
+		}
+		if (flip & FLIP_HORIZONTAL)
+			tx--;
+		else
+			tx++;
+		i--;
+	}
+	SYS_VDPAccess = TRUE;
+
+}
+
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     draw_bitmap(shape, x, y, flip, shp_num);
+*
+*     This function will draw the specified bitmap via
+*     the vm2_flip_draw() function.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     shape          void * / Bitmap that is to be drawn.
+*
+*     x,y            shorts / Location to draw bitmap at.
+*
+*     flip           short / Directions bitmap should be flipped.
+*
+*		shp_num			short / shape number inside file
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void draw_bitmap(void *sptr, short x, short y, short flip, short shp_num)
+{
+	short tx,ty;
+	UWORD tsprChar;
+
+
+	if (globalErase)
+		return;
+
+	tsprChar = spriteChar;
+	if (flip & FLIP_HORIZONTAL)
+		tsprChar |= 0x800;
+	if (flip & FLIP_VERTICAL)
+		tsprChar |= 0x1000;
+
+	/* enough room in character buffer? */
+	if (((spriteChar&0x7ff)+GetFrameChars(0,shp_num, sptr)) >= endSprChar2)
+		return;
+
+	/* sprite off display */
+#if 1
+	x -= hscrollValue;
+	y -= vscrollValue;
+//	x %= 512;
+//	y %= 256;
+
+	tx = x>>VIRTUALCOORDS;
+	ty = y>>VIRTUALCOORDS;
+	if ((tx >= 512-128) || (tx <= -128))
+		return;
+
+	if ((ty >= 512-128) || (ty <= -128))
+		return;
+
+	spriteChar += Disp1AnimFrame(tx,ty,0,shp_num,tsprChar, sptr, globPriority);
+	globPriority -= 1;
+#else
+	vm_rect(vm_lclip, vm_tclip, vm_rclip, vm_bclip);
+	tx = (x-56);
+	tx += (tx*77)/256;
+	ty = y;
+	ty += (ty*77)/256;
+	tx = x-56;
+	ty = y;
+
+	if (!flip)
+		vm_draw(tx,ty, shp_num, sptr);
+	else
+		vm_flip_draw(tx,ty, shp_num, sptr, flip);
+
+	SYS_WaitFrame();
+	SYS_DMA((ULONG)vm_schar << 5, 32000L, vm_scrnptr);
+#endif
+
+}
+
+
+/* * * * *
+*
+*  set_cat_bitmaps(id, table);
+*
+*  Sets the shape table pointer for the cat taking into account
+*  that some indexs refer to the same table.
+*
+*  Also returns index to the primary sequence
+*  (the one that contains filename).
+*
+* * * * */
+short set_cat_bitmaps(short id, void *table)
+{
+   switch(id)
+   {
+      case CAT_SHAKE_INDEX:
+      case CAT_BIRDS_INDEX:
+         cat_shape_tables[CAT_SHAKE_INDEX] = table;
+         cat_shape_tables[CAT_BIRDS_INDEX] = table;
+         return(CAT_SHAKE_INDEX);
+
+      case CAT_RUN_INDEX:
+      case CAT_SPIN_INDEX:
+      case CAT_SKID_INDEX:
+         cat_shape_tables[CAT_RUN_INDEX] = table;
+         cat_shape_tables[CAT_SPIN_INDEX] = table;
+         cat_shape_tables[CAT_SKID_INDEX] = table;
+         return(CAT_RUN_INDEX);
+
+      case CAT_RUNAW_INDEX:
+      case CAT_SPINAW_INDEX:
+         cat_shape_tables[CAT_RUNAW_INDEX] = table;
+         cat_shape_tables[CAT_SPINAW_INDEX] = table;
+         return(CAT_RUNAW_INDEX);
+
+      case CAT_HIT_FLOOR_INDEX:     
+      case CAT_HIT_CEILING_INDEX:     
+      case CAT_HIT_LEFT_WALL_INDEX:     
+      case CAT_HIT_RIGHT_WALL_INDEX:     
+         cat_shape_tables[CAT_HIT_FLOOR_INDEX] = table;
+         cat_shape_tables[CAT_HIT_CEILING_INDEX] = table;
+         cat_shape_tables[CAT_HIT_LEFT_WALL_INDEX] = table;
+         cat_shape_tables[CAT_HIT_RIGHT_WALL_INDEX] = table;
+         return(CAT_HIT_FLOOR_INDEX);
+
+      case CAT_SLIDE1_INDEX:     
+      case CAT_SLIDE2_INDEX:     
+      case CAT_SLIDE3_INDEX:     
+      case CAT_SLIDE4_INDEX:     
+         cat_shape_tables[CAT_SLIDE1_INDEX] = table;
+         cat_shape_tables[CAT_SLIDE2_INDEX] = table;
+         cat_shape_tables[CAT_SLIDE3_INDEX] = table;
+         cat_shape_tables[CAT_SLIDE4_INDEX] = table;
+         return(CAT_SLIDE1_INDEX);
+
+      case CAT_VAC1_INDEX:     
+      case CAT_VAC2_INDEX:     
+      case CAT_VAC3_INDEX:     
+         cat_shape_tables[CAT_VAC1_INDEX] = table;
+         cat_shape_tables[CAT_VAC2_INDEX] = table;
+         cat_shape_tables[CAT_VAC3_INDEX] = table;
+         return(CAT_VAC1_INDEX);
+
+      case CAT_PENCIL1_INDEX:     
+      case CAT_PENCIL2_INDEX:     
+      case CAT_PENCIL4_INDEX:     
+         cat_shape_tables[CAT_PENCIL1_INDEX] = table;
+         cat_shape_tables[CAT_PENCIL2_INDEX] = table;
+         cat_shape_tables[CAT_PENCIL4_INDEX] = table;
+         return(CAT_PENCIL1_INDEX);
+
+      case CAT_MIRROR1_INDEX:     
+      case CAT_MIRROR2_INDEX:     
+         cat_shape_tables[CAT_MIRROR1_INDEX] = table;
+         cat_shape_tables[CAT_MIRROR2_INDEX] = table;
+         return(CAT_MIRROR1_INDEX);
+
+      case CAT_GUM_INDEX:     
+      case CAT_GUM2_INDEX:     
+      case CAT_GUM3_INDEX:     
+         cat_shape_tables[CAT_GUM_INDEX] = table;
+         cat_shape_tables[CAT_GUM2_INDEX] = table;
+         cat_shape_tables[CAT_GUM3_INDEX] = table;
+         return(CAT_GUM_INDEX);
+
+      default:
+         cat_shape_tables[id] = table;
+         return(id);
+   }
+}
+
+
+/* * * * *
+*
+*  set_mouse_bitmaps(id, table);
+*
+*  Sets the shape table pointer for the mouse taking into account
+*  that some indexs refer to the same table.
+*
+*  Also returns index to the primary sequence
+*  (the one that contains filename).
+*
+* * * * */
+short set_mouse_bitmaps(short id, void *table)
+{
+   switch(id)
+   {
+      case SID_FALL_INDEX:
+      case SID_SPLAT_INDEX:
+      case SID_HIT_FLOOR_INDEX:
+      case SID_HIT_CEILING_INDEX:
+      case SID_HIT_LEFT_WALL_INDEX:
+      case SID_HIT_RIGHT_WALL_INDEX:
+         mouse_shape_tables[SID_FALL_INDEX] = table;
+         mouse_shape_tables[SID_SPLAT_INDEX] = table;
+         mouse_shape_tables[SID_HIT_FLOOR_INDEX] = table;
+         mouse_shape_tables[SID_HIT_CEILING_INDEX] = table;
+         mouse_shape_tables[SID_HIT_LEFT_WALL_INDEX] = table;
+         mouse_shape_tables[SID_HIT_RIGHT_WALL_INDEX] = table;
+         return(SID_FALL_INDEX);
+
+      case SID_WAIT_INDEX:
+      case SID_WALK_INDEX:
+         mouse_shape_tables[SID_WAIT_INDEX] = table;
+         mouse_shape_tables[SID_WALK_INDEX] = table;
+         return(SID_WAIT_INDEX);
+
+      case SID_WAIT1_INDEX:
+      case SID_WAIT2_INDEX:
+      case SID_WAIT3_INDEX:
+      case SID_WAIT4_INDEX:
+         mouse_shape_tables[SID_WAIT1_INDEX] = table;
+         mouse_shape_tables[SID_WAIT2_INDEX] = table;
+         mouse_shape_tables[SID_WAIT3_INDEX] = table;
+         mouse_shape_tables[SID_WAIT4_INDEX] = table;
+         return(SID_WAIT1_INDEX);
+
+      case SID_PIN1_INDEX:
+      case SID_PIN2_INDEX:
+         mouse_shape_tables[SID_PIN1_INDEX] = table;
+         mouse_shape_tables[SID_PIN2_INDEX] = table;
+         return(SID_PIN1_INDEX);
+
+      case SID_SLIDE1_INDEX:
+      case SID_SLIDE2_INDEX:
+      case SID_SLIDE3_INDEX:
+      case SID_SLIDE4_INDEX:
+         mouse_shape_tables[SID_SLIDE1_INDEX] = table;
+         mouse_shape_tables[SID_SLIDE2_INDEX] = table;
+         mouse_shape_tables[SID_SLIDE3_INDEX] = table;
+         mouse_shape_tables[SID_SLIDE4_INDEX] = table;
+         return(SID_SLIDE1_INDEX);
+
+      case SID_VAC_INDEX:
+      case SID_VAC2_INDEX:
+      case SID_VAC3_INDEX:
+         mouse_shape_tables[SID_VAC_INDEX] = table;
+         mouse_shape_tables[SID_VAC2_INDEX] = table;
+         mouse_shape_tables[SID_VAC3_INDEX] = table;
+         return(SID_VAC_INDEX);
+
+      case SID_PENCIL1_INDEX:
+      case SID_PENCIL2_INDEX:
+      case SID_PENCIL3_INDEX:
+      case SID_PENCIL4_INDEX:
+         mouse_shape_tables[SID_PENCIL1_INDEX] = table;
+         mouse_shape_tables[SID_PENCIL2_INDEX] = table;
+         mouse_shape_tables[SID_PENCIL3_INDEX] = table;
+         mouse_shape_tables[SID_PENCIL4_INDEX] = table;
+         return(SID_PENCIL1_INDEX);
+
+      case SID_GUM_INDEX:
+      case SID_BUBBLE_INDEX:
+      case SID_BUBBLE2_INDEX:
+         mouse_shape_tables[SID_GUM_INDEX] = table;
+         mouse_shape_tables[SID_BUBBLE_INDEX] = table;
+         mouse_shape_tables[SID_BUBBLE2_INDEX] = table;
+         return(SID_GUM_INDEX);
+
+       default:
+         mouse_shape_tables[id] = table;
+         return(id);
+   }
+}
+
+
+

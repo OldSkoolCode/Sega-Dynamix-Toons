@@ -1,0 +1,884 @@
+/* * * * *
+*
+*  TN_FILE.C
+*
+*  This module contains all the rewritten T.I.M. code originally found in
+*  FILEIO.C.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/28/93 ChrisC   File created
+*
+* * * * */
+#include <io.h>
+#include <string.h>
+#include "vm.h"
+#include "volume.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "toons.h"
+
+#ifndef EMM_H
+   #define my_emm_malloc   vm_hmalloc
+   #define my_emm_free     vm_hfree
+#endif
+
+/*local vars */
+short global_error;
+
+#if SAVERAM
+#define THESAVEAREA 0x1f0000
+
+unsigned char *savearea;
+long savesize = 65536;
+#endif
+
+
+/*local routines */
+short get_id_from_part( PART *);
+PART *get_part_from_id( short);
+static void preallocate_parts( short);
+void load_level( char *);
+short save_level( char *);
+void make_puzzle_playable(void);
+void make_puzzle_editable(void);
+
+
+/*local vars */
+static unsigned short tim_id,tim_version;
+static short master_count;
+static PART * far *pptr_array;
+
+
+
+
+short get_id_from_part(PART *pptr)
+{
+   short id_num;
+   PART *cur_ptr;
+
+   if (!pptr)
+      return(-1);
+
+   id_num = 0;
+   cur_ptr = get_first_part(F1_STATIC_L|F1_MOVE_L);
+   while (cur_ptr)
+   {
+      if (cur_ptr == pptr)
+         cur_ptr = 0;
+      else
+      {
+         cur_ptr = get_next_part(cur_ptr,F1_MOVE_L);
+         id_num++;
+      }
+   }
+
+   return(id_num);
+}
+
+
+PART *get_part_from_id(short id_num)
+{
+   if (id_num == -1)
+      return(0);
+   else
+      return(*(pptr_array+id_num));
+}
+
+static void preallocate_parts(short num_parts)
+{
+   short i;
+
+   /* Allocate memory to hold part pointers */
+   do
+      pptr_array = (PART *far*) my_emm_malloc(num_parts*sizeof(PART*far*),0);
+   while (!pptr_array && remove_bitmap_file())
+      ;
+
+   if(pptr_array)
+      for (i=0;i<num_parts;i++)
+         *(pptr_array+i) = (PART *) tn_calloc(1,sizeof(PART));
+}
+
+
+short read_char(int fh,char *cptr)
+{
+	if (fh < 0)
+		return (*savearea++);
+	else
+   	return(read(fh, cptr, sizeof(char)));
+}
+short read_schar(int fh,signed char *cptr)
+{
+	if (fh < 0)
+		return (*savearea++);
+	else
+	   return(read(fh, cptr,sizeof(char)));
+}
+
+
+
+void read_short(int fh,short *sptr)
+{
+	unsigned short temp;
+
+	if (fh < 0)
+		*sptr = ((short)(*savearea++) | ((short)(*savearea++) << 8));
+	else
+		{
+	   read(fh, &temp,sizeof(short));
+		*sptr = (temp << 8) | (temp >> 8);
+		}
+}
+
+
+
+void read_string(int fh,char *sptr)
+{
+   read_char(fh,sptr);
+   while (*sptr != 0)
+   {
+      sptr++;
+      read_char(fh,sptr);
+   }
+}
+
+
+
+void read_line(int fh,char *sptr)
+{
+   if (read_char(fh,sptr))
+   {
+      while (*sptr != 0x0a)
+      {
+         sptr++;
+         read_char(fh,sptr);
+      }
+      *(sptr-1) = 0;
+   }
+   else
+      *sptr = 0;
+}
+
+
+
+void read_part(int fh,PART *pptr)
+{
+   short belt_present,rope_present,id_num;
+   short i;
+   PBELT *pbptr;
+   ROPE *rptr;
+   PART *rope_pptr;
+
+   read_short(fh,&pptr->type);
+   read_short(fh,&pptr->flags1);
+   read_short(fh,&pptr->start_flags2);
+   read_short(fh,&pptr->flags3);
+   read_short(fh,&pptr->start_state);
+	if (pptr->start_state < 0)
+		pptr->start_state = -pptr->start_state;
+   read_short(fh,&pptr->start_sub_state);
+   read_short(fh,&pptr->size.x);
+   read_short(fh,&pptr->size.y);
+   read_short(fh,&pptr->place_size.x);
+   read_short(fh,&pptr->place_size.y);
+   read_short(fh,&pptr->start_scrn_loc.x);
+   read_short(fh,&pptr->start_scrn_loc.y);
+   read_short(fh,&pptr->work_var);
+   read_short(fh,&belt_present);
+   read_char(fh,&pptr->belt_loc.x);
+   read_char(fh,&pptr->belt_loc.y);
+   read_short(fh,&pptr->belt_size);
+   if (belt_present)
+   {
+      pbptr = pptr->belt = (PBELT *) tn_calloc(1,sizeof(PBELT));
+      pbptr->root_part = pptr;
+      read_short(fh,&id_num);
+      pbptr->link1 = get_part_from_id(id_num);
+      read_short(fh,&id_num);
+      pbptr->link2 = get_part_from_id(id_num);
+      if (pbptr->link1)
+         pbptr->link1->belt = pbptr;
+      if (pbptr->link2)
+         pbptr->link2->belt = pbptr;
+   }
+
+   for (i=0;i<2;i++)
+   {
+      read_short(fh,&rope_present);
+      read_schar(fh,&pptr->rope_loc[i].x);
+      read_schar(fh,&pptr->rope_loc[i].y);
+      if (rope_present)
+      {
+         rptr = pptr->rope_tie[i] = (ROPE *) tn_calloc(1,sizeof(ROPE));
+         pptr->rope_tie[i]->root_part = pptr;
+         read_short(fh,&id_num);
+         rptr->link1 = get_part_from_id(id_num);
+         rptr->org_link1 = rptr->link1;
+         read_short(fh,&id_num);
+         rptr->link2 = get_part_from_id(id_num);
+         rptr->org_link2 = rptr->link2;
+         read_char(fh,&rptr->l1_num);
+         rptr->org_l1 = rptr->l1_num;
+         read_char(fh,&rptr->l2_num);
+         rptr->org_l2 = rptr->l2_num;
+         if (rptr->link1)
+            rptr->link1->rope_tie[rptr->l1_num] = rptr;
+         if (rptr->link2)
+            rptr->link2->rope_tie[rptr->l2_num] = rptr;
+      }
+   }
+
+   for (i=0;i<2;i++)
+   {
+      read_short(fh,&id_num);
+      pptr->wpptr[i] = pptr->wpptr[i+2] = get_part_from_id(id_num);
+   }
+   for (i=4;i<6;i++)
+   {
+      read_short(fh,&id_num);
+      pptr->wpptr[i] = get_part_from_id(id_num);
+   }
+
+   if (pptr->type == PT_PULLEY)
+   {
+      read_short(fh,&id_num);
+      if ((rope_pptr=get_part_from_id(id_num)) != 0)
+         pptr->rope_tie[1] = rope_pptr->rope_tie[0];
+   }
+
+   /* This is added for the toons project. */
+   switch (pptr->type)
+   {
+      case PT_TUNNEL:
+         read_short(fh,&id_num);
+
+         /* This make the brash assumption that the pptr array is initiallize  */
+         /* to 0 before the level is loaded. I will look for it later. */
+         if ((pptr->toon_link = get_part_from_id(id_num)) != 0)
+            pptr->toon_link->toon_link = pptr;
+         break;
+   }
+
+   /* Another toons addition. */
+   if(tim_version >= 0x0106)
+      read_char(fh,&pptr->plug_num);
+
+   read_short(fh,&pptr->start_memory);
+
+	/* for sega toons */
+   if(tim_version <= 0x0106)
+		{
+#if !VIRTUALCOORDS
+		pptr->start_scrn_loc.x -= (SEGALEDGE+5);
+		pptr->start_scrn_loc.y -= (IBMTEDGE-SEGATEDGE);
+		/* fix placement for new sizes so won't fall through */
+		if (pptr->flags3 & F3_FINE_PLACE)
+			pptr->start_scrn_loc.y -= 8;
+		else 
+			pptr->start_scrn_loc.y &= 0xfff0;
+
+		pptr->start_scrn_loc.x >>= 1;
+		pptr->start_scrn_loc.y >>= 1;
+		pptr->size.x >>= 1;
+		pptr->size.y >>= 1;
+		pptr->place_size.x >>= 1;
+		pptr->place_size.y >>= 1;
+#endif
+		/* update to our new flag(s) */
+		pptr->flags3 |= (mp_data[pptr->type].flags3 & F3_BACKGROUND);
+
+		}
+
+
+   /* Copy starting data to current data */
+   pptr->num_borders = prop[pptr->type].num_borders;
+   pptr->flags2   = pptr->start_flags2;
+   pptr->state    = pptr->start_state;
+   pptr->sub_state= pptr->start_sub_state;
+   pptr->scrn_loc = pptr->start_scrn_loc;
+   pptr->memory   = pptr->start_memory;
+   set_adjusted_loc_size(pptr);
+
+/*   if(prop[pptr->type].shape_size) */
+/*      pptr->base_size = prop[pptr->type].shape_size[0]; */
+/*   else */
+/*      pptr->base_size = pptr->size; */
+
+   /* explicitly allocate the borders for the parts that need it. */
+   if (pptr->num_borders)
+      switch (pptr->type)
+      {
+         case PT_HC_BELT:
+         case PT_PBELT:
+         case PT_ROPE:
+         case PT_EYEHOOK:
+         case PT_PULLEY:
+         case PT_WALL0:
+         case PT_WALL1:
+         case PT_WALL2:
+         case PT_WALL3:
+         case PT_WALL4:
+         case PT_WALL5:
+         case PT_INCR_DECR:
+            pptr->border = (P_PART_BORDER)
+               vm_hmalloc(pptr->num_borders * sizeof(PART_BORDER), MEMF_CLEAR);
+      };
+
+/**
+ *		Debugging mess:
+ **/
+	if (pptr->type >= TN_NUM_PARTS)
+		while (1)
+			;
+
+   prop[pptr->type].reinit_func(pptr);
+}
+
+
+
+void read_parts(int fh,PART *pptr,short num_parts)
+{
+   short i;
+   PART *list_ptr;
+   PART *new_part;
+
+   list_ptr = pptr;
+   pptr->next = pptr->prev = 0;
+   for (i=0;i<num_parts;i++)
+   {
+      new_part = get_part_from_id(master_count);
+      read_part(fh,new_part);
+      insert_into_list(new_part,list_ptr);
+      master_count++;
+   }
+}
+
+
+void load_level(char *filename)
+{
+   short num_static,num_move,num_avail;
+#if 0
+   char my_buffer[BUFSIZ+16];
+#endif
+   int fh;
+
+	short	i;
+
+	fh = -1;											/* in case from memory */
+	savearea = THESAVEAREA+4;					/* skip the length */
+
+   if (!*filename || (fh=open(filename,O_RDONLY)) >= 0)
+   {
+
+      /* free up all the memory associated with the bit maps of the current */
+      /* parts. */
+
+#if 0
+      /* This is used to prevent memory fragmemtation. */
+      my_setbuf(fh,my_buffer);
+#endif
+      
+      read_short(fh,&tim_id);
+      if ((tim_id==TIM_ID) || (tim_id==NEW_TIM_ID))
+      {
+         read_short(fh,&tim_version);
+         read_string(fh,cur_level.name);
+         read_string(fh,cur_level.description);
+         read_short(fh,&cur_level.density);
+         read_short(fh,&cur_level.gravity);
+         init_prop_physics();
+         read_short(fh,&cur_level.max_ledge);
+         read_short(fh,&cur_level.max_tedge);
+         read_short(fh,&cur_level.music_num);
+         read_short(fh,&num_static);
+         read_short(fh,&num_move);
+         num_avail = 0;
+         master_count = 0;
+         preallocate_parts(num_static+num_move+num_avail);
+         read_parts(fh,&static_list,num_static);
+         read_parts(fh,&move_list,num_move);
+         my_emm_free(pptr_array);
+      }
+      close(fh);
+  
+   }
+   pb_part = &avail_list;
+}
+
+
+
+
+void write_char(int fh,char *cptr)
+{
+#if SAVERAM
+	*savearea = *cptr;
+	savearea++;
+#endif
+}
+void write_schar(int fh,signed char *cptr)
+{
+#if SAVERAM
+	*savearea = *cptr;
+	savearea++;
+#endif
+}
+
+
+
+void write_short(int fh,void *sptr)
+{
+#if SAVERAM
+	char *tptr;
+
+	tptr = (char *)sptr;
+
+	*savearea++ = *(tptr+1);
+	*savearea++ = *tptr;
+
+#endif
+}
+
+
+
+void write_string(int fh,char *sptr)
+{
+   write_char(fh,sptr);
+   while (*sptr != 0)
+   {
+      sptr++;
+      write_char(fh,sptr);
+   }
+}
+
+
+
+void write_part(int fh,PART *pptr)
+{
+   short belt_present,rope_present,id_num;
+   short i;
+   PBELT *pbptr;
+   ROPE *rptr;
+   PART *toon_link_ptr;
+
+   write_short(fh,&pptr->type);
+   write_short(fh,&pptr->flags1);
+   write_short(fh,&pptr->start_flags2);
+   write_short(fh,&pptr->flags3);
+   write_short(fh,&pptr->start_state);
+   write_short(fh,&pptr->start_sub_state);
+   write_short(fh,&pptr->size.x);
+   write_short(fh,&pptr->size.y);
+   write_short(fh,&pptr->place_size.x);
+   write_short(fh,&pptr->place_size.y);
+   write_short(fh,&pptr->start_scrn_loc.x);
+   write_short(fh,&pptr->start_scrn_loc.y);
+   write_short(fh,&pptr->work_var);
+
+   if (pptr->type == PT_PBELT)
+      belt_present = 1;
+   else
+      belt_present = 0;
+   write_short(fh,&belt_present);
+   write_char(fh,&pptr->belt_loc.x);
+   write_char(fh,&pptr->belt_loc.y);
+   write_short(fh,&pptr->belt_size);
+   if (belt_present)
+   {
+      pbptr = pptr->belt;
+      id_num = get_id_from_part(pbptr->link1);
+      write_short(fh,&id_num);
+      id_num = get_id_from_part(pbptr->link2);
+      write_short(fh,&id_num);
+   }
+
+   for (i=0;i<2;i++)
+   {
+      if ((i==0) && ((pptr->type==PT_ROPE)||(pptr->type==PT_PULLEY)))
+         rope_present = 1;
+      else
+         rope_present = 0;
+      write_short(fh,&rope_present);
+      write_schar(fh,&pptr->rope_loc[i].x);
+      write_schar(fh,&pptr->rope_loc[i].y);
+      if (rope_present)
+      {
+         rptr = pptr->rope_tie[0];
+         id_num = get_id_from_part(rptr->link1);
+         write_short(fh,&id_num);
+         id_num = get_id_from_part(rptr->link2);
+         write_short(fh,&id_num);
+         write_char(fh,&rptr->l1_num);
+         write_char(fh,&rptr->l2_num);
+      }
+   }
+
+   for (i=0;i<2;i++)
+   {
+      id_num = get_id_from_part(pptr->wpptr[i]);
+      write_short(fh,&id_num);
+   }
+   for (i=4;i<6;i++)
+   {
+      id_num = get_id_from_part(pptr->wpptr[i]);
+      write_short(fh,&id_num);
+   }
+
+   if (pptr->type == PT_PULLEY)
+   {
+      if ((rptr=pptr->rope_tie[1]) != 0)
+         id_num = get_id_from_part(rptr->root_part);
+      else
+         id_num = -1;
+      write_short(fh,&id_num);
+   }
+
+   /* This is added for the toons project. */
+   switch (pptr->type)
+   {
+      case PT_TUNNEL:
+         toon_link_ptr = pptr->toon_link;
+         id_num = get_id_from_part(toon_link_ptr);
+         write_short(fh,&id_num);
+         break;
+   }
+
+	write_char(fh,&i);
+
+   /* Another toons addition. */
+   write_short(fh,&pptr->start_memory);
+
+
+}
+
+
+#pragma argsused
+void write_parts(int fh,PART *pptr,short list_num)
+{
+   PART *new_part;
+
+   new_part = pptr->next;
+   while (new_part)
+   {
+/*      if (list_num==2) */
+/*         new_part->flags1 &= (F1_INITIAL^0xffff); */
+/*      else */
+/*         new_part->flags1 |= F1_INITIAL; */
+      write_part(fh,new_part);
+      new_part = new_part->next;
+   }
+}
+
+
+
+void write_num_parts(int fh,PART *pptr)
+{
+   short num_parts;
+   PART *new_part;
+
+   num_parts = 0;
+   new_part = pptr->next;
+   while (new_part)
+   {
+      num_parts++;
+      new_part = new_part->next;
+   }
+
+   write_short(fh,&num_parts);
+}
+
+
+
+short save_level(char *filename)
+{
+#if SAVERAM
+	
+	extern BYTE tempsave;
+	UWORD tsChars;
+
+	long length;
+	long *lptr;
+
+	int fh;
+
+   tim_id = NEW_TIM_ID;
+   tim_version = TIM_VERSION;
+
+	fh = 0;
+
+	savearea = THESAVEAREA+4;					/* reserve space for the length */
+
+	write_short(fh,&tim_id);
+	write_short(fh,&tim_version);
+	write_string(fh,cur_level.name);
+	write_string(fh,cur_level.description);
+	write_short(fh,&cur_level.density);
+	write_short(fh,&cur_level.gravity);
+	write_short(fh,&cur_level.max_ledge);
+	write_short(fh,&cur_level.max_tedge);
+	write_short(fh,&cur_level.music_num);
+	write_num_parts(fh,&static_list);
+	write_num_parts(fh,&move_list);
+	write_parts(fh,&static_list,0);
+	write_parts(fh,&move_list,1);
+
+	lptr = THESAVEAREA;
+	length = savearea-THESAVEAREA;
+	*lptr = length;
+
+	SYS_LastChar = spriteChar;
+	FPCStorePal(&tempsave);
+	FPCSetPal(&tempsave);
+	tsChars = DLFPCChars(&tempsave) | CHARPRIORITY;
+
+	DrawAnimMapFrame(0,0,0, &tempsave, &MapABuff, tsChars);
+
+	addDMAQueue(ScrBAddr, 64*2*28, &MapABuff);
+	waitDMAQueue();
+
+	SYS_JoyHit = FALSE;
+
+	while ((!SYS_JoyHit || !SYS_JoyTable[JOY_A]) && (*lptr));
+
+	ClearMapBuff(&MapABuff);
+	addDMAQueue(ScrBAddr, 64*2*28, &MapABuff);
+	waitDMAQueue();
+#else
+
+#endif
+
+
+}
+
+
+void load_next_puzzle(void)
+{
+#if 1
+   load_puzzle(get_next_puzzle(-1), PLAY_PUZZLE);
+#else
+   load_puzzle(get_next_puzzle(-1), EDIT_PUZZLE);
+#endif
+   strcpy(current_title, cur_level.name);
+}
+
+void load_puzzle(char *puzzle_name, short playable)
+{
+   static char filename[80+12+2];
+
+   /* Clear the current puzzle */
+   reset_level();
+
+   /* Make a copy of path + filename if one is specified */
+   if(puzzle_name)
+      strcpy(filename,puzzle_name);
+
+   /* Load the level and initalize the parts */
+   load_level(filename);
+   reinit_parts();
+   save_old_part_info();
+
+   /* Start current music */
+   current_music = cur_level.music_num;
+   jtp_sx_load(current_music);
+   jtp_sx_play(current_music,0,0);
+
+   /* Based on paramater, make puzzle playable */
+   toon_puzzle_mode = playable;
+   if(playable)
+      make_puzzle_playable();
+   else
+      make_puzzle_editable();
+
+   /* Determine the smart ends and redraw the screen */
+   determine_smart_ends(0);
+}
+
+
+
+short save_puzzle(char *puzzle_name)
+{
+   while(   !save_level(puzzle_name)
+         && (global_error == 2)
+         && remove_bitmap_file())
+      /* Do nothing */;
+   return(global_error);
+}
+
+
+/* * * * *
+*
+*  make_puzzle_playable();
+*
+*  This function will remove all parts from the avail_list
+*  and will move all of the unlocked parts from the static
+*  and moving list to the avail_list.  Once this has
+*  been completed, the puzzle will then be playable.
+*
+* * * * */
+void make_puzzle_playable(void)
+{
+   PART *pptr, *rptr, *prptr;
+   PART *prev;
+   short i, old_sub_mode, old_mode;
+
+   /* Remove all parts from the available list */
+   clear_the_pb();
+   unique_pb = 1;
+   old_sub_mode = tim_sub_mode;
+   old_mode = tim_mode;
+
+   /* Mark all parts as being an initial part */
+   for(i=0; i<2; i++)
+   {
+      pptr = (i ? &static_list : &move_list);
+      while((pptr = pptr->next) != 0)
+         pptr->flags1 |= F1_INITIAL;
+   }
+
+   /* Move all unlock parts to the available list */
+   for(i=0; i<2; i++)
+   {
+      prev = (i ? &static_list : &move_list);
+      while((pptr = prev->next) != 0)
+      {
+         /* If part is a rope or pulley, make sure it is unlocked and */
+         /* don't put in the part bin.  It will be placed there if it */
+         /* is attached to a part that gets moved to the parts bin.   */
+         if(   (pptr->type == PT_ROPE)
+            || (pptr->type == PT_PBELT))
+               pptr->flags3 &= ~F3_LOCKED;
+
+         /* Handle special case with pulleys */
+         else if((pptr->type == PT_PULLEY) && !(pptr->flags3 & F3_LOCKED))
+         {
+            /* Search for non-pulley part rope is attached to */
+            rptr = pptr;
+            active_part = 0;
+            while(!active_part && (rptr->type == PT_PULLEY) && (rptr->wpptr[0]))
+            {
+               prptr = rptr->wpptr[0];
+               if(prptr->wpptr[0] == rptr)
+                  active_part = prptr->rope_tie[0]->root_part;
+               if(prptr->wpptr[1] == rptr)
+                  active_part = prptr->rope_tie[1]->root_part;
+               rptr = prptr;
+            }
+
+            /* Recycle the rope */
+            if(active_part)
+            {
+               tim_sub_mode = TSM_RECYCLE;
+               tim_mode = TM_EDIT;
+               recycle_a_part();
+            }
+
+            /* Recycle the pulley */
+            active_part = pptr;
+            tim_mode = TM_EDIT;
+            tim_sub_mode = TSM_RECYCLE;
+            recycle_a_part();
+         }
+
+         /* If part is unlock, move it to avail_list */
+         else if(!(pptr->flags3 & F3_LOCKED))
+         {
+            /* Set parts memory to 0 except in special cases */
+            switch(pptr->type)
+            {
+               case PT_HANDGUN:
+                  pptr->memory = pptr->start_memory = 6;
+                  break;
+               case PT_CATAPULT:
+               case PT_CHICKEN:
+                  pptr->memory = pptr->start_memory = 1;
+                  break;
+               case PT_INCR_DECR:
+                  pptr->memory = pptr->start_memory = 0x0010;
+                  break;
+               case PT_MESSAGER:
+                  *(char *)(&pptr->start_memory) = 'A';
+                  pptr->memory = pptr->start_memory;
+                  break;
+               default:
+                  pptr->start_memory = pptr->memory = 0;
+                  break;
+            }
+
+            /* Set part to its default states */
+            pptr->state = pptr->start_state = 0;
+            if(pptr->flags2 & F2_FLIP_H_DRAW)
+               prop[pptr->type].flip_func(pptr,TSM_FLIP_LR);
+            if(pptr->flags2 & F2_FLIP_V_DRAW)
+               prop[pptr->type].flip_func(pptr,TSM_FLIP_TB);
+            pptr->start_flags2 = pptr->flags2;
+            set_default_place_size(pptr);
+            prop[pptr->type].resize_func(pptr);
+            set_adjusted_loc_size(pptr);
+            prop[pptr->type].reinit_func(pptr);
+
+            /* Move part to avail_list */
+            active_part = pptr;
+            tim_mode = TM_EDIT;
+            tim_sub_mode = TSM_RECYCLE;
+            recycle_a_part();
+         }
+
+         /* If prev pointer has been moved to avail list, start over on current list */
+         if(prev->flags1 & F1_AVAIL_L)
+            prev = (i ? &static_list : &move_list);
+
+         /* Update prevous pointer to current part if it is not moved */
+         else if(prev->next == pptr)
+            prev = pptr;
+      }
+   }
+   tim_sub_mode = old_sub_mode;
+   tim_mode = old_mode;
+   active_part = 0;
+}
+
+/* * * * *
+*
+*  make_puzzle_editable();
+*
+*  This function will run through all of the moving
+*  and static parts and will clear the F1_INITIAL flag.
+*  This is needed in order to make the puzzle editable.
+*
+* * * * */
+void make_puzzle_editable(void)
+{
+   PART *pptr;
+   short i;
+
+   #if !FINAL
+      if(puzzle_master && !freeform_mode)
+         return;
+   #endif
+
+   /* Clear the F1_INITIAL flag for all moving and static parts */
+   for(i=0; i<2; i++)
+   {
+      pptr = (i ? &static_list : &move_list);
+      while((pptr = pptr->next) != 0)
+      {
+         pptr->flags1 &= ~F1_INITIAL;
+         if(   !solution_has_ropes
+            && (pptr->type == PT_EYEHOOK)
+            && !(pptr->flags3 & F3_LOCKED)
+            && (pptr->rope_tie[0] || pptr->rope_tie[1]))
+            solution_has_ropes = TRUE;
+      }
+   }
+
+   /* Create the part's bin */
+   unique_pb = 0;
+   make_partbin();
+}
+
+
+
+
+

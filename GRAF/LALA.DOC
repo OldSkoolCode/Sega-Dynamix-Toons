@@ -1,0 +1,77 @@
+Palette = 14
+Animation list = 52
+Animation to Frame catalog = 56
+Frame to Sprite catalog = 68
+Hotspot catalog = 0
+Character Definitions = 140
+Flags = 0
+Sega Palette:
+	Color Register Index = $0000
+	Number of colors in this packet = $0010
+	Colors:
+		$0E8A
+		$0000
+		$0666
+		$0AAA
+		$0EEE
+		$0A24
+		$0E66
+		$000A
+		$044E
+		$06A0
+		$00E0
+		$0A0A
+		$0E6E
+		$048C
+		$00EE
+		$0EE4
+Animations:
+Total number of Animations = 1.
+	Animation #0 has 6 frames.
+		Animation to Frame offset $0038.
+			Frame to Sprite offset $0044.
+				Number of Sprites = $0000.
+				Hotspot Offset = $0000.
+				Width in pixels = 0.
+				Height in lines = 0.
+			Frame to Sprite offset $004C.
+				Number of Sprites = $0000.
+				Hotspot Offset = $0000.
+				Width in pixels = 0.
+				Height in lines = 0.
+			Frame to Sprite offset $0054.
+				Number of Sprites = $0000.
+				Hotspot Offset = $0000.
+				Width in pixels = 0.
+				Height in lines = 0.
+			Frame to Sprite offset $005C.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = 16.
+				Height in lines = 8.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0400.
+					Priority-Pal-V/HFlip-Char# = $0000.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $006C.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = 16.
+				Height in lines = 8.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0400.
+					Priority-Pal-V/HFlip-Char# = $0002.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $007C.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = 16.
+				Height in lines = 8.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0400.
+					Priority-Pal-V/HFlip-Char# = $0004.
+					X Position on screen = 0.
+
+	6 Total Sega Characters

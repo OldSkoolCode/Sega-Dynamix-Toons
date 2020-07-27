@@ -1,0 +1,414 @@
+/* * * * *
+*
+*  EXPLOSION.C
+*
+*  This file contains the explosion routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/01/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "simlib.h"
+
+
+/*local routines */
+static short exp_get_push_speed(PART *);
+static void make_hole_in_wall( PART *, PART *);
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  EXPLOSION                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* Constant data */
+#define EXPLOSION_NUM_STATES  10
+
+/*
+*  Ka-Boom = 1,2,3,3,4,4,5,6,7,8
+*  Pow = 1,2,9,9,5,6,7,8
+*  Bang = 1,2,10,10,5,6,7,8
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C explosion1 = {0, EXPLOSION_PLANE, {0,255,255,255},
+   {{-9,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C explosion2 = {0, EXPLOSION_PLANE, {9,255,255,255},
+   {{-28,-15},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C explosion3 = {0, EXPLOSION_PLANE, {4,4,4,5},
+   {{7,10},{4,2},{-2,9},{0,3}}};
+static F_SSHAPE_C explosion4_2 = {0, EXPLOSION_PLANE1, {6,255,255,255},
+   {{-6,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C explosion4 = {&explosion4_2, EXPLOSION_PLANE, {4,4,4,4},
+   {{1,-3},{-6,15},{13,10},{11,0}}};
+static F_SSHAPE_C explosion5 = {0, EXPLOSION_PLANE, {4,4,4,4},
+   {{-3,-9},{-7,19},{19,15},{17,-2}}};
+static F_SSHAPE_C explosion6 = {0, EXPLOSION_PLANE, {3,3,3,3},
+   {{-4,-14},{-10,29},{27,22},{31,-6}}};
+static F_SSHAPE_C explosion7 = {0, EXPLOSION_PLANE, {3,3,3,3},
+   {{-17,-17},{-22,31},{34,30},{39,-12}}};
+static F_SSHAPE_C explosion8 = {0, EXPLOSION_PLANE, {2,2,2,2},
+   {{-31,-17},{-37,32},{41,41},{46,-20}}};
+static F_SSHAPE_C explosion9_2 = {0, EXPLOSION_PLANE1, {7,255,255,255},
+   {{-1,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C explosion9 = {&explosion9_2, EXPLOSION_PLANE, {4,4,4,4},
+   {{1,-3},{-6,15},{13,10},{11,0}}};
+static F_SSHAPE_C explosion10_2 = {0, EXPLOSION_PLANE1, {8,255,255,255},
+   {{-3,5},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C explosion10 = {&explosion10_2, EXPLOSION_PLANE, {4,4,4,4},
+   {{1,-3},{-6,15},{13,10},{11,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far explosion_ss_tab[EXPLOSION_NUM_STATES] = 
+   {&explosion1,&explosion2,&explosion3,&explosion4,&explosion5,&explosion6,
+    &explosion7,&explosion8,&explosion9,&explosion10};
+
+/* size. */
+TIM_VEC_C far explosion_size[EXPLOSION_NUM_STATES] = 
+   {{41,29},{67,56},{24,21},{34,31},{42,41},{53,52},
+    {73,57},{93,69},{34,31},{34,31}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far explosion_os[EXPLOSION_NUM_STATES] = 
+   {{-18,2},{-55,-30},{-3,4},{-12,-7},{-14,-18},{-20,-29},{-43,-35},{-73,-41},
+    {-12,-7},{-12,-7}};
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void explosion_internal(PART *explosion)
+{
+   #define EXPLOSION_NUM_CHOICES 3
+
+   short push_speed,push_angle;
+   PART *pptr;
+
+   static const far char ka_boom[] = {1,2,3,4,5,6,7,8};
+   static const far char bang[] = {1,2,10,10,5,6,7,8};
+   static const far char pow[] = {1,2,9,9,5,6,7,8};
+   #define EXPLOSION_SEQ_NUM_STATES  (sizeof(ka_boom)/sizeof(char))
+   static const far char *state_array_table[] = {&ka_boom, &bang, &pow};
+   static unsigned char choice;
+
+   if (!explosion->toon_state)
+   {
+      choice = (choice+1)%EXPLOSION_NUM_CHOICES;
+      explosion->work_var1 = choice;
+      switch (choice)
+      {
+         case 0:
+            jtp_sx_play(SX_EXPLOSION1,2,1);
+            break;
+         case 1:
+            jtp_sx_play(SX_EXPLOSION2,2,1);
+            break;
+         default:
+            jtp_sx_play(SX_EXPLOSION3,2,1);
+      }
+   }
+
+   if (explosion->toon_state == EXPLOSION_SEQ_NUM_STATES)
+   {
+      part_to_er(explosion,1|2);
+      explosion->flags2 |= F2_INACTIVE;
+   }
+   else
+   {
+      explosion->state = state_array_table[explosion->work_var1]
+         [explosion->toon_state++] - 1;
+      set_adjusted_loc_size(explosion);
+   }
+
+   if (explosion->toon_state == 2)
+   {
+      tn_query_dist(explosion, F1_STATIC_L|F1_MOVE_L,
+         explosion->offset.x + (explosion->size.x >> 1) - 75,
+         explosion->offset.y + (explosion->size.y >> 1) - 65,
+         150,130);
+
+      pptr = explosion->qptr;
+      while (pptr)
+      {
+         switch (pptr->type)
+         {
+            case PT_SID_MOUSE:
+               pptr->sub_state = SID_BOMB_INDEX;
+               break;
+            case PT_AL_CAT:
+               pptr->sub_state = CAT_BOMB_INDEX;
+               break;
+            case PT_TRAP_DOOR:
+            case PT_CHICKEN:
+            case PT_BALLOON:
+               pptr->sub_state = 1;
+               break;
+            case PT_BOMB:
+               explode(pptr,-15,-19);
+               break;
+            case PT_ANT:
+               startle_ant(pptr);
+               break;
+            case PT_WALL0:
+            case PT_WALL1:
+            case PT_WALL2:
+            case PT_WALL3:
+            case PT_WALL4:
+            case PT_WALL5:
+               /* check if the explosion is near enough to the wall */
+               if ((abs(pptr->qdist.x) < 80) && (abs(pptr->qdist.y) < 80))
+                  make_hole_in_wall(pptr,explosion);
+               break;
+            default:
+               if (pptr->flags1 & F1_MOVE_L)
+               {
+                  push_speed = exp_get_push_speed(pptr);
+                  push_angle = angle_to_centers(explosion,pptr);
+                  set_part_speed(pptr,push_angle,push_speed);
+               }
+         }
+         pptr = pptr->qptr;
+      }
+
+      /* clean up all the wall ends that were messed up by the explosion. */
+      /* NOTE: This can not be done locally to specific walls because */
+      /* determine_smartends uses the query ptrs of the static parts. */
+      determine_smart_ends(0);
+   }
+}
+
+
+
+static short exp_get_push_speed(PART *pptr)
+{
+   short mass,push_speed;
+
+   mass = prop[pptr->type].mass;
+   if (mass < 2)
+      push_speed = TWELVE_PIX;
+   else
+      if (mass < 6)
+         push_speed = ELEVEN_PIX;
+      else
+         if (mass < 10)
+            push_speed = TEN_PIX;
+         else
+            if (mass < 21)
+               push_speed = NINE_PIX;
+            else
+               if (mass < 121)
+                  push_speed = EIGHT_PIX;
+               else
+                  if (mass < 151)
+                     push_speed = SEVEN_PIX;
+                  else
+                     if (mass < 201)
+                        push_speed = SIX_PIX;
+                     else
+                        if (mass < 1801)
+                           push_speed = FIVE_PIX;
+                        else
+                           push_speed = FOUR_PIX;
+
+   return(push_speed);
+}
+
+
+
+static void make_hole_in_wall(PART *wall,PART *explosion)
+{
+   short x,xl,xh,y,yl,yh;
+   short wall_x,wall_w,wall_y,wall_h;
+   PART *new_wall;
+
+   part_to_er(wall,1|2);
+
+   x = explosion->scrn_loc.x + explosion->offset.x + (explosion->size.x>>1) -
+      ledge;
+   y = explosion->scrn_loc.y + explosion->offset.y + (explosion->size.y>>1) -
+      tedge;
+
+   /* check the orientation of the wall */
+   if (wall->size.x > wall->size.y)
+   {
+      xl = (x-(32<<VIRTUALCOORDS)) & (0xfff8<<VIRTUALCOORDS);
+      xh = (x+(32<<VIRTUALCOORDS)) & (0xfff8<<VIRTUALCOORDS);
+      wall_x = wall->scrn_loc.x - ledge;
+      wall_w = wall->size.x;
+
+      /* pseudo approximate a circle */
+      if (abs((wall->scrn_loc.y + 8 - tedge) - y) > 24<<VIRTUALCOORDS)
+      {
+         xl += 16<<VIRTUALCOORDS;
+         xh -= 16<<VIRTUALCOORDS;
+      }
+
+      if (xl > wall_x)
+      {
+         if (xh < wall_x + wall_w)
+         {
+            /* check if the wall should vanish */
+            if (wall_x + wall_w - xh > (8<<VIRTUALCOORDS))
+            {
+               /* create a copy of the wall */
+               if ((new_wall = copy_part(wall)) == 0)
+                  return;
+
+               insert_into_list(new_wall,&static_list);
+               new_wall->flags1 |= F1_CREATED;
+               new_wall->size.x = wall_x + wall_w - xh;
+
+               /* check if the wall part is too small */
+               if (new_wall->size.x < (16<<VIRTUALCOORDS))
+               {
+                  new_wall->size.x = (16<<VIRTUALCOORDS);
+                  xh = wall_x + wall_w - (16<<VIRTUALCOORDS);
+               }
+
+               new_wall->adj_loc.x = new_wall->scrn_loc.x = xh + ledge;
+               new_wall->adj_loc.y = new_wall->scrn_loc.y =  wall->scrn_loc.y;
+               wall_reinit(new_wall);
+            }
+            wall->size.x = xl - wall_x;
+         }
+         else
+            if (xl < wall_x + wall_w)
+               wall->size.x = xl - wall_x;
+
+         /* check if the wall part is too small */
+         if (wall->size.x < (16<<VIRTUALCOORDS))
+            if (wall->size.x > (8<<VIRTUALCOORDS))
+               wall->size.x = (16<<VIRTUALCOORDS);
+            else
+               wall->flags2 |= F2_INACTIVE;
+
+         wall_reinit(wall);
+      }
+      else
+         if (xh < wall_x + wall_w)
+         {
+            if (xh > wall_x)
+            {
+               wall->size.x = wall_x + wall_w - xh;
+               wall->adj_loc.x = wall->scrn_loc.x = xh + ledge;
+
+               /* check if the wall part is too small */
+               if (wall->size.x < (16<<VIRTUALCOORDS))
+                  if (wall->size.x > (8<<VIRTUALCOORDS))
+                     wall->size.x = (16<<VIRTUALCOORDS);
+                  else
+                     wall->flags2 |= F2_INACTIVE;
+               
+               wall_reinit(wall);
+            }
+         }
+         else
+            if ((xh > wall_x) && (xl < wall_x + wall_w))
+               wall->flags2 |= F2_INACTIVE;
+   }
+   else
+   {
+      yl = (y-(32<<VIRTUALCOORDS)) & (0xfff0>>VIRTUALCOORDS);
+      yh = (y+(32<<VIRTUALCOORDS)) & (0xfff0>>VIRTUALCOORDS);
+      wall_y = wall->scrn_loc.y - tedge;
+      wall_h = wall->size.y;
+
+      /* pseudo approximate a circle */
+      if (abs((wall->scrn_loc.x + 8 - ledge) - x) > (24<<VIRTUALCOORDS))
+      {
+         yl += (16<<VIRTUALCOORDS);
+         yh -= (16<<VIRTUALCOORDS);
+      }
+
+      if (yl > wall_y)
+      {
+         if (yh < wall_y + wall_h)
+         {
+            /* check if the wall should vanish */
+            if (wall_y + wall_h - yh > (8<<VIRTUALCOORDS))
+            {
+               if ((new_wall = copy_part(wall)) == 0)
+                  return;
+               insert_into_list(new_wall,&static_list);
+               new_wall->flags1 |= F1_CREATED;
+               new_wall->size.y = wall_y + wall_h - yh;
+
+               /* check if the wall part is too small */
+               if (new_wall->size.y < (16<<VIRTUALCOORDS))
+               {
+                  new_wall->size.y = (16<<VIRTUALCOORDS);
+                  yh = wall_y + wall_h - (16<<VIRTUALCOORDS);
+               }
+
+               new_wall->adj_loc.x = new_wall->scrn_loc.x = wall->scrn_loc.x;
+               new_wall->adj_loc.y = new_wall->scrn_loc.y = yh + tedge;
+               wall_reinit(new_wall);
+            }
+            wall->size.y = yl - wall_y;
+         }
+         else
+            if (yl < wall_y + wall_h)
+               wall->size.y = yl - wall_y;
+
+         /* check if the wall part is too small */
+         if (wall->size.y < (16<<VIRTUALCOORDS))
+            if (wall->size.y > (8<<VIRTUALCOORDS))
+               wall->size.y = (16<<VIRTUALCOORDS);
+            else
+               wall->flags2 |= F2_INACTIVE;
+
+         wall_reinit(wall);
+      }
+      else
+         if (yh < wall_y + wall_h)
+         {
+            if (yh > wall_y)
+            {
+               wall->size.y = wall_y + wall_h - yh;
+               wall->adj_loc.y = wall->scrn_loc.y = yh + tedge;
+
+               /* check if the wall part is too small */
+               if (wall->size.y < (16<<VIRTUALCOORDS))
+                  if (wall->size.y > (8<<VIRTUALCOORDS))
+                     wall->size.y = (16<<VIRTUALCOORDS);
+                  else
+                     wall->flags2 |= F2_INACTIVE;
+
+               wall_reinit(wall);
+            }
+         }
+         else
+            if ((yh > wall_y) && (yl < wall_y + wall_h))
+               wall->flags2 |= F2_INACTIVE;
+   }
+}
+
+void explode(PART *pptr,short x,short y)
+{
+   PART *explosion;
+
+   if ((explosion = make_a_part(PT_EXPLOSION)) == 0)
+      goto no_exp;
+   insert_into_list(explosion,&static_list);
+   explosion->flags1 |= F1_CREATED;
+
+   explosion->loc.x = explosion->scrn_loc.x = pptr->scrn_loc.x + x;
+   explosion->loc.y = explosion->scrn_loc.y = pptr->scrn_loc.y + y;
+   explosion->loc.x <<= SCALE_SHIFT;
+   explosion->loc.y <<= SCALE_SHIFT;
+   set_adjusted_loc_size(explosion);
+
+no_exp:
+   part_to_er(pptr,1|2);
+   pptr->flags2 |= F2_INACTIVE;
+}
+
+

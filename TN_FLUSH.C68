@@ -1,0 +1,95 @@
+/* * * * *
+*
+*  TN_FLUSH.C
+*
+*  This module manages all the screen flushing function.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/04/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+#include "toons.h"
+#include "simlib.h"
+
+
+
+
+/* * * * *
+*
+*  void remap_panel_colors(void);
+*
+*  This function will remap the colors of the panel.
+*  It will also reassign corners.
+*
+*  NOTE - Colors are remapped to the opposite of puzzle_edit_button.
+*
+* * * * */
+void remap_panel_colors(void)
+{
+}
+
+
+
+
+/* * * * *
+*
+*  void bring_up_control_panel(void);
+*
+*  This function manages the control panel initiation animation. 
+*
+* * * * */
+void bring_up_control_panel(void)
+{
+}
+
+
+
+/* * * * *
+*
+*  void redraw_panels(void);
+*
+*  This function will redraw the edit and control panels.
+*
+* * * * */
+void redraw_panels(void)
+{
+   if (control_button)
+      draw_toon_control_panel(0,0);
+	else 
+	   draw_toon_edit_panel(0,0);
+}
+
+
+
+
+/* * * * *
+*
+*  void grey_panels(void);
+*
+*  This function greys out both the edit and the control panels.
+*
+* * * * */
+void grey_panels(void)
+{
+}
+
+
+
+/* * * * *
+*
+*  void grey_panel(short x, short y, short w, short h);
+*
+*  This function will grey the specified rectangle.
+*
+* * * * */
+void grey_panel(short x, short y, short w, short h)
+{
+}
+
+
+

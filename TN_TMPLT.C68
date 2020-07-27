@@ -1,0 +1,59 @@
+/* * * * *
+*
+*  CAT_WALK_SEQUENCE--This header should be used at the beginning of every
+*  character sequence. It should give a brief description of the sequence and
+*  any technical information. Such as number of frames of animation.
+*
+* * * * */
+// character index
+#define CAT_WALK_INDEX          0       //catwalk.bmp
+
+// number of states in the sequence
+#define CAT_WALK_NUM_STATES     2
+
+// supershape structure definition 
+static SSHAPE cat_walk1 = {CAT_LINK, CAT_PLANE, {sh0,sh1,sh2,sh3},
+   {{x0,y0},{x1,y1},{x2,y2},{x3,y3}}};
+static SSHAPE cat_walk2 = {CAT_LINK, CAT_PLANE, {sh0,sh1,sh2,sh3},
+   {{x0,y0},{x1,y1},{x2,y2},{x3,y3}}};
+
+// supershape table definition
+static SSHAPE *cat_walk_ss_tab[CAT_WALK_NUM_STATES] = 
+   {&cat_walk1,&cat_walk2};
+
+// size.
+static TIM_VEC_C cat_walk_size[CAT_WALK_NUM_STATES] =
+   {{w1,h1},{w2,h2}};
+
+// offset coordinates
+TIM_SCVEC_C cat_walk_os[CAT_WALK_NUM_STATES] =
+   {{x1,y1},{x2,y2}};
+TIM_SCVEC_C cat_fwalk_os[CAT_WALK_NUM_STATES] =
+   {{x1,y1},{x2,y2}};
+
+// erase rectangle coordinate
+static TIM_SCVEC_C cat_walk_erase_rect_os[CAT_WALK_NUM_STATES] =
+   {{x1,y1},{x2,y2}};
+
+// border definitions.
+static PART_BORDER_C cat_walk1_bord[CAT_BORDERS] = 
+   {{x1,y1,0},{x2,y2,0},...,{x10,y10,0}};
+static PART_BORDER_C cat_walk2_bord[CAT_BORDERS] = 
+   {{x1,y1,0},{x2,y2,0},...,{x10,y10,0}};
+
+static PART_BORDER cat_fwalk1_bord[CAT_BORDERS];
+static PART_BORDER cat_fwalk2_bord[CAT_BORDERS];
+
+static PC_PART_BORDER_C far cat_walk_bord_tab[CAT_WALK_NUM_STATES] =
+   {cat_walk1_bord,cat_walk2_bord}
+static PC_PART_BORDER_C far cat_fwalk_bord_tab[CAT_WALK_NUM_STATES] =
+   {cat_fwalk1_bord,cat_fwalk2_bord};
+
+
+static CHARACTER_SEQ cat_walk_character = 
+   {
+      CAT_WALK_NUM_STATES,
+      CAT_WALK_SHAPE_TABLE_INDEX
+   };
+
+

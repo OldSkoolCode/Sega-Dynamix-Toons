@@ -1,0 +1,512 @@
+/* $Header: h:\toons\rcs\MAIN.C68_v 1.1 1994/06/15 23:30:31 KENH Exp $ */
+
+/************************************************************************/
+/* Module:			main.c68																*/
+/* Description:	This module is the main flow for the game TOONS-CD		*/
+/* Component of:	TOONS.BIN															*/
+/* Original:		Ken Hurley															*/
+/* Date Started:	10/1/93																*/
+/************************************************************************/
+/*					*** Copyright 1993 Futurescape Productions ***				*/
+/************************************************************************/
+
+/*
+ *
+ * $Log: MAIN.C68_v $
+ * Revision 1.1  1994/06/15  23:30:31  KENH
+ * Initial revision
+ *
+ * Revision 1.1  1993/12/08  15:20:28  KENH
+ * Initial revision
+ *
+ *
+ */
+
+/************************************************************************/
+/* Include files 																			*/
+/************************************************************************/
+#include "vm.h"
+#include "tim.h"
+#include "gems.h"
+
+/************************************************************************/
+/* typedefs																					*/
+/************************************************************************/
+typedef struct MENUSTRUCT {
+	WORD	xpos;					/* x position on screen 		*/
+	WORD	ypos;					/* y position on screen 		*/
+	BYTE	*tptr;				/* actual text pointer			*/
+	void	(*funcptr)(void);	/* function for when selected	*/
+} MENUSTRUCT;
+
+
+/************************************************************************/
+/* defines																					*/
+/************************************************************************/
+#define NUM_MENUITEMS (sizeof(mainmenu)-2)/sizeof(MENUSTRUCT)
+#define	EDITPANEL		0
+#define	CONTROLPANEL	1
+#define	PICKUP_CURSOR 		5
+#define	STANDARD_CURSOR 	6
+#define	QUESTION_CURSOR	7
+
+#define	SPEEDMENU		1
+#define	CLAPMENU			2
+#define	NUKEMENU			3
+#define	RADIOMENU		4
+#define	CHECKLISTMENU	5
+#define	PIGLOADMENU		6
+#define	PIGSAVEMENU		7
+
+/************************************************************************/
+/* Function Prototypes																	*/
+/************************************************************************/
+void circDemo(void);
+void sprDemo(void);
+void flipDemo(void);
+void getpDemo(void);
+void lineDemo(void);
+void rectDemo(void);
+void scrnlDemo(void);
+void setpDemo(void);
+void strDemo(void);
+void scrollDemo(void);
+void activate_menu(void);
+void clearMenuScreen(void);
+void draw_toon_edit_panel(short x, short y);
+void draw_toon_edit_buttons(short x, short y);
+void draw_toon_control_panel(short x, short y);
+void draw_toon_control_buttons(short x, short y);
+extern UWORD vm_schar;
+UWORD NumberChars;
+UWORD cursoraccel;
+UWORD globPriority;
+
+/************************************************************************/
+/* global variables																		*/
+/************************************************************************/
+UWORD ScreenRow;
+UWORD ScreenCol;
+UWORD ScrAAddr;
+UWORD ScrBAddr;
+UWORD CharPalette;
+UWORD menuactive;
+UWORD menuChars;
+WORD cursorSprList = -1;
+WORD cursorx;
+WORD cursory;
+WORD cursorhotx;
+WORD cursorhoty;
+UBYTE cursoractive;
+UWORD panelShowing, lastpanel;
+UWORD panelSpr;
+UWORD panel_spr_chars;
+WORD curHighlightedPart;
+UWORD displaycursor;
+UWORD olddispcursor;
+WORD pickuppart;
+WORD curHighlightedPickup;
+UWORD spriteChar;
+UWORD startSprChar1,startSprChar2;
+UWORD endSprChar1,endSprChar2;
+UBYTE partbin_active;
+UWORD FirstPageChar;
+extern UWORD panelChars;
+extern char puzzle_edit_button;
+extern UBYTE catroot;
+extern UBYTE catrun;
+extern UBYTE radiomap;
+extern UBYTE nuke2;
+extern UBYTE cursors;
+extern UBYTE speed;
+extern UBYTE crawl;
+extern UBYTE pigsave;
+extern UBYTE pigreq;
+extern UBYTE checklis;
+extern UBYTE handles;
+extern UBYTE select;
+extern UBYTE selspr;
+extern UBYTE partbin2;
+extern UBYTE dynamix;
+extern UBYTE clapper;
+
+extern UWORD SYS_SprAvail;
+extern UWORD SYS_LastSpr;
+extern UWORD SYS_FirstSpr;
+extern UWORD crawlChars;
+extern PART_ELEMENTS far prop[];        /*this is in prop.c*/
+extern UWORD pitemCount;
+extern UWORD partPos;
+extern freeall(void);
+
+TIM_VEC_C mainmenu[4][2] = {
+									{{34,29},{104,12}},
+									{{34,72},{104,55}},
+									{{34,115},{104,98}},
+									{{34,158},{104,141}}
+									};
+
+/************************************************************************/
+/* Function:		void main(void);													*/
+/* Description:	main game routines for TOONS.BIN								*/
+/* Parameters:		.																		*/
+/* Returns:			.																		*/
+/************************************************************************/
+void main(void)
+{
+
+	UWORD i, j, temp;
+	WORD selection;
+	MENUSTRUCT const *tmenu;
+	UWORD done;
+	UWORD radioChars;
+	WORD	tx, ty;
+   FORCE_TRANSFER *ft_ptr;
+   ERASE_RECT far *er_ptr;
+	short first_init;
+
+	gemsinit(&patchbank, &envbank, &seqbank, &sampbank);
+	vm_schar = 2;
+	cursorSprList = -1;
+	vm_init();									/* initialize virtual machine */
+	MapX = CENTERMAPX;
+	MapY = CENTERMAPY;
+	partbin_active = FALSE;
+	is_partbin = FALSE;
+
+	cursoraccel = 1;
+	globPriority = 0xbf;
+
+	EnableInts();
+	/* Display Dynamix logo */
+
+	FadeOut(1);
+	SYS_LastChar = 1;
+	FPCStorePal(&dynamix);
+	menuChars = DLFPCChars(&dynamix) | CHARPRIORITY;
+	SYS_DrawMap(0,0,menuChars,&dynamix,&MapABuff);
+	SYS_DMA(ScrAAddr, 64*2*28, &MapABuff);
+	waitDMAQueue();
+	FadeIn(10);
+	while (!SYS_JoyTable[JOY_A])
+		;
+
+	
+  	ft_avail = ft_ptr =
+      (FORCE_TRANSFER *) vm_hmalloc(NUM_FT*sizeof(FORCE_TRANSFER),MEMF_CLEAR);
+   for (i=NUM_FT-1;i; i--)
+   	{
+      ft_ptr->next = ft_ptr+1;
+      ft_ptr++;
+	   }
+
+	first_init = TRUE;
+	runfirsttime = TRUE;
+
+
+	globalErase = FALSE;
+
+	for (;;)
+		{
+
+
+		vm_schar = 2;
+		cursorSprList = -1;
+		cursoractive = FALSE;
+		MapX = CENTERMAPX;
+		MapY = CENTERMAPY;
+		FadeOut(10);
+
+		hscrollValue = 0;
+		oldhscrollVal = 0;
+		vscrollValue = 0;
+		oldvscrollVal = 0;
+
+		SYS_FirstSpr = SYS_LastSpr = SYS_SprAvail = StaticSprites = 0;
+		SYS_LastChar = 2;
+		FPCStorePal(&select);
+/*		FPCSetPal(&select); */
+		menuChars = DLFPCChars(&select) | CHARPRIORITY;
+		SYS_DrawMap(0,0,menuChars,&select,&MapABuff);
+		SYS_DMA(ScrAAddr, 64*2*28, &MapABuff);
+		waitDMAQueue();
+		FadeIn(10);
+		selection = 0;
+		SYS_JoyHit = FALSE;
+		while (!SYS_JoyTable[JOY_A])
+			{
+			temp = SYS_LastChar;
+			i = SYS_LastChar | CHARPRIORITY;
+			SYS_LastChar += Disp1AnimFrame(mainmenu[selection][0].x, 
+				mainmenu[selection][0].y, 0, selection, i, &selspr, 0xfe);
+			i = SYS_LastChar | CHARPRIORITY;
+			SYS_LastChar += Disp1AnimFrame(mainmenu[selection][1].x, 
+				mainmenu[selection][1].y, 0, selection+4, i, &selspr, 0xff);
+			SendSprList();
+			waitDMAQueue();
+			SYS_LastChar = temp;
+			while (!SYS_JoyHit);
+			SYS_JoyHit = FALSE;
+			if ((SYS_JoyTable[JOY_UP]) || (SYS_JoyTable[JOY_LEFT]))
+				{
+				selection -= 1;
+				if (selection < 0)
+					selection = 3;
+				}
+			else if ((SYS_JoyTable[JOY_DOWN]) || (SYS_JoyTable[JOY_RIGHT]))
+				{
+				selection += 1;
+				if (selection > 3)
+					selection = 0;
+				}
+			}
+
+		/* fade to black */
+		FadeOut(30);
+		/* clear current sprite list */
+		ClearSprites();
+		SYS_FirstSpr = SYS_LastSpr = SYS_SprAvail = 0;
+		waitDMAQueue();
+
+		SYS_LastChar = 200;
+		cursorx = 160;
+		cursory = 100;
+		displaycursor = olddispcursor = STANDARD_CURSOR;
+		cursorSprList = AddHole(160,100,0,displaycursor,
+						SYS_LastChar | CHARPRIORITY, &cursors);
+
+		SYS_FirstSpr = StaticSprites = SYS_SprAvail;
+
+		crawlChars = SYS_LastChar;
+		SYS_LastChar += SendAnimChars(crawlChars, &crawl);
+
+		panelChars = DLFPCChars(&partbin2) | CHARPRIORITY;
+
+
+		FPCStorePal(&partbin2);
+		FPCStorePal(&clapper);
+
+		FirstPageChar = SYS_LastChar;
+		saveSYS_FirstSpr = SYS_FirstSpr;
+		resetPaging();
+
+		old_tim_mode = 0;
+
+		cursorhotx = 4;
+		cursorhoty = 4;
+
+		cursoractive = TRUE;
+
+		switch (selection)
+			{
+			case 0:
+				tim_mode = TM_EDIT;
+#if 0
+				init_hs();
+			   init_game();
+				freeform_mode = FALSE;
+			   init_toon_level();
+				do {
+					reset_toon_edit();
+					determine_smart_ends(0);
+					tim_mode = TM_RUN;
+				   reset_game_screen();
+					makeTempStatic(FALSE);					/* make all parts on screen 
+																	temporarily	static 		*/
+					FPCStorePal(&catroot);
+					FPCStorePal(&cursors);
+					FadeIn(10);
+					run_machine();
+					FadeOut(10);
+					tim_mode = TM_EDIT;
+					load_next_puzzle();
+				} while (TRUE);
+#else
+				if (first_init)
+					{
+					first_init = FALSE;
+					home_toon_puzzle = freeform_mode = FALSE;
+				   init_game();
+				   init_toon_level();
+					}
+				else if (freeform_mode)
+					{
+					toggle_toon_edit_play();
+               
+					/* toggle between puzzle edit mode and puzzle play mode. */
+					toggle_toon_edit_play();
+
+					/* set up the puzzle mode. */
+					reset_level();
+					freeform_mode = 0;
+					load_next_puzzle();
+					redraw_rbi = 2;
+					}
+
+			   do_toon_edit_panel();
+#endif
+				break;
+			case 1:
+				if (first_init)
+					{
+					first_init = FALSE;
+					tim_mode = TM_EDIT;
+					home_toon_puzzle = FALSE;
+					freeform_mode = TRUE;
+				   init_game();
+				   init_toon_level();
+					}
+				else if (!freeform_mode)
+					{
+					freeform_mode = TRUE;
+					/* set up the free form mode. */
+					reset_level();
+					static_list.next = static_list.prev = move_list.next = 
+					move_list.prev = avail_list.next = avail_list.prev = 0;
+					make_free_form();
+					pb_part = &avail_list;
+					reinit_parts();
+					}
+			   do_toon_edit_panel();
+				break;
+			case 2:
+			case 3:
+				break;
+			}
+		SYS_FirstSpr = 0;
+		}
+}
+
+/************************************************************************/
+/* Function:		UWORD intersect(WORD x1, WORD w1, WORD x2, WORD w2);	*/
+/* Description:	find if two vertical or horizontal lines intersect		*/
+/* Parameters:		x1,w1 = x and width of first line							*/
+/* 					x2,w2 = x and width of second line							*/
+/*						*** note can be y and height also							*/
+/* Returns:			TRUE !=0 if they intersect										*/
+/************************************************************************/
+UWORD intersect(WORD x1, WORD w1, WORD x2, WORD w2)
+{
+
+	if ((x1+w1 < x2) || (x2+w2 < x1) || (x1 > x2+w2) || (x2 > x1+w1))
+		return (FALSE);
+	return (TRUE);
+}
+
+/************************************************************************/
+/* Function:		void clearMenuScreen(void);									*/
+/* Description:	clear the menu screen MAPABUFF then return				*/
+/* Parameters:		.																		*/
+/* Returns:			.																		*/
+/************************************************************************/
+void clearMenuScreen(void)
+{
+	ClearMapBuff(&MapABuff);
+	SYS_DMA(ScrBAddr, 64*2*22, &MapABuff);
+}
+
+
+/************************************************************************/
+/* Function:		void updateCursor(void);										*/
+/* Description:	update the cursor on the screen								*/
+/* Parameters:		.																		*/
+/* Returns:			.																		*/
+/************************************************************************/
+void updateCursor(void)
+{
+
+	UWORD temp;
+	WORD tx,ty;
+	UBYTE update;
+
+	if (cursorSprList != -1) {
+		if (cursoractive) {
+			update = FALSE;
+			if (SYS_JoyTable[JOY_UP])
+				{
+				if ((cursory-cursoraccel) > vscrollValue)
+					{
+					cursory -= cursoraccel;
+					update = TRUE;
+					}
+				else if (vscrollValue > 0)
+					{
+					cursory -= cursoraccel;
+					vscrollValue -= cursoraccel;
+					if (vscrollValue < 0)
+						vscrollValue = 0;
+					update = TRUE;
+					}
+				}
+			else if (SYS_JoyTable[JOY_DOWN])
+				{
+				if ((cursory+cursoraccel) < (vscrollValue+VISIBLEYREZ))
+					{
+					cursory += cursoraccel;
+					update = TRUE;
+					}
+				else if (vscrollValue < (MAXSCROLLHEIGHT-VISIBLEYREZ))
+					{
+					vscrollValue += cursoraccel;
+					cursory += cursoraccel;
+					if (vscrollValue > (MAXSCROLLHEIGHT-VISIBLEYREZ))
+						vscrollValue = (MAXSCROLLHEIGHT-VISIBLEYREZ);
+					update = TRUE;
+					}
+				}
+			if (SYS_JoyTable[JOY_LEFT])
+				{
+				if ((cursorx-cursoraccel) > hscrollValue)
+					{
+					cursorx -= cursoraccel;
+					update = TRUE;
+					}
+				else if (hscrollValue > 0)
+					{
+					hscrollValue -= cursoraccel;
+					cursorx -= cursoraccel;
+					if (hscrollValue < 0)
+						hscrollValue = 0;
+					update = TRUE;
+					}
+				}
+			else if (SYS_JoyTable[JOY_RIGHT])
+				{
+				if ((cursorx+cursoraccel) < (hscrollValue+VISIBLEXREZ))
+					{
+					cursorx += cursoraccel;
+					update = TRUE;
+					}
+				else if (hscrollValue < (MAXSCROLLWIDTH-VISIBLEXREZ))
+					{
+					hscrollValue += cursoraccel;
+					cursorx += cursoraccel;
+					if (hscrollValue > (MAXSCROLLWIDTH-VISIBLEXREZ))
+						hscrollValue = (MAXSCROLLWIDTH-VISIBLEXREZ);
+					update = TRUE;
+					}
+				}
+
+			if (update)
+				{
+				if ((cursoraccel < 4) && !(SYS_VCount & 15))
+					cursoraccel++;
+				}
+			else
+				cursoraccel = 1;
+
+			tx = (cursorx-cursorhotx)-hscrollValue;
+			ty = (cursory-cursorhoty)-vscrollValue;
+		} else {
+			tx = -128;
+			ty = -128;
+		}
+
+	UpdateHole(tx, ty, 0, displaycursor, &cursors, cursorSprList,
+					displaycursor != olddispcursor);
+
+	olddispcursor = displaycursor;
+
+	}
+}
+

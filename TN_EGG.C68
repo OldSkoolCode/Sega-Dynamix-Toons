@@ -1,0 +1,289 @@
+/* * * * *
+*
+*  TN_EGG.C
+*
+*  This file contains all the code associated with the egg timer.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  06/28/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+
+/* * * * *
+*
+*  local function to this module
+*
+* * * * */
+
+/* * * * *
+*
+* EGG_TIMER_SEQUENCE-- Eggtimer.txt in the partex directory.
+*  
+* * * * */
+
+/* supershape structure definition */
+static F_SSHAPE egg_timer1 = {0, EGG_TIMER_PLANE, {1,4,6,12},
+   {{0,0},{47,1},{8,13},{4,12}}};
+static F_SSHAPE egg_timer2_2 = {0, EGG_TIMER_PLANE1, {12,255,255,255},
+   {{4,12},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C egg_timer2 = {&egg_timer2_2, EGG_TIMER_PLANE, {1,4,6,0},
+   {{0,0},{23,0},{4,6},{8,-2}}};
+static F_SSHAPE egg_timer3 = {0, EGG_TIMER_PLANE, {1,4,11,12},
+   {{0,0},{47,1},{8,13},{4,12}}};
+static F_SSHAPE_C egg_timer4_2 = {0, EGG_TIMER_PLANE1, {0,255,255,255},
+   {{8,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE egg_timer4 = {&egg_timer4_2, EGG_TIMER_PLANE, {1,4,11,12},
+   {{0,0},{47,1},{8,13},{4,12}}};
+static F_SSHAPE egg_timer5 = {0, EGG_TIMER_PLANE, {1,4,10,12},
+   {{0,0},{47,1},{7,13},{4,12}}};
+static F_SSHAPE_C egg_timer6_2 = {0, EGG_TIMER_PLANE1, {0,255,255,255},
+   {{8,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE egg_timer6 = {&egg_timer6_2, EGG_TIMER_PLANE, {1,4,10,12},
+   {{0,0},{47,1},{7,13},{4,12}}};
+static F_SSHAPE egg_timer7 = {0, EGG_TIMER_PLANE, {1,4,9,12},
+   {{0,0},{47,1},{8,13},{4,12}}};
+static F_SSHAPE_C egg_timer8_2 = {0, EGG_TIMER_PLANE1, {0,255,255,255},
+   {{8,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE egg_timer8 = {&egg_timer8_2, EGG_TIMER_PLANE, {1,4,9,12},
+   {{0,0},{47,1},{8,13},{4,12}}};
+static F_SSHAPE egg_timer9 = {0, EGG_TIMER_PLANE, {1,4,8,12},
+   {{0,0},{47,1},{7,13},{4,12}}};
+static F_SSHAPE_C egg_timer10_2 = {0, EGG_TIMER_PLANE1, {0,255,255,255},
+   {{8,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE egg_timer10 = {&egg_timer10_2, EGG_TIMER_PLANE, {1,4,8,12},
+   {{0,0},{47,1},{7,13},{4,12}}};
+static F_SSHAPE egg_timer11 = {0, EGG_TIMER_PLANE, {1,4,7,12},
+   {{0,0},{47,1},{8,13},{4,12}}};
+static F_SSHAPE_C egg_timer12_2 = {0, EGG_TIMER_PLANE1, {0,255,255,255},
+   {{8,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE egg_timer12 = {&egg_timer12_2, EGG_TIMER_PLANE, {1,4,7,12},
+   {{0,0},{47,1},{8,13},{4,12}}};
+static F_SSHAPE egg_timer13_2 = {0, EGG_TIMER_PLANE1, {12,255,255,255},
+   {{4,12},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C egg_timer13 = {&egg_timer13_2, EGG_TIMER_PLANE, {1,4,6,0},
+   {{0,0},{23,0},{4,6},{8,-2}}};
+static F_SSHAPE egg_timer14_2 = {0, EGG_TIMER_PLANE1, {12,255,255,255},
+   {{4,12},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C egg_timer14 = {&egg_timer14_2, EGG_TIMER_PLANE, {1,4,6,0},
+   {{0,0},{23,0},{4,6},{8,-2}}};
+static F_SSHAPE egg_timer15_2 = {0, EGG_TIMER_PLANE1, {12,255,255,255},
+   {{4,12},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C egg_timer15 = {&egg_timer15_2, EGG_TIMER_PLANE, {1,2,6,3},
+   {{0,0},{21,10},{4,6},{26,1}}};
+static F_SSHAPE egg_timer16_2 = {0, EGG_TIMER_PLANE1, {5,2,12,255},
+   {{69,6},{42,20},{4,12},{0,0}}};
+static F_SSHAPE_C egg_timer16 = {&egg_timer16_2, EGG_TIMER_PLANE, {1,0,6,2},
+   {{0,0},{8,-2},{4,6},{27,10}}};
+static F_SSHAPE egg_timer17_2 = {0, EGG_TIMER_PLANE1, {2,12,255,255},
+   {{42,20},{4,12},{0,0},{0,0}}};
+static F_SSHAPE_C egg_timer17 = {&egg_timer17_2, EGG_TIMER_PLANE, {1,6,2,4},
+   {{0,0},{4,6},{27,10},{34,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far egg_timer_ss_tab[EGG_TIMER_NUM_STATES] = 
+   {&egg_timer1,&egg_timer2,&egg_timer3,&egg_timer4,&egg_timer5,&egg_timer6,
+    &egg_timer7,&egg_timer8,&egg_timer9,&egg_timer10,&egg_timer11,&egg_timer12,
+    &egg_timer13,&egg_timer14,&egg_timer15,&egg_timer16,&egg_timer17};
+
+/* size. */
+TIM_VEC_C far egg_timer_size[EGG_TIMER_NUM_STATES] = 
+   {{34,19},{34,21},{34,19},{34,21},{34,19},{34,21},
+    {34,19},{34,21},{34,19},{34,21},{34,19},{34,21},
+    {34,21},{34,21},{36,19},{47,21},{45,19}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far egg_timer_os[EGG_TIMER_NUM_STATES] = 
+   {{0,0},{0,-4},{0,0},{0,-4},{0,0},{0,-4},{0,0},{0,-4},
+    {0,0},{0,-4},{0,0},{0,-4},{0,-4},{0,-4},{0,0},{0,-4},
+    {0,0}};
+
+/* border definitions. */
+static PART_BORDER_C far egg_timer1_bord[EGG_TIMER_BORDERS] =
+   {{11,0,0},{21,8,0},{26,8,0},{27,0,0},
+    {33,3,0},{31,14,0},{21,13,0},{14,19,0},
+    {0,17,0},{4,5,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far egg_timer_bord_tab[EGG_TIMER_NUM_STATES] =
+   {egg_timer1_bord,egg_timer1_bord,egg_timer1_bord,egg_timer1_bord,
+    egg_timer1_bord,egg_timer1_bord,egg_timer1_bord,egg_timer1_bord,
+    egg_timer1_bord,egg_timer1_bord,egg_timer1_bord,egg_timer1_bord,
+    egg_timer1_bord,egg_timer1_bord,egg_timer1_bord,egg_timer1_bord,
+    egg_timer1_bord};
+static P_PART_BORDER far egg_timer_fbord_tab[EGG_TIMER_NUM_STATES];
+
+/* * * * *
+*
+*  void egg_timer_reinit(PART *egg);
+*
+*  This function will reinitiallize the borders of the egg_timer character.
+*
+* * * * */
+void egg_timer_reinit(PART *egg)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!egg)
+   {
+      set_border_table_slopes(PT_EGG_TIMER, 1, egg_timer_bord_tab,
+         egg_timer_fbord_tab,EGG_TIMER_NUM_STATES);
+      return;
+   }
+
+   if (egg->memory&0x00ff)
+      egg->state = 12-((egg->memory&0x00ff)*2)+((egg->memory&0xf000)?1:0);
+
+   if (egg->flags2 & F2_FLIP_H_DRAW)
+      egg->border = egg_timer_fbord_tab[egg->state];
+   else
+      egg->border = egg_timer_bord_tab[egg->state];
+
+   set_adjusted_loc_size(egg);
+}
+
+
+
+/* * * * *
+*
+*  void egg_timer_flip(PART *egg, SHORT flip_mode);
+*
+* * * * */
+#pragma argsused
+void egg_timer_flip(PART *egg, SHORT flip_mode)
+{
+   egg->flags2 ^= F2_FLIP_H_DRAW;
+
+   egg_timer_reinit(egg);
+   set_adjusted_loc_size(egg);
+   part_to_er(egg,1|2);
+   set_redraw(egg,2);
+}
+
+/* * * * *
+*
+*  void egg_timer_internal(PART *egg);
+*
+* * * * */
+void egg_timer_internal(PART *egg)
+{
+   #define EGG_SPEED    (EIGHT_PIX)
+   #define EGG_TIME     64
+   #define EGG_LIGHT    4  
+   #define EGG_ON_RATE  2
+   #define EGG_ON       13
+   #define EGG_END      (EGG_TIMER_NUM_STATES - 1)
+
+
+   short x,y,speed;
+   PART *pptr;
+
+   /* check if the electric plug is on and if we care. */
+   if (egg->sub_state && (egg->state < EGG_ON))
+   {
+      jtp_sx_play(SX_EGGTIMER_TICK,2,0);
+
+      /* reset the sub_state; */
+      egg->sub_state = 0;
+
+      /* check if the egg timer should animate to the next time location. */
+      if (!(++egg->work_var % EGG_TIME) && (egg->memory&0x00ff))
+         egg->memory--;
+
+      /* check the special case where the counter is zero */
+      if (!(egg->memory&0x00ff))
+      {
+         egg->state = EGG_ON;
+         
+         /* this forces the prompt release of the hand */
+         egg->work_var = -1;
+      }
+
+      /* check if the egg timer light should animate */
+      if (!(egg->work_var % EGG_LIGHT))
+         /* animate to the next frame */
+         egg->memory ^= 0xf000;
+
+      egg_timer_reinit(egg);
+   }
+
+   /* If timer was on but electric plus is now off, turn timer off */
+   else if(egg->memory & 0xf000)
+   {
+      jtp_sx_stop(SX_EGGTIMER_TICK);
+      egg->memory ^= 0xf000;
+      egg_timer_reinit(egg);
+   }
+
+   /* Check if the egg timer has passed the point of no return. */
+   if ((egg->state >= EGG_ON) && (egg->state < EGG_END))
+   {
+      jtp_sx_stop(SX_EGGTIMER_TICK);
+      jtp_sx_play(SX_EGGTIMER_ARM,2,0);
+
+      if (!(++egg->work_var % EGG_ON_RATE))
+      {
+         egg->state++;
+         egg_timer_reinit(egg);
+      }
+
+      /* impart the correct velocity to any parts near enough to the egg timer */
+      /* plunger. */
+      if (egg->flags2 & F2_FLIP_H_DRAW)
+      {
+            x = egg->offset.x;
+            speed = -EGG_SPEED;
+      }
+      else
+      {
+         x = egg->offset.x + egg->old_size.x - 1;
+         speed = EGG_SPEED;
+      }
+      y = egg->offset.y;
+      tn_query_dist(egg,F1_MOVE_L|F1_STATIC_L,x,y,1,egg->size.y);
+      pptr = egg->qptr;
+      while (pptr)
+      {
+         if (pptr->flags1 & F1_MOVE_L)
+         {
+            pptr->speed.x += speed;
+            check_term_velocity(pptr);
+         }
+         else
+            generic_static_to_static_collide(egg, pptr);
+
+         pptr = pptr->qptr;
+      }
+   }
+}
+
+/* * * * *
+*
+*  draw_egg_timer(...);
+*
+*  Draws the egg_timer after modify the super shape data.
+*
+* * * * */
+void draw_egg_timer(PART *egg_timer,UCHAR plane,SHORT loc_scale_adj,SHORT size_scale_adj)
+{
+   short shape;
+   F_SSHAPE *sptr;
+   short i;
+
+   shape = (egg_timer->flags2 & F2_FLIP_H_DRAW) ? 13 : 12;
+   sptr = egg_timer_ss_tab[egg_timer->state];
+   while(sptr)
+   {
+      for(i=0; i<4; i++)
+         if((sptr->shp_num[i] == 12) || (sptr->shp_num[i] == 13))
+				sptr->shp_num[i] = shape;
+      sptr = sptr->next;
+   }
+   draw_norm_part(egg_timer,plane,loc_scale_adj,size_scale_adj);
+}
+

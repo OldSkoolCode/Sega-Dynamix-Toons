@@ -1,0 +1,615 @@
+/* * * * *
+*
+*  TN_ELEPH.C
+*
+*  This file contains all the code associated with the elephant
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/25/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   ELEPHANT                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        There is more than one sequence for the elephant in this. In flip
+   trunk, the elephant flips its trunk up and down. Suck peanut does what
+   is says. In Get Poked, the elephant blows out its "nose". In scared,
+   the elephant shreaks in fear.
+
+   Flip Trunk: 1,1,2,2,3,3,4,4.
+   Suck Peanut: 5,5,5,5,6,7,6,7,6,7,6,7,6,7,6,7,6,7,6,7,6,  8,8,8,8,8,9,9,
+        9,9,9,9,9,9,9,9.
+   Get Poked: 5,5,5,5,10,11,12,13,14,11,15,16,17,16,15,11,9,9,9,9,9,18,18,
+        18,18,18,18,18,18,18,18,18,18,18,18,18,18,18,18,18,18.
+     The blow rectangle for this sequence is (-66,21) offset from the root
+     to the top-left corner of the 58 by 43 rectangle starting at
+     supershape #10.
+   Scared: 5,5,5,5,19,20,19,20,19,20,19,20,19,20,19,20,19,20,19,20,19,20,
+        19,20,19,20,9,9,9,9,9,18,18,18,18,18,18,18,18,18,18,18,18,18,18,18,
+        18,18,18,18,18.
+*/
+
+#if 1
+/* supershape structure definition */
+static F_SSHAPE_C elephant1_2 = {0, ELEPHANT_PLANE1, {4,7,255,255},
+   {{11,12},{11,10},{0,0},{0,0}}};
+static F_SSHAPE_C elephant1 = {&elephant1_2, ELEPHANT_PLANE, {0,3,1,5},
+   {{7,0},{7,4},{35,1},{0,12}}};
+static F_SSHAPE_C elephant2_2 = {0, ELEPHANT_PLANE1, {4,12,255,255},
+   {{11,12},{11,10},{0,0},{0,0}}};
+static F_SSHAPE_C elephant2 = {&elephant2_2, ELEPHANT_PLANE, {0,3,1,6},
+   {{7,0},{7,4},{35,1},{-2,8}}};
+static F_SSHAPE_C elephant3_2 = {0, ELEPHANT_PLANE1, {8,10,4,255},
+   {{5,-1},{12,9},{11,12},{0,0}}};
+static F_SSHAPE_C elephant3 = {&elephant3_2, ELEPHANT_PLANE, {0,1,9,3},
+   {{7,0},{35,1},{14,-4},{7,4}}};
+static F_SSHAPE_C elephant4_2 = {0, ELEPHANT_PLANE1, {4,13,255,255},
+   {{11,12},{10,9},{0,0},{0,0}}};
+static F_SSHAPE_C elephant4 = {&elephant4_2, ELEPHANT_PLANE, {0,1,2,3},
+   {{7,0},{35,1},{1,6},{7,4}}};
+static F_SSHAPE_C elephant5 = {0, ELEPHANT_PLANE, {31,32,30,255},
+   {{2,6},{6,2},{0,14},{0,0}}};
+static F_SSHAPE_C elephant6 = {0, ELEPHANT_PLANE, {14,15,16,17},
+   {{18,20},{9,0},{19,-3},{41,0}}};
+static F_SSHAPE_C elephant7 = {0, ELEPHANT_PLANE, {18,19,20,21},
+   {{17,21},{10,0},{18,-3},{37,1}}};
+static F_SSHAPE_C elephant8 = {0, ELEPHANT_PLANE, {28,27,29,255},
+   {{15,2},{9,21},{9,-6},{0,0}}};
+static F_SSHAPE_C elephant9_2 = {0, ELEPHANT_PLANE1, {13,34,255,255},
+   {{10,9},{13,15},{0,0},{0,0}}};
+static F_SSHAPE_C elephant9 = {&elephant9_2, ELEPHANT_PLANE, {0,1,3,6},
+   {{7,0},{35,1},{7,4},{-1,10}}};
+static F_SSHAPE_C elephant10 = {0, ELEPHANT_PLANE, {22,23,24,25},
+   {{6,2},{-7,16},{36,-3},{-14,16}}};
+static F_SSHAPE_C elephant11_2 = {0, ELEPHANT_PLANE1, {26,255,255,255},
+   {{-23,11},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C elephant11 = {&elephant11_2, ELEPHANT_PLANE, {22,23,24,25},
+   {{8,2},{-6,16},{38,-3},{-12,16}}};
+static F_SSHAPE_C elephant12 = {0, ELEPHANT_PLANE, {22,23,24,26},
+   {{6,1},{-7,15},{36,-4},{-30,10}}};
+static F_SSHAPE_C elephant13_2 = {0, ELEPHANT_PLANE1, {26,255,255,255},
+   {{-24,12},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C elephant13 = {&elephant13_2, ELEPHANT_PLANE, {22,23,24,25},
+   {{7,3},{-7,17},{37,-2},{-13,17}}};
+static F_SSHAPE_C elephant14 = {0, ELEPHANT_PLANE, {22,23,24,26},
+   {{5,2},{-8,16},{35,-3},{-30,11}}};
+static F_SSHAPE_C elephant15 = {0, ELEPHANT_PLANE, {22,23,24,26},
+   {{5,1},{-8,15},{35,-4},{-32,11}}};
+static F_SSHAPE_C elephant16_2 = {0, ELEPHANT_PLANE1, {26,255,255,255},
+   {{-26,12},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C elephant16 = {&elephant16_2, ELEPHANT_PLANE, {22,23,24,25},
+   {{5,2},{-8,16},{35,-3},{-15,17}}};
+static F_SSHAPE_C elephant17 = {0, ELEPHANT_PLANE, {22,23,24,26},
+   {{6,1},{-7,15},{36,-4},{-33,11}}};
+static F_SSHAPE_C elephant18_2 = {0, ELEPHANT_PLANE1, {34,255,255,255},
+   {{12,13},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C elephant18 = {&elephant18_2, ELEPHANT_PLANE, {0,1,2,33},
+   {{7,0},{35,1},{1,6},{6,5}}};
+static F_SSHAPE_C elephant19 = {0, ELEPHANT_PLANE, {35,36,37,255},
+   {{8,11},{-1,-15},{-5,6},{0,0}}};
+static F_SSHAPE_C elephant20 = {0, ELEPHANT_PLANE, {38,39,40,255},
+   {{9,11},{0,-15},{-4,6},{0,0}}};
+static F_SSHAPE_C elephant21_2 = {0, ELEPHANT_PLANE1, {4,255,255,255},
+   {{11,12},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C elephant21 = {&elephant21_2, ELEPHANT_PLANE, {0,1,2,3},
+   {{7,0},{35,1},{1,6},{7,4}}};
+#else
+/* supershape structure definition */
+static F_SSHAPE_C elephant1_2 = {0, ELEPHANT_PLANE1, {4,7,255,255},
+   {{11,8},{11,6},{0,0},{0,0}}};
+static F_SSHAPE_C elephant1 = {&elephant1_2, ELEPHANT_PLANE, {0,3,1,5},
+   {{7,-4},{7,0},{35,-3},{0,8}}};
+static F_SSHAPE_C elephant2_2 = {0, ELEPHANT_PLANE1, {4,12,255,255},
+   {{11,8},{11,6},{0,0},{0,0}}};
+static F_SSHAPE_C elephant2 = {&elephant2_2, ELEPHANT_PLANE, {0,3,1,6},
+   {{7,-4},{7,0},{35,-3},{-2,4}}};
+static F_SSHAPE_C elephant3_2 = {0, ELEPHANT_PLANE1, {8,10,4,255},
+   {{5,-5},{12,5},{11,8},{0,0}}};
+static F_SSHAPE_C elephant3 = {&elephant3_2, ELEPHANT_PLANE, {0,1,9,3},
+   {{7,-4},{35,-3},{14,0},{7,0}}};
+static F_SSHAPE_C elephant4_2 = {0, ELEPHANT_PLANE1, {4,13,255,255},
+   {{11,8},{10,5},{0,0},{0,0}}};
+static F_SSHAPE_C elephant4 = {&elephant4_2, ELEPHANT_PLANE, {0,1,2,3},
+   {{7,-4},{35,-3},{1,2},{7,0}}};
+static F_SSHAPE_C elephant5 = {0, ELEPHANT_PLANE, {31,32,30,255},
+   {{2,2},{6,-2},{0,10},{0,0}}};
+static F_SSHAPE_C elephant6 = {0, ELEPHANT_PLANE, {14,15,16,17},
+   {{18,16},{9,-4},{19,-7},{41,-4}}};
+static F_SSHAPE_C elephant7 = {0, ELEPHANT_PLANE, {18,19,20,21},
+   {{17,17},{10,-4},{18,-7},{37,-3}}};
+static F_SSHAPE_C elephant8 = {0, ELEPHANT_PLANE, {28,27,29,255},
+   {{15,-2},{9,17},{9,-2},{0,0}}};
+static F_SSHAPE_C elephant9_2 = {0, ELEPHANT_PLANE1, {13,34,255,255},
+   {{10,5},{13,11},{0,0},{0,0}}};
+static F_SSHAPE_C elephant9 = {&elephant9_2, ELEPHANT_PLANE, {0,1,3,6},
+   {{7,-4},{35,-3},{7,0},{-1,6}}};
+static F_SSHAPE_C elephant10 = {0, ELEPHANT_PLANE, {22,23,24,25},
+   {{6,-2},{-7,12},{36,-7},{-14,12}}};
+static F_SSHAPE_C elephant11_2 = {0, ELEPHANT_PLANE1, {26,255,255,255},
+   {{-23,7},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C elephant11 = {&elephant11_2, ELEPHANT_PLANE, {22,23,24,25},
+   {{8,-2},{-6,12},{38,-7},{-12,12}}};
+static F_SSHAPE_C elephant12 = {0, ELEPHANT_PLANE, {22,23,24,26},
+   {{6,-3},{-7,11},{36,0},{-30,6}}};
+static F_SSHAPE_C elephant13_2 = {0, ELEPHANT_PLANE1, {26,255,255,255},
+   {{-24,8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C elephant13 = {&elephant13_2, ELEPHANT_PLANE, {22,23,24,25},
+   {{7,-1},{-7,13},{37,-6},{-13,13}}};
+static F_SSHAPE_C elephant14 = {0, ELEPHANT_PLANE, {22,23,24,26},
+   {{5,-2},{-8,12},{35,-7},{-30,7}}};
+static F_SSHAPE_C elephant15 = {0, ELEPHANT_PLANE, {22,23,24,26},
+   {{5,-3},{-8,11},{35,0},{-32,7}}};
+static F_SSHAPE_C elephant16_2 = {0, ELEPHANT_PLANE1, {26,255,255,255},
+   {{-26,8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C elephant16 = {&elephant16_2, ELEPHANT_PLANE, {22,23,24,25},
+   {{5,-2},{-8,12},{35,-7},{-15,13}}};
+static F_SSHAPE_C elephant17 = {0, ELEPHANT_PLANE, {22,23,24,26},
+   {{6,-3},{-7,11},{36,0},{-33,7}}};
+static F_SSHAPE_C elephant18_2 = {0, ELEPHANT_PLANE1, {34,255,255,255},
+   {{12,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C elephant18 = {&elephant18_2, ELEPHANT_PLANE, {0,1,2,33},
+   {{7,-4},{35,-3},{1,2},{6,1}}};
+static F_SSHAPE_C elephant19 = {0, ELEPHANT_PLANE, {35,36,37,255},
+   {{8,7},{-1,-11},{-5,2},{0,0}}};
+static F_SSHAPE_C elephant20 = {0, ELEPHANT_PLANE, {38,39,40,255},
+   {{9,7},{0,-11},{-4,2},{0,0}}};
+static F_SSHAPE_C elephant21_2 = {0, ELEPHANT_PLANE1, {4,255,255,255},
+   {{11,8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C elephant21 = {&elephant21_2, ELEPHANT_PLANE, {0,1,2,3},
+   {{7,-4},{35,-3},{1,2},{7,0}}};
+
+#endif
+
+/* supershape table definition */
+PC_SSHAPE_C far elephant_ss_tab[ELEPHANT_NUM_STATES] = 
+   {&elephant1,&elephant2,&elephant3,&elephant4,&elephant5,&elephant6,
+    &elephant7,&elephant8,&elephant9,&elephant10,&elephant11,&elephant12,
+    &elephant13,&elephant14,&elephant15,&elephant16,&elephant17,&elephant18,
+    &elephant19,&elephant20,&elephant21};
+
+/* size. */
+TIM_VEC_C far elephant_size[ELEPHANT_NUM_STATES] = 
+   {{38,27},{40,25},{33,29},{37,25},{32,24},{42,28},
+    {39,29},{31,34},{39,25},{61,29},{72,34},{77,34},
+    {72,34},{77,34},{79,34},{72,34},{81,34},{37,25},
+    {37,41},{37,41},{37,25}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far elephant_os[ELEPHANT_NUM_STATES] = 
+   {{0,-4},{-4,-4},{11,-8},{2,0},{1,3},{13,-6},{13,-7},{13,-13},
+    {-2,0},{-27,-7},{-46,-7},{-59,-9},{-48,-5},{-60,-6},{-64,-8},{-51,-6},
+    {-66,-8},{2,0},{-9,-30},{-8,-30},{2,0}};
+
+/* border definitions. */
+static PART_BORDER_C far elephant1_bord[ELEPHANT_BORDERS] =
+   {{6,22,0},{14,5,0},{25,1,0},{32,7,0},
+    {32,15,0},{25,25,0},{6,24,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far elephant_bord_tab[ELEPHANT_NUM_STATES] =
+   {elephant1_bord,elephant1_bord,elephant1_bord,elephant1_bord,
+    elephant1_bord,elephant1_bord,elephant1_bord,elephant1_bord,
+    elephant1_bord,elephant1_bord,elephant1_bord,elephant1_bord,
+    elephant1_bord,elephant1_bord,elephant1_bord,elephant1_bord,
+    elephant1_bord,elephant1_bord,elephant1_bord,elephant1_bord,
+    elephant1_bord};
+static P_PART_BORDER far elephant_fbord_tab[ELEPHANT_NUM_STATES];
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void elephant_reinit(PART *elephant)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!elephant)
+   {
+      set_border_table_slopes(PT_ELEPHANT, 1, elephant_bord_tab,
+                                    elephant_fbord_tab, ELEPHANT_NUM_STATES);
+      return;
+   }
+
+   if (elephant->flags2 & F2_FLIP_H_DRAW)
+      elephant->border = elephant_fbord_tab[elephant->state];
+   else
+      elephant->border = elephant_bord_tab[elephant->state];
+   
+   set_adjusted_loc_size(elephant);
+}
+
+#pragma argsused
+void elephant_flip(PART *elephant,short flip_mode)
+{
+   elephant->flags2 ^= F2_FLIP_H_DRAW;
+   elephant_reinit(elephant);
+   part_to_er(elephant,1|2);
+   set_redraw(elephant,2);
+}
+
+short elephant_bounce(PART *cur_part)
+{
+   PART *elephant;
+   short elephant_midpoint, cur_part_midpoint;
+
+   elephant = cur_part->col_info.part;
+
+   /* check if the elephant is going to suck in the peanut on the next frame */
+   if (elephant->sub_state == 5)
+      return(1);
+
+   /* This is the default case. */
+   /* It will set the substate to blow (i.e. the elephant has been hit from  */
+   /* behind. */
+   elephant->sub_state = 3;
+
+   /* check if the elephant has sucked in the peanut. */
+   if ((cur_part->type == PT_PEANUT) && (elephant->toon_state == 2))
+   {
+      elephant->sub_state = 5;
+      elephant->toon_link = cur_part;
+   }
+   else
+   {
+      /* check for flipping the part off elephant's trunk */
+      /* first calculate the midpoints of the two parts */
+      elephant_midpoint = elephant->scrn_loc.x + (elephant->base_size.x >> 1);
+      cur_part_midpoint = cur_part->scrn_loc.x + (cur_part->base_size.x >> 1);
+
+      /* check the orientation of the elephant */
+      if (  ((elephant->flags2 & F2_FLIP_H_DRAW)
+         && (elephant_midpoint < cur_part_midpoint))
+         || (!(elephant->flags2 & F2_FLIP_H_DRAW)
+         && (elephant_midpoint > cur_part_midpoint)))
+         {
+            elephant->sub_state = 1;
+            elephant->toon_link = cur_part;
+            cur_part->speed.x = 0;
+            cur_part->speed.y = 0;
+         }
+   }
+
+   return(1);
+}
+
+void elephant_internal(PART *elephant)
+{
+   PART *pptr, *link;
+   short speed;
+
+   static const far char flip_trunk[] =
+   {
+      1,1,2,2,3,3,4,4
+   };
+   #define FLIP_TRUNK_NUM_STATES    (sizeof(flip_trunk)/sizeof(char))
+   #define FLIP_TRUNK_RATE          2
+
+   static const far char suck_peanut[] =
+   {
+      5,5,5,5,6,7,6,7,6,7,6,7,6,7,6,7,6,7,6,7,6
+   };
+   #define SUCK_PEANUT_NUM_STATES   (sizeof(suck_peanut)/sizeof(char))
+   #define SUCK_PEANUT_RATE          2
+   
+   static const far char get_poked[] =
+   {
+      5,5,5,5,10,11,12,13,14,11,15,16,17,16,15,11,9,9,9,9,9,18,18,
+      18,18,18,18,18,18,18,18
+   };
+   #define GET_POKED_NUM_STATES     (sizeof(get_poked)/sizeof(char))
+   #define GET_POKED_START_BLOW     5
+   #define GET_POKED_END_BLOW       16
+   #define GET_POKED_RATE           2
+   
+   static const far char scared[] =
+   {
+      5,5,5,5,19,20,19,20,19,20,19,20,19,20,19,20,19,20,19,20,19,20,
+      19,20,19,20,9,9,9,9,9,18,18,18,18,18,18,18,18,18
+   };
+   #define SCARED_NUM_STATES        (sizeof(scared)/sizeof(char))
+   #define SCARED_RATE              2
+
+   static const far char eat_peanut[] =
+   {
+      8,8,8,8,8,9,9,9,9,9,9,
+   };
+   #define EAT_PEANUT_NUM_STATES    (sizeof(eat_peanut)/sizeof(char))
+   #define EAT_PEANUT_RATE          2
+   
+   #define Q_W                      100
+   #define ELEPHANT_Y               15
+
+   /* check for debouncing the elephant when hit by part from behind */
+   if (elephant->memory)
+   {
+      if (elephant->sub_state)
+      {
+         if (elephant->memory < 5)
+            elephant->memory++;
+      }
+      else
+         elephant->memory--;
+   }
+
+   switch (elephant->toon_state)
+   {
+      /* elephant waiting and observing. */
+      case 0:
+         jtp_sx_stop(SX_ELEPHANT_SUCK);
+
+         /* check if the elephant has been hit by something in a tender place */
+         if ((elephant->sub_state == 1) || (elephant->sub_state == 3))
+         {
+            /* check if the debounce has not been set */
+            if (!elephant->memory || (elephant->sub_state == 1))
+            {
+               elephant->toon_state = elephant->sub_state;
+               elephant->work_var = 0;
+
+               /* NOTE: This is a recursive call to elephant_internal */
+               elephant_internal(elephant);
+            }
+   
+            elephant->memory = 5;
+         }
+         else
+         {
+            /* observe the surroundings */
+            if (elephant->flags2 & F2_FLIP_H_DRAW)
+               tn_query_dist(elephant,F1_MOVE_L,0,0,Q_W+elephant->size.x,
+                  elephant->size.y);
+            else
+               tn_query_dist(elephant,F1_MOVE_L,-Q_W,0,Q_W,elephant->size.y);
+            
+            pptr = elephant->qptr;
+            while (pptr)
+            {
+               switch (pptr->type)
+               {
+                  case PT_SID_MOUSE:
+                     /* set orientation of elephant */
+                     if (elephant->flags2 & F2_FLIP_H_DRAW)
+                     {
+                        if (pptr->scrn_loc.x > elephant->scrn_loc.x)
+                        {
+                           elephant_flip(elephant, F2_FLIP_H_DRAW);
+                           elephant->toon_state = 4;
+                        }
+                     }
+                     else
+                     {
+                        if (pptr->scrn_loc.x < elephant->scrn_loc.x)
+                        {
+                           elephant_flip(elephant, F2_FLIP_H_DRAW);
+                           elephant->toon_state = 4;
+                        }
+                     }
+                     break;
+                  case PT_PEANUT:
+                     /* elephant should suck */
+                     elephant->toon_state = 2;
+
+                     /* set orientation of elephant */
+                     if (!(elephant->flags2 & F2_FLIP_H_DRAW))
+                     {
+                        if (pptr->scrn_loc.x > elephant->scrn_loc.x)
+                           elephant_flip(elephant, F2_FLIP_H_DRAW);
+                     }
+                     else
+                     {
+                        if (pptr->scrn_loc.x < elephant->scrn_loc.x)
+                           elephant_flip(elephant, F2_FLIP_H_DRAW);
+                     }
+                     break;
+               }
+
+               if (elephant->toon_state)
+               {
+                  elephant->work_var = 0;
+
+                  /* NOTE: This is a recursive call to elephant_internal */
+                  pptr = 0;
+                  elephant_internal(elephant);
+               }
+
+               if (pptr)
+                  pptr = pptr->qptr;
+            }
+         }
+         break;
+
+      /* elephant flipping trunk */
+      case 1:
+         jtp_sx_stop(SX_ELEPHANT_SUCK);
+
+         if (!(elephant->work_var1++ % FLIP_TRUNK_RATE))
+         {
+            if (!elephant->work_var)
+               jtp_sx_play(SX_ELEPHANT_FLIP,2,0);
+
+            /* animate the elephant trunk */
+            elephant->state = flip_trunk[elephant->work_var] - 1;
+            if (++elephant->work_var == FLIP_TRUNK_NUM_STATES)
+               elephant->toon_state = elephant->state = 0;
+            elephant_reinit(elephant);
+
+            /* fling the part away */
+            if (((link=elephant->toon_link)!=0) && (elephant->state==2))
+            {
+               /* set the velocity of the part. */
+               if (elephant->flags2 & F2_FLIP_H_DRAW)
+                  link->speed.x = -THREE_PIX;
+               else
+                  link->speed.x = THREE_PIX;
+
+               /* adjust velocity by relative placement of part to elephant */
+               if (elephant->scrn_loc.y + (elephant->base_size.y>>1) <
+                  link->scrn_loc.y + (link->base_size.y>>1))
+                  link->speed.x *= -1;
+
+               link->speed.y = -TWELVE_PIX;
+               check_term_velocity(link);
+               elephant->toon_link = 0;
+            }
+         }
+         break;
+
+      /* elephant sucking peanut */
+      case 2:
+         if (!(elephant->work_var1++ % SUCK_PEANUT_RATE))
+         {
+            jtp_sx_play(SX_ELEPHANT_SUCK,2,1);
+
+            /* animate the elephant sucking */
+            elephant->state = suck_peanut[elephant->work_var] - 1;
+            if (++elephant->work_var == SUCK_PEANUT_NUM_STATES)
+               elephant->toon_state = elephant->state = 0;
+            elephant_reinit(elephant);
+
+            /* check if the elephant should begin sucking */
+            if ((elephant->state == 6) || (elephant->state == 7))
+            {
+               /* suck in all moving parts near enough to the elephant */
+               if (!(elephant->flags2 & F2_FLIP_H_DRAW))
+               {
+                  tn_query_dist(elephant,F1_MOVE_L,-Q_W,0,Q_W,elephant->size.y);
+                  speed = TWO_PIX;
+               }
+               else
+               {
+                  tn_query_dist(elephant,F1_MOVE_L,elephant->size.x,0,Q_W,
+                     elephant->size.y);
+                  speed = -TWO_PIX;
+               }
+
+               pptr = elephant->qptr;
+               while (pptr)
+               {
+                  pptr->speed.x += speed;
+
+                  /* adjust the y velocity to move the object up or down. */
+                  if (pptr->scrn_loc.y < elephant->scrn_loc.y + ELEPHANT_Y)
+                     pptr->speed.y += TWO_PIX;
+                  else
+                     pptr->speed.y -= FOUR_PIX;
+
+                  check_term_velocity(pptr);
+                  pptr = pptr->qptr;
+               }
+            }
+         }
+
+         /* check if the peanut has hit the elephant. */
+         if (elephant->sub_state == 5)
+         {
+            elephant->toon_state = 5;
+            elephant->work_var = 0;
+
+            /* NOTE: This is another recursive call */
+            elephant_internal(elephant);
+         }
+         break;
+
+      /* elephant getting poked */
+      case 3:
+         jtp_sx_stop(SX_ELEPHANT_SUCK);
+
+         if (!(elephant->work_var1++ % GET_POKED_RATE))
+         {
+            /* animate the elephant blowing */
+            elephant->state = get_poked[elephant->work_var] - 1;
+            if (++elephant->work_var == GET_POKED_NUM_STATES)
+               elephant->toon_state = elephant->state = 0;
+            elephant_reinit(elephant);
+
+            if (  (elephant->state == 10)
+               && (elephant->old_state == 9))
+               jtp_sx_play(SX_ELEPHANT_BLOW,2,0);
+
+            /* check if the elephant should blow */
+            if ((elephant->work_var > GET_POKED_START_BLOW) &&
+               (elephant->work_var < GET_POKED_END_BLOW))
+            {
+               /* blow away all moving parts near enough to the elephant */
+               if (!(elephant->flags2 & F2_FLIP_H_DRAW))
+               {
+                  tn_query_dist(elephant,F1_MOVE_L,-66,21,58,43);
+                  speed = -TWO_PIX;
+               }
+               else
+               {
+                  tn_query_dist(elephant,F1_MOVE_L,
+                     elephant->base_size.x+66-58,21,58,43);
+                  speed = TWO_PIX;
+               }
+
+               pptr = elephant->qptr;
+               while (pptr)
+               {
+                  pptr->speed.x += speed;
+                  check_term_velocity(pptr);
+                  pptr = pptr->qptr;
+               }
+            }
+         }
+         break;
+
+      /* elephant scared */
+      case 4:
+         jtp_sx_stop(SX_ELEPHANT_SUCK);
+
+         if (!(elephant->work_var1++ % SCARED_RATE))
+         {
+            if (!elephant->work_var)
+               jtp_sx_play(SX_ELEPHANT_SCARED,2,0);
+
+            /* animate the elephant scared */
+            elephant->state = scared[elephant->work_var] - 1;
+            if (++elephant->work_var == SCARED_NUM_STATES)
+               elephant->toon_state = elephant->state = 0;
+            elephant_reinit(elephant);
+         }
+         break;
+
+      /* elephant eats the peanut */
+      case 5:
+         jtp_sx_stop(SX_ELEPHANT_SUCK);
+         if (!elephant->work_var)
+            jtp_sx_play(SX_ELEPHANT_EAT,2,1);
+
+         if (!(elephant->work_var1++ % EAT_PEANUT_RATE))
+         {
+            /* kill the peanut */
+            if (elephant->toon_link && (elephant->toon_link->type == PT_PEANUT))
+            {
+               kill_character(elephant->toon_link);
+               elephant->toon_link = 0;
+            }
+
+            /* animate the elephant eatting the peanut */
+            elephant->state = eat_peanut[elephant->work_var] - 1;
+            if (++elephant->work_var == EAT_PEANUT_NUM_STATES)
+               elephant->toon_state = elephant->state = 0;
+            elephant_reinit(elephant);
+         }
+         break;
+   }
+
+   elephant->sub_state = 0;
+}
+
+
+
+

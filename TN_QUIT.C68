@@ -1,0 +1,368 @@
+/* * * * *
+*
+*  TN_QUIT.C
+*
+*  This module contains all the code associated with the quit requester.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/11/93 ChrisC   File created
+*
+* * * * */
+#include <stdlib.h>
+#include <stdio.h>
+#include <alloc.h>
+#include <string.h>
+#include <ctype.h>
+#include <math.h>
+#include "vm.h"
+#include "vm_keys.h"
+#include "vm_mylib.h"
+#include "simlib.h"
+#include "sx.h"
+#include "mouse.h"
+#include "keyboard.h"
+#include "tim.h"
+#include "tim_text.h"
+#include "toons.h"
+
+
+/* * * * *
+*
+*  local function to this module
+*
+* * * * */
+static void quit_circles(short x, short y);
+
+
+
+
+/* * * * *
+*
+*  void do_toon_quit(void);
+*
+*  This function manages the interface and functionallity of the quit button.
+*  It assumes that tim_mode = TOON_STOP.
+*
+* * * * */
+void do_toon_quit(void)
+{
+   char play_flag = 0;
+
+   // load bmps needed for requester
+   quit_shapes = load_bitmap_file("tn_quit.bmp");
+
+   if (!play_corners)
+   {
+      play_corners = load_bitmap_file("tn_pl_cn.bmp");
+      play_flag = 1;
+   }
+
+   // draw requester with first no up.
+   draw_toon_quit(0,0,0);
+   draw_toon_quit(1,0,0);
+   draw_toon_quit(2,0,0);
+   my_flip(1);
+   vm_dstptr = vm_buffptr;
+   vm_srcptr = vm_scrnptr;
+   mouse_copy(229,155,249,121);
+
+   // draw requester with second no up.
+   draw_toon_quit(3,0,0);
+   my_flip(1);
+
+   while (tim_mode == TOON_STOP)
+   {
+      my_mouse_move();
+      process_hs(toon_quit_hot_spots);
+      switch (tim_mode)
+      {
+         case TOON_STOP_AFFIRMATIVE:
+            jtp_sx_play(SX_STOP_YES,0,0);
+            draw_toon_quit(6,0,0);
+            my_flip(1);
+            quit(1);
+            wait(30);
+            break;
+         case TOON_STOP_NO:
+            jtp_sx_play(SX_STOP_NO,0,0);
+            set_toon_clip(417,156,61,90);
+            draw_gp_screen();
+            ega_mask_rect(417,156,61,90,1);
+            set_full_scrn_clip();
+            draw_toon_quit(7,0,0);
+            draw_toon_quit(0,0,0);
+            draw_toon_quit(4,0,0);
+      }
+      my_flip(1);
+      wait(15);
+   }
+
+   // free bmps not used.
+   free_bitmap_file(quit_shapes);
+   if (play_flag)
+   {
+      free_bitmap_file(play_corners);
+      play_corners = 0;
+   }
+}
+
+
+
+/* * * * *
+*
+*  void draw_toon_quit(char button, short x, short y);
+*
+*  This function will draw all the cells of the return to reality quit button.
+*
+*  If button
+*     = 0,  then draw background of requester.
+*     = 1,  then draw the blue highlight.
+*     = 2,  then draw no up in green.
+*     = 3,  then draw no up in red.
+*     = 4,  then draw no down.
+*     = 5,  then draw affirmative up.
+*     = 6,  then draw affirmative down.
+*     = 7,  then erase overlap section.
+*
+*  This function assume the bmps are loaded in memory for quit_shapes
+*  play_corners.
+*
+* * * * */
+void draw_toon_quit(char button, short x, short y)
+{
+   vm_fill = 1;
+   vm_dstptr = vm_buffptr;
+   vm_srcptr = vm_scrnptr;
+   x_offset = x;
+   y_offset = y;
+   my_mouse_off();
+
+   switch (button)
+   {
+      case 0:
+         vm_fcolor = vm_lcolor = 12;
+         vm_my_rect(330,258,92,9);
+         vm_my_rect(249,164,155,98);
+         vm_my_rect(412,198,15,65);
+         vm_my_rect(411,176,7,25);
+         vm_my_rect(403,172,12,88);
+         vm_my_rect(238,201,17,59);
+         vm_my_line(279,163,399,163);
+         vm_my_line(248,164,248,198);
+         vm_my_line(248,196,248,202);
+         vm_my_line(279,162,401,162);
+         vm_my_line(421,265,421,266);
+         vm_my_line(382,266,420,266);
+         vm_my_line(382,265,420,265);
+         vm_my_line(399,264,382,264);
+         vm_fcolor = vm_lcolor = 4;
+         vm2_my_flip_draw(play_corners[2],322,261,0);
+         vm_my_rect(279,157,121,5);
+         vm_my_rect(427,198,4,55);
+         vm_my_line(431,228,431,250);
+         vm_fcolor = vm_lcolor = 9;
+         vm_my_line(277,157,397,157);
+         vm_my_line(432,256,431,196);
+         vm_fcolor = vm_lcolor = 11;
+         vm_my_rect(234,202,4,53);
+         vm_fcolor = vm_lcolor = 1;
+         vm_my_line(234,201,234,203);
+         vm_my_line(242,271,321,271);
+         vm_my_rect(233,203,3,26);
+         vm_my_line(233,256,233,269);
+         vm_my_line(233,201,233,255);
+         vm_fcolor = vm_lcolor = 2;
+         vm_my_line(242,269,321,269);
+         vm_my_line(242,270,323,270);
+         vm_my_rect(234,249,3,18);
+         vm_fcolor = vm_lcolor = 3;
+         vm_my_rect(236,249,7,21);
+         vm_my_rect(239,234,92,36);
+         vm2_my_flip_draw(play_corners[9],247,156,0);
+         vm2_my_flip_draw(play_corners[3],421,263,0);
+         vm2_my_flip_draw(play_corners[4],426,254,0);
+         vm2_my_flip_draw(play_corners[0],232,164,0);
+         vm2_my_flip_draw(play_corners[2],382,263,0);
+         vm2_my_flip_draw(play_corners[2],344,262,0);
+         vm2_my_flip_draw(play_corners[7],399,156,0);
+         vm2_my_flip_draw(play_corners[6],415,156,0);
+         vm2_my_flip_draw(play_corners[5],417,175,0);
+         vm2_my_flip_draw(quit_shapes[8],234,228,0);
+         vm2_my_flip_draw(quit_shapes[9],233,265,0);
+         vm2_my_flip_draw(quit_shapes[11],316,228,0);
+         vm2_my_flip_draw(quit_shapes[10],245,227,0);
+         vm2_my_flip_draw(quit_shapes[12],331,251,0);
+         vm2_my_flip_draw(quit_shapes[10],279,227,0);
+         vm2_my_flip_draw(quit_shapes[3],249,173,0);
+         vm2_my_flip_draw(quit_shapes[4],345,173,0);
+         vm2_my_flip_draw(quit_shapes[5],262,199,0);
+         vm2_my_flip_draw(quit_shapes[13],245,242,0);
+         vm2_my_flip_draw(quit_shapes[14],251,250,0);
+         break;
+      case 1:
+         vm2_my_flip_draw(quit_shapes[2],377,245,0);
+         vm2_my_flip_draw(quit_shapes[1],377,214,0);
+         break;
+      case 2:
+         vm2_my_flip_draw(quit_shapes[0],377,156,0);
+         vm2_my_flip_draw(quit_shapes[6],395,172,0);
+         vm_fcolor = 13;
+         vm_lcolor = 7;
+         quit_circles(x, y);
+         break;
+      case 3:
+         vm2_my_flip_draw(quit_shapes[0],377,156,0);
+         vm2_my_flip_draw(quit_shapes[7],395,172,0);
+         vm_fcolor = 14;
+         vm_lcolor = 13;
+         quit_circles(x, y);
+         break;
+      case 4:
+         vm2_my_size_draw(quit_shapes[0],367,212,67,49,0);
+         vm2_my_size_draw(quit_shapes[6],383,221,37,29,0);
+         vm2_my_flip_draw(quit_shapes[16],369,244,0);
+         vm2_my_flip_draw(quit_shapes[16],371,248,0);
+         vm2_my_flip_draw(quit_shapes[16],374,251,0);
+         vm2_my_flip_draw(quit_shapes[16],378,253,0);
+         vm2_my_flip_draw(quit_shapes[16],382,254,0);
+         vm2_my_flip_draw(quit_shapes[16],387,254,0);
+         vm2_my_flip_draw(quit_shapes[16],392,255,0);
+         vm2_my_flip_draw(quit_shapes[16],397,254,0);
+         vm2_my_flip_draw(quit_shapes[16],402,254,0);
+         vm2_my_flip_draw(quit_shapes[16],406,253,0);
+         vm2_my_flip_draw(quit_shapes[16],410,251,0);
+         vm2_my_flip_draw(quit_shapes[16],414,250,0);
+         vm2_my_flip_draw(quit_shapes[16],417,247,0);
+         vm2_my_flip_draw(quit_shapes[16],421,245,0);
+         vm2_my_flip_draw(quit_shapes[16],424,241,0);
+         vm2_my_flip_draw(quit_shapes[16],425,236,0);
+         vm2_my_flip_draw(quit_shapes[16],428,233,0);
+         vm2_my_flip_draw(quit_shapes[16],427,228,0);
+         vm2_my_flip_draw(quit_shapes[16],426,224,0);
+         vm2_my_flip_draw(quit_shapes[16],424,220,0);
+         vm2_my_flip_draw(quit_shapes[16],420,217,0);
+         vm2_my_flip_draw(quit_shapes[16],416,213,0);
+         vm2_my_flip_draw(quit_shapes[16],413,215,0);
+         vm2_my_flip_draw(quit_shapes[16],409,213,0);
+         vm2_my_flip_draw(quit_shapes[16],404,214,0);
+         vm2_my_flip_draw(quit_shapes[16],400,216,0);
+         vm2_my_flip_draw(quit_shapes[16],395,215,0);
+         vm2_my_flip_draw(quit_shapes[16],391,218,0);
+         vm2_my_flip_draw(quit_shapes[16],387,218,0);
+         vm2_my_flip_draw(quit_shapes[16],383,220,0);
+         vm2_my_flip_draw(quit_shapes[16],379,223,0);
+         vm2_my_flip_draw(quit_shapes[16],375,225,0);
+         vm2_my_flip_draw(quit_shapes[16],373,229,0);
+         vm2_my_flip_draw(quit_shapes[16],370,232,0);
+         vm2_my_flip_draw(quit_shapes[16],370,236,0);
+         vm2_my_flip_draw(quit_shapes[16],368,239,0);
+         break;
+      case 5:
+         vm2_my_flip_draw(quit_shapes[13],245,242,0);
+         vm2_my_flip_draw(quit_shapes[14],251,250,0);
+         break;
+      case 6:
+         vm2_my_flip_draw(quit_shapes[13],243, 242,
+               FLIP_VERTICAL|FLIP_HORIZONTAL);
+         vm2_my_flip_draw(quit_shapes[14],249,251,0);
+         break;
+      case 7:
+//         set_toon_clip(229,155,249,121);
+//         set_game_scrn_clip();
+//         draw_gp_screen();
+         set_full_scrn_clip();
+   }
+   my_mouse_on();
+}
+
+
+
+
+/* * * * *
+*
+*  void quit_circles(short x, short y);
+*
+*  This function is subordinate to the draw_toon_quit function above.
+*
+* * * * */
+void quit_circles(short x, short y)
+{
+}
+
+
+
+/* * * * *
+*
+*  void draw_toon_stop(char button, short x, short y);
+*
+*  This function will handle all the drawing and animation of the load arrow
+*  button.
+*  if
+*     button = 0, then draw button off.
+*     button = 1, then draw button on.
+*     button = 2, then toggle button from off to on to off.
+*
+*  This function will draw all shapes to vm_dstptr = vm_buffptr.
+*
+* * * * */
+void draw_toon_stop(char button, short x, short y)
+{
+   vm_dstptr = vm_buffptr;
+   vm_srcptr = vm_scrnptr;
+   x_offset = x;
+   y_offset = y;
+   my_mouse_off();
+
+   switch(button)
+   {
+      case 0:
+         vm_fcolor = vm_lcolor = panel_color;
+         vm_my_rect(597,348,36,43);
+         vm_fcolor = vm_lcolor = bckgrnd_color;
+         vm_my_rect(593,353,4,30);
+         vm_fcolor = vm_lcolor = highlight2;
+         vm_my_rect(633,351,6,34);
+         vm_fcolor = vm_lcolor = highlight1;
+         vm_my_line(639,373,639,385);
+         vm2_my_flip_draw(corners[3],588,388,FLIP_VERTICAL);
+         vm2_my_flip_draw(corners[1],612,377,FLIP_VERTICAL);
+         vm2_my_flip_draw(toon_rcp_shapes[26],596,348,0);
+         break;
+      case 1:
+         vm_fcolor = vm_lcolor = panel_color;
+         vm_my_rect(597,348,36,43);
+         vm_fcolor = vm_lcolor = bckgrnd_color;
+         vm_my_rect(593,353,4,30);
+         vm_fcolor = vm_lcolor = highlight2;
+         vm_my_rect(633,351,6,34);
+         vm_fcolor = vm_lcolor = highlight1;
+         vm_my_line(639,373,639,385);
+         vm2_my_flip_draw(corners[3],588,388,FLIP_VERTICAL);
+         vm2_my_flip_draw(corners[1],612,377,FLIP_VERTICAL);
+         vm2_my_flip_draw(toon_rcp_shapes[27],594,350,0);
+         break;
+      case 2:
+         // draw first frame of animation.
+         draw_toon_stop(1, x, y);
+         my_flip(1);
+         wait(30);
+
+         // draw second frame of animation.
+         draw_toon_stop(0, x, y);
+         my_flip(1);
+
+         // make sure both pages are identical
+         vm_dstptr = vm_buffptr;
+         vm_srcptr = vm_scrnptr;
+         mouse_copy(593,348,47,44);
+   }
+   my_mouse_on();
+}
+
+
+
+
+

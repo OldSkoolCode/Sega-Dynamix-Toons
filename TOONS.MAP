@@ -1,0 +1,433 @@
+Sierra Systems LINK68  3.1   TOONS.COF                    6/14/94 18:02
+(2dfe5343)
+
+entry point: 00000200
+no relocation info
+executable
+
+ START      END     LENGTH    FILE            SECTION   TYPE
+
+00000000  0003655b  03655c  TOONS.COF        >.text     T 
+00000000  000000ff  000100  VECTORS.O         .text     T 
+00000100  000001ff  000100  SEGAHDR.O         .text     T 
+00000200  000002ff  000100  ICD_BLK4.O        .text     T 
+00000300  00000563  000264  STARTUP.O         .text     T 
+00000564  00000da3  000840  MAIN.O            .text     T 
+00000da4  000014c3  000720  EXCPTN.O          .text     T 
+000014c4  0000228f  000dcc  TN_PANEL.O        .text     T 
+00002290  000024d3  000244  TN_CHKEN.O        .text     T 
+000024d4  000027b3  0002e0  TN_ANT.O          .text     T 
+000027b4  000029a3  0001f0  CURS_MLH.O        .text     T 
+000029a4  00002d67  0003c4  FILESYS.O         .text     T 
+00002d68  00003193  00042c  VC.O              .text     T 
+00003194  00003213  000080  TN_PROP.O         .text     T 
+00003214  00003587  000374  BALL.O            .text     T 
+00003588  0000394f  0003c8  TEAPOT.O          .text     T 
+00003950  00004003  0006b4  SCISSORS.O        .text     T 
+00004004  00004303  000300  GUN.O             .text     T 
+00004304  00004707  000404  BORDERS.O         .text     T 
+00004708  0000584b  001144  TN_FREE.O         .text     T 
+0000584c  00005b87  00033c  TN_EGG1.O         .text     T 
+00005b88  000064af  000928  TN_EDIT.O         .text     T 
+000064b0  00006c7f  0007d0  TN_ED_MD.O        .text     T 
+00006c80  000074f7  000878  HOT_SPOT.O        .text     T 
+000074f8  0000bb07  004610  SUPPORT.O         .text     T 
+0000bb08  0000d323  00181c  EDITOR.O          .text     T 
+0000d324  0000d373  000050  GAMEPLAY.O        .text     T 
+0000d374  0000dbdb  000868  PHYSICS.O         .text     T 
+0000dbdc  0000f4ff  001924  STUB32.O          .text     T 
+0000f500  0000fa0f  000510  TN_TROT.O         .text     T 
+0000fa10  0000fe83  000474  TN_CHAR.O         .text     T 
+0000fe84  00010493  000610  QUERY.O           .text     T 
+00010494  00015be7  005754  TN_CAT.O          .text     T 
+00015be8  0001a82f  004c48  TN_SID.O          .text     T 
+0001a830  0001a907  0000d8  TN_BANA.O         .text     T 
+0001a908  0001abc3  0002bc  TN_LADR.O         .text     T 
+0001abc4  0001abc4  000000  TIM_GLOB.O        .text     T 
+0001abc4  0001aeab  0002e8  M_GLASS.O         .text     T 
+0001aeac  0001b2ef  000444  TN_EGG.O          .text     T 
+0001b2f0  0001f28b  003f9c  CAT_DEF.O         .text     T 
+0001f28c  00022efb  003c70  SID_DEF.O         .text     T 
+00022efc  00023483  000588  TN_CATA.O         .text     T 
+00023484  000236c7  000244  DYNAMITE.O        .text     T 
+000236c8  0002396b  0002a4  EP.O              .text     T 
+0002396c  00023bf3  000288  HC_BELT.O         .text     T 
+00023bf4  0002440b  000818  TN_TT.O           .text     T 
+0002440c  0002452b  000120  TN_HAIR.O         .text     T 
+0002452c  000245a7  00007c  EYEHOOK.O         .text     T 
+000245a8  0002497f  0003d8  GEAR.O            .text     T 
+00024980  00024acb  00014c  BULLET.O          .text     T 
+00024acc  00024da3  0002d8  BALLOON.O         .text     T 
+00024da4  00025017  000274  TRAMP.O           .text     T 
+00025018  000253cf  0003b8  TN_DRAGN.O        .text     T 
+000253d0  00025bdb  00080c  TN_UPDWN.O        .text     T 
+00025bdc  00026733  000b58  TN_INCRE.O        .text     T 
+00026734  000268ff  0001cc  TN_SHSWT.O        .text     T 
+00026900  00026bf7  0002f8  TN_MESG.O         .text     T 
+00026bf8  00026eb7  0002c0  TN_RTRNS.O        .text     T 
+00026eb8  00026f83  0000cc  INCLINE.O         .text     T 
+00026f84  00027263  0002e0  TN_DRYER.O        .text     T 
+00027264  0002752b  0002c8  TN_WHSTL.O        .text     T 
+0002752c  00027567  00003c  TN_GUM.O          .text     T 
+00027568  000275a3  00003c  TN_FISH.O         .text     T 
+000275a4  000275df  00003c  TN_CHEES.O        .text     T 
+000275e0  0002761b  00003c  TN_NUT.O          .text     T 
+0002761c  000278f7  0002dc  TN_PIANO.O        .text     T 
+000278f8  0002798b  000094  SEGADB.O          .text     T 
+0002798c  000279eb  000060  TN_ANVIL.O        .text     T 
+000279ec  00027bc7  0001dc  TN_WW2.O          .text     T 
+00027bc8  00027d4b  000184  TN_HATPN.O        .text     T 
+00027d4c  00027d87  00003c  TN_PENCL.O        .text     T 
+00027d88  00027dc7  000040  TN_MALLT.O        .text     T 
+00027dc8  00028807  000a40  TN_ELEPH.O        .text     T 
+00028808  00029043  00083c  EXPLOSION.O       .text     T 
+00029044  0002918b  000148  TN_RUG.O          .text     T 
+0002918c  00029627  00049c  TN_TRAP.O         .text     T 
+00029628  00029bdb  0005b4  TN_EAT.O          .text     T 
+00029bdc  0002ab0b  000f30  DRAWING.O         .text     T 
+0002ab0c  0002bb0f  001004  COLLIDE.O         .text     T 
+0002bb10  0002bc37  000128  WALL.O            .text     T 
+0002bc38  0002bc77  000040  TN_TUNEL.O        .text     T 
+0002bc78  0002c34b  0006d4  SMARTEND.O        .text     T 
+0002c34c  0002c40f  0000c4  LEVEL.O           .text     T 
+0002c410  0002d61f  001210  TN_FILE.O         .text     T 
+0002d620  0002d68b  00006c  TN_GLOB.O         .text     T 
+0002d68c  0002d6e3  000058  TN_RNDOM.O        .text     T 
+0002d6e4  0002d80f  00012c  TN_CLAPR.O        .text     T 
+0002d810  0002d98f  000180  TN_RIP.O          .text     T 
+0002d990  0002d99b  00000c  TN_SOUND.O        .text     T 
+0002d99c  0002e1df  000844  TN_HTYPT.O        .text     T 
+0002e1e0  0002ec47  000a68  SEGARTNS.O        .text     T 
+0002ec48  0002ecff  0000b8  STRNICMP.O        .text     T 
+0002ed00  0002eeef  0001f0  RUN.O             .text     T 
+0002eef0  0002f2c7  0003d8  INTERACT.O        .text     T 
+0002f2c8  0002f4cb  000204  VICTORY.O         .text     T 
+0002f4cc  0003107b  001bb0  VIC_1.O           .text     T 
+0003107c  00031c2b  000bb0  BITMAPS.O         .text     T 
+00031c2c  00031c5b  000030  TN_FLUSH.O        .text     T 
+00031c5c  00032703  000aa8  VM_LINE.O         .text     T 
+00032704  000327c3  0000c0  SCROLL.O          .text     T 
+000327c4  000327c4  000000  VARIABLE.O        .text     T 
+000327c4  00032967  0001a4  VM_INIT.O         .text     T 
+00032968  00032968  000000  VM_GLOBS.O        .text     T 
+00032968  00032968  000000  GRAF.O            .text     T 
+00032968  00032968  000000  LEVELS.O          .text     T 
+00032968  00032968  000000  GEMS.O            .text     T 
+00032968  00032a1b  0000b4  sbrk.o            .text     T 
+00032a1c  000332b7  00089c  printf.o          .text     T 
+000332b8  000332b8  000000  errno.o           .text     T 
+000332b8  000332b8  000000  stdio.o           .text     T 
+000332b8  0003333b  000084  ctypetab.o        .text     T 
+0003333c  00033353  000018  strlen.o          .text     T 
+00033354  00033393  000040  flushbuf.o        .text     T 
+00033394  0003341b  000088  puts.o            .text     T 
+0003341c  000334db  0000c0  div32.o           .text     T 
+000334dc  000334eb  000010  fltstdmy.o        .text     T 
+000334ec  000337d7  0002ec  malloc.o          .text     T 
+000337d8  0003384b  000074  mod32.o           .text     T 
+0003384c  00033873  000028  mod16.o           .text     T 
+00033874  00033cdf  00046c  signal.o          .text     T 
+00033ce0  00033cff  000020  toupper.o         .text     T 
+00033d00  00033d73  000074  exit.o            .text     T 
+00033d74  00033db3  000040  fputc.o           .text     T 
+00033db4  00033e17  000064  fputs.o           .text     T 
+00033e18  00033ef3  0000dc  memset.o          .text     T 
+00033ef4  00033f73  000080  load_tbl.o        .text     T 
+00033f74  000340a3  000130  memcpy.o          .text     T 
+000340a4  000340af  00000c  abs.o             .text     T 
+000340b0  00034743  000694  vdplib.o          .text     T 
+00034744  00034fcb  000888  sprites.o         .text     T 
+00034fcc  00034fdf  000014  wrom.o            .text     T 
+00034fe0  00035d97  000db8  puts.o            .text     T 
+00035d98  00036193  0003fc  maps.o            .text     T 
+00036194  0003643b  0002a8  general.o         .text     T 
+0003643c  0003655b  000120  dmaqueue.o        .text     T 
+
+0003655c  000f251f  0bbfc4  TOONS.COF        >.graf     T 
+0003655c  000f251f  0bbfc4  GRAF.O            .graf     T 
+
+000f2520  00120b87  02e668  TOONS.COF        >.levels   T 
+000f2520  00120b87  02e668  LEVELS.O          .levels   T 
+
+00120b88  0019c6ff  07bb78  TOONS.COF        >.sound    T 
+00120b88  0019c6ff  07bb78  GEMS.O            .sound    T 
+
+0019c700  0019c76b  00006c  TOONS.COF        >.ld_tbl   T 
+0019c700  0019c76b  00006c                    .ld_tbl   T 
+
+00ff0000  00ff2e17  002e18  TOONS.COF        >.data     D LOAD(0x19c76c) COPY 
+00ff0000  00ff0000  000000  VECTORS.O         .data     D 
+00ff0000  00ff0000  000000  SEGAHDR.O         .data     D 
+00ff0000  00ff0000  000000  ICD_BLK4.O        .data     D 
+00ff0000  00ff0000  000000  STARTUP.O         .data     D 
+00ff0000  00ff0003  000004  MAIN.O            .data     D 
+00ff0004  00ff0004  000000  EXCPTN.O          .data     D 
+00ff0004  00ff002b  000028  TN_PANEL.O        .data     D 
+00ff002c  00ff006f  000044  TN_CHKEN.O        .data     D 
+00ff0070  00ff00bb  00004c  TN_ANT.O          .data     D 
+00ff00bc  00ff00bc  000000  CURS_MLH.O        .data     D 
+00ff00bc  00ff00bc  000000  FILESYS.O         .data     D 
+00ff00bc  00ff010b  000050  VC.O              .data     D 
+00ff010c  00ff193b  001830  TN_PROP.O         .data     D 
+00ff193c  00ff1b4b  000210  BALL.O            .data     D 
+00ff1b4c  00ff1bff  0000b4  TEAPOT.O          .data     D 
+00ff1c00  00ff1c8f  000090  SCISSORS.O        .data     D 
+00ff1c90  00ff1cf7  000068  GUN.O             .data     D 
+00ff1cf8  00ff1cf8  000000  BORDERS.O         .data     D 
+00ff1cf8  00ff1cf8  000000  TN_FREE.O         .data     D 
+00ff1cf8  00ff1d7f  000088  TN_EGG1.O         .data     D 
+00ff1d80  00ff1d83  000004  TN_EDIT.O         .data     D 
+00ff1d84  00ff1d84  000000  TN_ED_MD.O        .data     D 
+00ff1d84  00ff1dbf  00003c  HOT_SPOT.O        .data     D 
+00ff1dc0  00ff1e03  000044  SUPPORT.O         .data     D 
+00ff1e04  00ff1e07  000004  EDITOR.O          .data     D 
+00ff1e08  00ff1e08  000000  GAMEPLAY.O        .data     D 
+00ff1e08  00ff1e08  000000  PHYSICS.O         .data     D 
+00ff1e08  00ff1e08  000000  STUB32.O          .data     D 
+00ff1e08  00ff1e83  00007c  TN_TROT.O         .data     D 
+00ff1e84  00ff1e84  000000  TN_CHAR.O         .data     D 
+00ff1e84  00ff1e84  000000  QUERY.O           .data     D 
+00ff1e84  00ff1e84  000000  TN_CAT.O          .data     D 
+00ff1e84  00ff1e84  000000  TN_SID.O          .data     D 
+00ff1e84  00ff1f2f  0000ac  TN_BANA.O         .data     D 
+00ff1f30  00ff1f47  000018  TN_LADR.O         .data     D 
+00ff1f48  00ff1f57  000010  TIM_GLOB.O        .data     D 
+00ff1f58  00ff1f58  000000  M_GLASS.O         .data     D 
+00ff1f58  00ff210b  0001b4  TN_EGG.O          .data     D 
+00ff210c  00ff2153  000048  CAT_DEF.O         .data     D 
+00ff2154  00ff216b  000018  SID_DEF.O         .data     D 
+00ff216c  00ff21e3  000078  TN_CATA.O         .data     D 
+00ff21e4  00ff223f  00005c  DYNAMITE.O        .data     D 
+00ff2240  00ff226f  000030  EP.O              .data     D 
+00ff2270  00ff2270  000000  HC_BELT.O         .data     D 
+00ff2270  00ff2323  0000b4  TN_TT.O           .data     D 
+00ff2324  00ff232f  00000c  TN_HAIR.O         .data     D 
+00ff2330  00ff2330  000000  EYEHOOK.O         .data     D 
+00ff2330  00ff235f  000030  GEAR.O            .data     D 
+00ff2360  00ff2377  000018  BULLET.O          .data     D 
+00ff2378  00ff23a7  000030  BALLOON.O         .data     D 
+00ff23a8  00ff23bf  000018  TRAMP.O           .data     D 
+00ff23c0  00ff2423  000064  TN_DRAGN.O        .data     D 
+00ff2424  00ff24c7  0000a4  TN_UPDWN.O        .data     D 
+00ff24c8  00ff24d3  00000c  TN_INCRE.O        .data     D 
+00ff24d4  00ff253f  00006c  TN_SHSWT.O        .data     D 
+00ff2540  00ff25a3  000064  TN_MESG.O         .data     D 
+00ff25a4  00ff266b  0000c8  TN_RTRNS.O        .data     D 
+00ff266c  00ff26db  000070  INCLINE.O         .data     D 
+00ff26dc  00ff2717  00003c  TN_DRYER.O        .data     D 
+00ff2718  00ff2737  000020  TN_WHSTL.O        .data     D 
+00ff2738  00ff275b  000024  TN_GUM.O          .data     D 
+00ff275c  00ff2793  000038  TN_FISH.O         .data     D 
+00ff2794  00ff27c3  000030  TN_CHEES.O        .data     D 
+00ff27c4  00ff27f3  000030  TN_NUT.O          .data     D 
+00ff27f4  00ff287f  00008c  TN_PIANO.O        .data     D 
+00ff2880  00ff2880  000000  SEGADB.O          .data     D 
+00ff2880  00ff28b7  000038  TN_ANVIL.O        .data     D 
+00ff28b8  00ff28eb  000034  TN_WW2.O          .data     D 
+00ff28ec  00ff2927  00003c  TN_HATPN.O        .data     D 
+00ff2928  00ff2947  000020  TN_PENCL.O        .data     D 
+00ff2948  00ff297f  000038  TN_MALLT.O        .data     D 
+00ff2980  00ff29ff  000080  TN_ELEPH.O        .data     D 
+00ff2a00  00ff2a0b  00000c  EXPLOSION.O       .data     D 
+00ff2a0c  00ff2a23  000018  TN_RUG.O          .data     D 
+00ff2a24  00ff2a8f  00006c  TN_TRAP.O         .data     D 
+00ff2a90  00ff2af3  000064  TN_EAT.O          .data     D 
+00ff2af4  00ff2af7  000004  DRAWING.O         .data     D 
+00ff2af8  00ff2af8  000000  COLLIDE.O         .data     D 
+00ff2af8  00ff2af8  000000  WALL.O            .data     D 
+00ff2af8  00ff2b0f  000018  TN_TUNEL.O        .data     D 
+00ff2b10  00ff2c97  000188  SMARTEND.O        .data     D 
+00ff2c98  00ff2c98  000000  LEVEL.O           .data     D 
+00ff2c98  00ff2c9b  000004  TN_FILE.O         .data     D 
+00ff2c9c  00ff2cb3  000018  TN_GLOB.O         .data     D 
+00ff2cb4  00ff2d27  000074  TN_RNDOM.O        .data     D 
+00ff2d28  00ff2d28  000000  TN_CLAPR.O        .data     D 
+00ff2d28  00ff2d28  000000  TN_RIP.O          .data     D 
+00ff2d28  00ff2d2b  000004  TN_SOUND.O        .data     D 
+00ff2d2c  00ff2d63  000038  TN_HTYPT.O        .data     D 
+00ff2d64  00ff2d6b  000008  SEGARTNS.O        .data     D 
+00ff2d6c  00ff2d6c  000000  STRNICMP.O        .data     D 
+00ff2d6c  00ff2d6c  000000  RUN.O             .data     D 
+00ff2d6c  00ff2d6c  000000  INTERACT.O        .data     D 
+00ff2d6c  00ff2d6c  000000  VICTORY.O         .data     D 
+00ff2d6c  00ff2d6c  000000  VIC_1.O           .data     D 
+00ff2d6c  00ff2d6c  000000  BITMAPS.O         .data     D 
+00ff2d6c  00ff2d6c  000000  TN_FLUSH.O        .data     D 
+00ff2d6c  00ff2d8f  000024  VM_LINE.O         .data     D 
+00ff2d90  00ff2d90  000000  SCROLL.O          .data     D 
+00ff2d90  00ff2d90  000000  VARIABLE.O        .data     D 
+00ff2d90  00ff2d90  000000  VM_INIT.O         .data     D 
+00ff2d90  00ff2d90  000000  VM_GLOBS.O        .data     D 
+00ff2d90  00ff2d90  000000  GRAF.O            .data     D 
+00ff2d90  00ff2d90  000000  LEVELS.O          .data     D 
+00ff2d90  00ff2d90  000000  GEMS.O            .data     D 
+00ff2d90  00ff2d90  000000  sbrk.o            .data     D 
+00ff2d90  00ff2d90  000000  printf.o          .data     D 
+00ff2d90  00ff2d90  000000  errno.o           .data     D 
+00ff2d90  00ff2d90  000000  stdio.o           .data     D 
+00ff2d90  00ff2d90  000000  ctypetab.o        .data     D 
+00ff2d90  00ff2d90  000000  strlen.o          .data     D 
+00ff2d90  00ff2d90  000000  flushbuf.o        .data     D 
+00ff2d90  00ff2d90  000000  puts.o            .data     D 
+00ff2d90  00ff2d90  000000  div32.o           .data     D 
+00ff2d90  00ff2d90  000000  fltstdmy.o        .data     D 
+00ff2d90  00ff2d90  000000  malloc.o          .data     D 
+00ff2d90  00ff2d90  000000  mod32.o           .data     D 
+00ff2d90  00ff2d90  000000  mod16.o           .data     D 
+00ff2d90  00ff2d90  000000  signal.o          .data     D 
+00ff2d90  00ff2d90  000000  toupper.o         .data     D 
+00ff2d90  00ff2d90  000000  exit.o            .data     D 
+00ff2d90  00ff2d90  000000  fputc.o           .data     D 
+00ff2d90  00ff2d90  000000  fputs.o           .data     D 
+00ff2d90  00ff2d90  000000  memset.o          .data     D 
+00ff2d90  00ff2d90  000000  load_tbl.o        .data     D 
+00ff2d90  00ff2d90  000000  memcpy.o          .data     D 
+00ff2d90  00ff2d90  000000  abs.o             .data     D 
+00ff2d90  00ff2d90  000000  vdplib.o          .data     D 
+00ff2d90  00ff2d90  000000  sprites.o         .data     D 
+00ff2d90  00ff2d90  000000  wrom.o            .data     D 
+00ff2d90  00ff2d93  000004  puts.o            .data     D 
+00ff2d94  00ff2e17  000084  maps.o            .data     D 
+00ff2e18  00ff2e18  000000  general.o         .data     D 
+00ff2e18  00ff2e18  000000  dmaqueue.o        .data     D 
+
+00ff2e18  00ff6953  003b3c  TOONS.COF        >.bss      B (00) 
+00ff2e18  00ff2e18  000000  VECTORS.O         .bss      B (00) 
+00ff2e18  00ff2e18  000000  SEGAHDR.O         .bss      B (00) 
+00ff2e18  00ff2e18  000000  ICD_BLK4.O        .bss      B (00) 
+00ff2e18  00ff2e18  000000  STARTUP.O         .bss      B (00) 
+00ff2e18  00ff2e57  000040  MAIN.O            .bss      B (00) 
+00ff2e58  00ff2e58  000000  EXCPTN.O          .bss      B (00) 
+00ff2e58  00ff2ee7  000090  TN_PANEL.O        .bss      B (00) 
+00ff2ee8  00ff2ee8  000000  TN_CHKEN.O        .bss      B (00) 
+00ff2ee8  00ff2f0f  000028  TN_ANT.O          .bss      B (00) 
+00ff2f10  00ff2f13  000004  CURS_MLH.O        .bss      B (00) 
+00ff2f14  00ff2f53  000040  FILESYS.O         .bss      B (00) 
+00ff2f54  00ff2f63  000010  VC.O              .bss      B (00) 
+00ff2f64  00ff2f64  000000  TN_PROP.O         .bss      B (00) 
+00ff2f64  00ff2f64  000000  BALL.O            .bss      B (00) 
+00ff2f64  00ff2f83  000020  TEAPOT.O          .bss      B (00) 
+00ff2f84  00ff2f8b  000008  SCISSORS.O        .bss      B (00) 
+00ff2f8c  00ff2f9f  000014  GUN.O             .bss      B (00) 
+00ff2fa0  00ff2fa0  000000  BORDERS.O         .bss      B (00) 
+00ff2fa0  00ff2fa3  000004  TN_FREE.O         .bss      B (00) 
+00ff2fa4  00ff2fa4  000000  TN_EGG1.O         .bss      B (00) 
+00ff2fa4  00ff2fab  000008  TN_EDIT.O         .bss      B (00) 
+00ff2fac  00ff2fac  000000  TN_ED_MD.O        .bss      B (00) 
+00ff2fac  00ff2fac  000000  HOT_SPOT.O        .bss      B (00) 
+00ff2fac  00ff2fac  000000  SUPPORT.O         .bss      B (00) 
+00ff2fac  00ff2fb3  000008  EDITOR.O          .bss      B (00) 
+00ff2fb4  00ff2fb4  000000  GAMEPLAY.O        .bss      B (00) 
+00ff2fb4  00ff2fb4  000000  PHYSICS.O         .bss      B (00) 
+00ff2fb4  00ff2fb4  000000  STUB32.O          .bss      B (00) 
+00ff2fb4  00ff2fcf  00001c  TN_TROT.O         .bss      B (00) 
+00ff2fd0  00ff2fd0  000000  TN_CHAR.O         .bss      B (00) 
+00ff2fd0  00ff2fd0  000000  QUERY.O           .bss      B (00) 
+00ff2fd0  00ff2fd3  000004  TN_CAT.O          .bss      B (00) 
+00ff2fd4  00ff2fd7  000004  TN_SID.O          .bss      B (00) 
+00ff2fd8  00ff2fd8  000000  TN_BANA.O         .bss      B (00) 
+00ff2fd8  00ff2fd8  000000  TN_LADR.O         .bss      B (00) 
+00ff2fd8  00ff3547  000570  TIM_GLOB.O        .bss      B (00) 
+00ff3548  00ff3548  000000  M_GLASS.O         .bss      B (00) 
+00ff3548  00ff358b  000044  TN_EGG.O          .bss      B (00) 
+00ff358c  00ff3ebf  000934  CAT_DEF.O         .bss      B (00) 
+00ff3ec0  00ff4737  000878  SID_DEF.O         .bss      B (00) 
+00ff4738  00ff4783  00004c  TN_CATA.O         .bss      B (00) 
+00ff4784  00ff47a7  000024  DYNAMITE.O        .bss      B (00) 
+00ff47a8  00ff47a8  000000  EP.O              .bss      B (00) 
+00ff47a8  00ff47a8  000000  HC_BELT.O         .bss      B (00) 
+00ff47a8  00ff47a8  000000  TN_TT.O           .bss      B (00) 
+00ff47a8  00ff47a8  000000  TN_HAIR.O         .bss      B (00) 
+00ff47a8  00ff47a8  000000  EYEHOOK.O         .bss      B (00) 
+00ff47a8  00ff47a8  000000  GEAR.O            .bss      B (00) 
+00ff47a8  00ff47bf  000018  BULLET.O          .bss      B (00) 
+00ff47c0  00ff47c0  000000  BALLOON.O         .bss      B (00) 
+00ff47c0  00ff47c0  000000  TRAMP.O           .bss      B (00) 
+00ff47c0  00ff47eb  00002c  TN_DRAGN.O        .bss      B (00) 
+00ff47ec  00ff47ec  000000  TN_UPDWN.O        .bss      B (00) 
+00ff47ec  00ff47ec  000000  TN_INCRE.O        .bss      B (00) 
+00ff47ec  00ff47ec  000000  TN_SHSWT.O        .bss      B (00) 
+00ff47ec  00ff47ec  000000  TN_MESG.O         .bss      B (00) 
+00ff47ec  00ff47fb  000010  TN_RTRNS.O        .bss      B (00) 
+00ff47fc  00ff480b  000010  INCLINE.O         .bss      B (00) 
+00ff480c  00ff4847  00003c  TN_DRYER.O        .bss      B (00) 
+00ff4848  00ff4848  000000  TN_WHSTL.O        .bss      B (00) 
+00ff4848  00ff4848  000000  TN_GUM.O          .bss      B (00) 
+00ff4848  00ff4848  000000  TN_FISH.O         .bss      B (00) 
+00ff4848  00ff4848  000000  TN_CHEES.O        .bss      B (00) 
+00ff4848  00ff4848  000000  TN_NUT.O          .bss      B (00) 
+00ff4848  00ff4848  000000  TN_PIANO.O        .bss      B (00) 
+00ff4848  00ff4848  000000  SEGADB.O          .bss      B (00) 
+00ff4848  00ff4848  000000  TN_ANVIL.O        .bss      B (00) 
+00ff4848  00ff4848  000000  TN_WW2.O          .bss      B (00) 
+00ff4848  00ff4883  00003c  TN_HATPN.O        .bss      B (00) 
+00ff4884  00ff4884  000000  TN_PENCL.O        .bss      B (00) 
+00ff4884  00ff4884  000000  TN_MALLT.O        .bss      B (00) 
+00ff4884  00ff48d7  000054  TN_ELEPH.O        .bss      B (00) 
+00ff48d8  00ff48db  000004  EXPLOSION.O       .bss      B (00) 
+00ff48dc  00ff48dc  000000  TN_RUG.O          .bss      B (00) 
+00ff48dc  00ff4917  00003c  TN_TRAP.O         .bss      B (00) 
+00ff4918  00ff4957  000040  TN_EAT.O          .bss      B (00) 
+00ff4958  00ff495b  000004  DRAWING.O         .bss      B (00) 
+00ff495c  00ff498f  000034  COLLIDE.O         .bss      B (00) 
+00ff4990  00ff4990  000000  WALL.O            .bss      B (00) 
+00ff4990  00ff4990  000000  TN_TUNEL.O        .bss      B (00) 
+00ff4990  00ff4990  000000  SMARTEND.O        .bss      B (00) 
+00ff4990  00ff4990  000000  LEVEL.O           .bss      B (00) 
+00ff4990  00ff49ff  000070  TN_FILE.O         .bss      B (00) 
+00ff4a00  00ff4abb  0000bc  TN_GLOB.O         .bss      B (00) 
+00ff4abc  00ff4abc  000000  TN_RNDOM.O        .bss      B (00) 
+00ff4abc  00ff4abc  000000  TN_CLAPR.O        .bss      B (00) 
+00ff4abc  00ff4abf  000004  TN_RIP.O          .bss      B (00) 
+00ff4ac0  00ff4ac3  000004  TN_SOUND.O        .bss      B (00) 
+00ff4ac4  00ff4ac4  000000  TN_HTYPT.O        .bss      B (00) 
+00ff4ac4  00ff4adb  000018  SEGARTNS.O        .bss      B (00) 
+00ff4adc  00ff4adc  000000  STRNICMP.O        .bss      B (00) 
+00ff4adc  00ff4adc  000000  RUN.O             .bss      B (00) 
+00ff4adc  00ff4adc  000000  INTERACT.O        .bss      B (00) 
+00ff4adc  00ff4adc  000000  VICTORY.O         .bss      B (00) 
+00ff4adc  00ff4d93  0002b8  VIC_1.O           .bss      B (00) 
+00ff4d94  00ff4d97  000004  BITMAPS.O         .bss      B (00) 
+00ff4d98  00ff4d98  000000  TN_FLUSH.O        .bss      B (00) 
+00ff4d98  00ff4f27  000190  VM_LINE.O         .bss      B (00) 
+00ff4f28  00ff4f33  00000c  SCROLL.O          .bss      B (00) 
+00ff4f34  00ff5fef  0010bc  VARIABLE.O        .bss      B (00) 
+00ff5ff0  00ff5ff0  000000  VM_INIT.O         .bss      B (00) 
+00ff5ff0  00ff607f  000090  VM_GLOBS.O        .bss      B (00) 
+00ff6080  00ff6080  000000  GRAF.O            .bss      B (00) 
+00ff6080  00ff6080  000000  LEVELS.O          .bss      B (00) 
+00ff6080  00ff6080  000000  GEMS.O            .bss      B (00) 
+00ff6080  00ff6083  000004  sbrk.o            .bss      B (00) 
+00ff6084  00ff6084  000000  printf.o          .bss      B (00) 
+00ff6084  00ff6087  000004  errno.o           .bss      B (00) 
+00ff6088  00ff60db  000054  stdio.o           .bss      B (00) 
+00ff60dc  00ff60dc  000000  ctypetab.o        .bss      B (00) 
+00ff60dc  00ff60dc  000000  strlen.o          .bss      B (00) 
+00ff60dc  00ff60dc  000000  flushbuf.o        .bss      B (00) 
+00ff60dc  00ff60dc  000000  puts.o            .bss      B (00) 
+00ff60dc  00ff60dc  000000  div32.o           .bss      B (00) 
+00ff60dc  00ff60dc  000000  fltstdmy.o        .bss      B (00) 
+00ff60dc  00ff60ef  000014  malloc.o          .bss      B (00) 
+00ff60f0  00ff60f0  000000  mod32.o           .bss      B (00) 
+00ff60f0  00ff60f0  000000  mod16.o           .bss      B (00) 
+00ff60f0  00ff6123  000034  signal.o          .bss      B (00) 
+00ff6124  00ff6124  000000  toupper.o         .bss      B (00) 
+00ff6124  00ff61a7  000084  exit.o            .bss      B (00) 
+00ff61a8  00ff61a8  000000  fputc.o           .bss      B (00) 
+00ff61a8  00ff61a8  000000  fputs.o           .bss      B (00) 
+00ff61a8  00ff61a8  000000  memset.o          .bss      B (00) 
+00ff61a8  00ff61a8  000000  load_tbl.o        .bss      B (00) 
+00ff61a8  00ff61a8  000000  memcpy.o          .bss      B (00) 
+00ff61a8  00ff61a8  000000  abs.o             .bss      B (00) 
+00ff61a8  00ff61a8  000000  vdplib.o          .bss      B (00) 
+00ff61a8  00ff6457  0002b0  sprites.o         .bss      B (00) 
+00ff6458  00ff6458  000000  wrom.o            .bss      B (00) 
+00ff6458  00ff6458  000000  puts.o            .bss      B (00) 
+00ff6458  00ff6458  000000  maps.o            .bss      B (00) 
+00ff6458  00ff662b  0001d4  general.o         .bss      B (00) 
+00ff662c  00ff6953  000328  dmaqueue.o        .bss      B (00) 
+
+RESERVED SYMBOLS
+
+00ff6954      heap_org
+00008eac      heap_len

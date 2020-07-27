@@ -1,0 +1,37 @@
+/* * * * *
+*
+*  TN_NUT.C
+*
+*  This file contains all the code associated with the nut.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/13/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+
+void nut_reinit(PART *nut)
+{
+   /* border definitions for part 58 (nut) */
+   static PART_BORDER_C far part58_1_bord[8] =     
+         {{11,1,0},{18,0,0},{22,4,0},{18,8,0},{10,6,0},{2,8,0},
+            {0,4,0},{4,0,0}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!nut)
+   {
+      set_border_slopes(PT_PEANUT, 0, part58_1_bord, 0, 0);
+      return;
+   }
+
+   nut->border = part58_1_bord;
+   set_adjusted_loc_size(nut);
+}
+
+

@@ -1,0 +1,13 @@
+
+double buffer technique ----- for 64k VDP
+
+	DMA - 6.875k per vblank 4 - frames ummm...
+
+
+optimize sys_draw ------
+
+	source --- even pixel starts can do first character
+			then start with ????
+
+
+

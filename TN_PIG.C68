@@ -1,0 +1,322 @@
+/* * * *
+*
+*  TN_PIG.C
+*
+*  This module contains all the code associated with the DOS pig requester.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/23/93 ChrisC   File created
+*
+* * * * */
+#include <string.h>
+#include <ctype.h>
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+/* * * * *
+*
+*  local functions to this module
+*
+* * * * */
+
+
+/* * * * *
+*
+*  void do_toon_pig(char mode);
+*
+*  This function manages the interface and functionallity of the pig
+*  requester.
+*
+* * * * */
+void do_toon_pig(short mode)
+{
+}
+/* * * * *
+*
+*  build_bin_file_list(name, temp_file);
+*
+*  Build the list of puzzles that are in the specifed toons bin.
+*
+*  This function will load levels starting at 1.  It will stop
+*  as soon as it finds a non-existant level.
+*
+* * * * */
+short build_bin_file_list(char far *name, char *temp_file)
+{
+}
+
+
+/* * * * *
+*
+*  alphabetize_file_list();
+*
+*  This function alphabetizes the current file list.
+*
+* * * * */
+void alphabetize_file_list(void)
+{
+}
+
+/* * * * *
+*
+*  select_initial_file(flag);
+*
+*  This function will try to match either the current title or the
+*  current filename to one that is in the list.  If a match is found
+*  then the one in the list is selected.  If no match is found then
+*  no default selection is make unless the flag is TRUE.  In this case
+*  the first puzzle in the list that has not been solved will become
+*  the default.
+*
+*  This function will also determine the starting offset for the
+*  list so that the default selection can be seen.
+*
+*  If a match is found, this function will return TRUE, otherwise
+*  this function will return FALSE (even if a default selection is made).
+*
+* * * * */
+short select_initial_file(short flag)
+{
+}
+
+
+/* * * * *
+*
+*  update_text_fields();
+*
+*  This function copies the necessary data to all of
+*  the text fields.
+*
+*  NOTE - This function does not redraw the text fields.
+*
+* * * * */
+void update_text_fields(void)
+{
+}
+
+
+
+/* * * * *
+*
+*  update_animations();
+*
+*  This function will update the animations.
+*
+* * * * */
+void update_animations(void)
+{
+}
+
+/* * * * *
+*
+*  process_list();
+*
+*  This function check if the player clicked inside the list.
+*  If they do, then the list item they clicked on will become
+*  the selected one.
+*
+* * * * */
+void process_list(void)
+{
+}
+
+/* * * * *
+*
+*  process_text(type);
+*
+*  This function processes all of the text windows.
+*  If the button is clicked inside of the text window,
+*  a call is made to allow the player to modify the text.
+*
+*  If type is not TW_BUTTON, then the specified text
+*  window will be edited.
+*
+* * * * */
+void process_text(enum twtype type)
+{
+}
+
+/* * * * *
+*
+*  process_button(button);
+*
+*  Process the specified button that has been pressed.
+*
+* * * * */
+void process_button(unsigned short button)
+{
+}
+
+/* * * * *
+*
+*  change_to_bin(bin);
+*
+*  Change the current bin to the specified bin.
+*
+* * * * */
+void change_to_bin(enum bins bin)
+{
+}
+
+/* * * * *
+*
+*  verify_path();
+*
+*  This function will return TRUE if the current dos path is valid.
+*
+* * * * */
+short verify_path(void)
+{
+}
+
+/* * * * *
+*
+*  verify_filename();
+*
+*  This function will return TRUE if the current filename is valid.
+*
+* * * * */
+short verify_filename(void)
+{
+}
+
+/* * * * *
+*
+*  pick_default_home_toon_name();
+*
+*  This function will pick a default name for the current
+*  home toon puzzle.  It will also copy the current levels
+*  description.
+*
+* * * * */
+void pick_default_home_toon_name(void)
+{
+}
+
+/* * * * *
+*
+*  draw_pig_requester(flag);
+*
+*  This function will redraw the entire pig requester.
+*
+*  If flag is TRUE, then only the background and bins will be drawn.
+*
+* * * * */
+void draw_pig_requester(short flag)
+{
+}
+
+/* * * * *
+*
+*  draw_text_window(type);
+*
+*  Draw the text window that matches the specified type.
+*
+* * * * */
+void draw_text_window(enum twtype type)
+{
+}
+
+
+/* * * * *
+*
+*  draw_file_list();
+*
+*  This function will draw the list of files that can be loaded/saved.
+*
+* * * * */
+void draw_file_list(void)
+{
+}
+
+/* * * * *
+*
+*  draw_bin(bin);
+*
+*  This function will draw the specified bin.
+*
+* * * * */
+void draw_bin(enum bins bin)
+{
+}
+
+
+/* * * * *
+*
+*  void draw_pig(char button, short x, short y);
+*
+*  This function will draw all the cells of the pig requester.
+*
+*  If button
+*     =  0,  then draw background.
+*     =  1,  then draw backdrop.
+*     =  2,  then draw words.
+*     =  3,  then draw looney bin root.
+*     =  4,  then draw big eye closed.
+*     =  5,  then draw little eye closed.
+*     =  6,  then draw mouth frame 1.
+*     =  7,  then draw mouth frame 2.
+*     =  8,  then draw mouth frame 3.
+*     =  9,  then draw mouth frame 4.
+*     = 10,  then draw mouth frame 5.
+*     = 11,  then draw all braun root.
+*     = 12,  then draw eyebrow norm.
+*     = 13,  then draw eyebrow down.
+*     = 14,  then draw eyebrow up.
+*     = 15,  then draw thumb norm.
+*     = 16,  then draw thumb  up.
+*     = 17,  then draw really hard root.
+*     = 18,  then draw baker's mouth frm1.
+*     = 19,  then draw baker's mouth frm2.
+*     = 20,  then draw nbakers mouth frm3.
+*     = 21,  then draw baker's mouth frm4.
+*     = 22,  then draw bakers eyes frame 1.
+*     = 23,  then draw bakers eyes frame 2.
+*     = 24,  then draw bakers eyes frame 3.
+*     = 25,  then draw bakers eyes frame 4.
+*     = 26,  then draw Kids play.
+*     = 27,  then draw kids hands frm1.
+*     = 28,  then draw kids hands frm2.
+*     = 29,  then draw kids play hair .
+*     = 30,  then draw kids play hair frm2.
+*     = 31,  then draw home toons frm 1.
+*     = 32,  then draw home toons frm2.
+*     = 33,  then draw top arrow up.
+*     = 34,  then draw top arrow down.
+*     = 35,  then draw bottom arrow up.
+*     = 36,  then draw bottom arrow down.
+*     = 37,  then draw load button up.
+*     = 38,  then draw load button down.
+*     = 39,  then draw cancel button up.
+*     = 40,  then draw cancel button down.
+*     = 41,  then draw title chooser #1.
+*     = 42,  then draw film canister frm 1.
+*     = 43,  then draw film canister frm 2.
+*     = 44,  then draw double lock canister.
+*     = 45,  then draw Dos Path Window.
+*     = 46,  then draw title chooser #2.
+*     = 47,  then draw title chooser #3.
+*     = 48,  then draw the title.
+*     = 49,  then draw closed canister.
+*     = 50,  then draw save button up.
+*     = 51,  then draw save button down.
+*     = 52,  then draw hometoon word.
+*     = 53,  then draw save path.
+*     = 54,  then draw save list.
+*     = 55,  then draw save title.
+*     = 56,  then draw save name.
+*     = 57,  then draw locked canister.
+*     = 58,  then draw open canister.
+*  
+*  This function assumes that the shape tables are loaded into memory.
+*
+* * * * */
+void draw_pig(char button, short x, short y)
+{
+}
+
+

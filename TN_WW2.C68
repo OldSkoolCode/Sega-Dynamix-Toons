@@ -1,0 +1,162 @@
+/* * * * *
+*
+*  TN_WW2.C
+*
+*  This file contains all the code associated with the WWII bomb.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/24/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   WW2BOMB                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        This WWII bomb rotates as it falls. The first frame is the bomb 
+   tilted. The other frames are as it rotates and falls. The last frame
+   is the bomb at a verticle angle.
+        Supershape #1 is the resting state. Supershape #4 is the verticle
+   bomb. The supershape rotate around the center of the bomb.
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C ww2bomb1 = {0, WW2BOMB_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ww2bomb2 = {0, WW2BOMB_PLANE, {1,255,255,255},
+   {{1,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ww2bomb3 = {0, WW2BOMB_PLANE, {2,255,255,255},
+   {{1,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ww2bomb4 = {0, WW2BOMB_PLANE, {3,255,255,255},
+   {{5,-3},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far ww2bomb_ss_tab[WW2BOMB_NUM_STATES] = 
+   {&ww2bomb1,&ww2bomb2,&ww2bomb3,&ww2bomb4};
+
+/* size. */
+TIM_VEC_C far ww2bomb_size[WW2BOMB_NUM_STATES] = 
+   {{23,12},{21,14},{20,16},{16,19}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far ww2bomb_os[WW2BOMB_NUM_STATES] = 
+   {{0,0},{2,-4},{2,-5},{11,-6}};
+
+/* border definitions. */
+static PART_BORDER_C far ww2bomb2_bord[WW2BOMB_BORDERS] =
+   {{8,9,0},{8,4,0},{13,2,0},{18,4,0},
+    {18,9,0},{13,11,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far ww2bomb_bord_tab[WW2BOMB_NUM_STATES] =
+   {ww2bomb2_bord,ww2bomb2_bord,ww2bomb2_bord,ww2bomb2_bord};
+
+#define WW2BOMB_THRESHOLD1    TWO_PIX          /*(TWO_PIX) */
+#define WW2BOMB_THRESHOLD2    THREE_PIX        /*(FOUR_PIX) */
+#define WW2BOMB_THRESHOLD3    FOUR_PIX         /*(FOUR_PIX + TWO_PIX) */
+#define WW2BOMB_THRESHOLD4    FIVE_PIX         /*(EIGHT_PIX) */
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void ww2bomb_reinit(PART *ww2bomb)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!ww2bomb)
+   {
+      set_border_table_slopes(PT_WWII_BOMB, 0, ww2bomb_bord_tab, 0, WW2BOMB_NUM_STATES);
+      return;
+   }
+   ww2bomb->border = ww2bomb_bord_tab[ww2bomb->state];
+   set_adjusted_loc_size(ww2bomb);
+}
+
+short ww2bomb_bounce(PART *cur_part)
+{
+   PART *ww2bomb;
+
+   /* assigns the pointers to the correct parts. */
+   if (cur_part->type == PT_WWII_BOMB)
+   {
+      ww2bomb = cur_part;
+      cur_part = cur_part->col_info.part;
+   }
+   else
+      ww2bomb = cur_part->col_info.part;
+   
+   switch (cur_part->type)
+   {
+      case PT_TRAMP:
+      case PT_E_PLUG:
+      case PT_TT:
+      case PT_SHOOT_SWTCH:
+      case PT_INCLINE0:
+      case PT_INCLINE1:
+      case PT_INCLINE2:
+      case PT_INCLINE3:
+      case PT_INCLINE4:
+         break;
+      default:
+         /* check if the bomb is moving fast enough to explode */
+         if (abs(ww2bomb->speed.y) > WW2BOMB_THRESHOLD4)
+            ww2bomb->sub_state = 1;
+   }
+
+   return(1);
+}
+
+void ww2bomb_internal(PART *ww2bomb)
+{
+   /* check to see if the bomb has not hit anything */
+   if (!ww2bomb->sub_state)
+   {
+      /* check if the bomb is resting on something */
+      if (ww2bomb->speed.y < WW2BOMB_THRESHOLD1)
+      {
+         ww2bomb->state = 0;
+         jtp_sx_stop(SX_WW2_BOMB);
+      }
+
+      /* check if the bomb has just started to fall */
+      else if (ww2bomb->speed.y < WW2BOMB_THRESHOLD2)
+      {
+         ww2bomb->state = 1;
+         jtp_sx_play(SX_WW2_BOMB,1,0);
+      }
+
+      /* check if the bomb is not quite vertical yet */
+      else if (ww2bomb->speed.y < WW2BOMB_THRESHOLD3)
+         ww2bomb->state = 2;
+
+      /* check if the bomb is vertical yet */
+      else if (ww2bomb->speed.y < WW2BOMB_THRESHOLD4)
+         ww2bomb->state = 3;
+      
+      ww2bomb_reinit(ww2bomb);
+   }
+   else
+   {
+      jtp_sx_stop(SX_WW2_BOMB);
+      explode(ww2bomb, 10,-20);
+   }
+}
+
+
+
+
+
+
+							 

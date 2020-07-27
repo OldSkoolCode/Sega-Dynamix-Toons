@@ -1,0 +1,105 @@
+/* * * * *
+*
+*  TN_BANA.C
+*
+*  This file contains all the code associated with the banana
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  08/08/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   BANANA                                   *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+*  sshape #1 is the banana just sitting on the screen.
+*  sshape #2 is              sshape #3 is
+* 
+*
+*  sshape #4 is              sshape #5 is
+*  sshape #1 is the banana before it gets eaten. sshape #5 is the banana
+*  ready for the characters to slip on.
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C banana1 = {0, BANANA_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C banana2 = {0, BANANA_PLANE, {1,255,255,255},
+   {{1,-4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C banana3 = {0, BANANA_PLANE, {2,255,255,255},
+   {{0,-3},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C banana4 = {0, BANANA_PLANE, {3,255,255,255},
+   {{-6,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C banana5 = {0, BANANA_PLANE, {4,255,255,255},
+   {{-1,-2},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far banana_ss_tab[BANANA_NUM_STATES] = 
+   {&banana1,&banana2,&banana3,&banana4,&banana5};
+
+/* size. */
+TIM_VEC_C far banana_size[BANANA_NUM_STATES] = 
+   {{16,8},{10,12},{13,11},{25,4},{17,7}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far banana_os[BANANA_NUM_STATES] = 
+   {{0,0},{2,-8},{1,-7},{-11,3},{-1,-4}};
+
+/* border definitions. */
+static PART_BORDER_C far banana1_bord[BANANA_BORDERS] =
+   {{0,2,0},{15,0,0},{16,1,0},{10,7,0},
+    {2,7,0}};
+static PART_BORDER_C far banana2_bord[BANANA_BORDERS] =
+   {{2,-2,0},{10,-2,0},{9,6,0},{5,7,0},
+    {2,-2,0}};
+static PART_BORDER_C far banana3_bord[BANANA_BORDERS] =
+   {{0,4,0},{10,-2,0},{13,2,0},{2,7,0},
+    {0,4,0}};
+static PART_BORDER_C far banana4_bord[BANANA_BORDERS] =
+   {{-5,3,0},{18,3,0},{16,5,0},{-3,5,0},
+    {-5,3,0}};
+static PART_BORDER_C far banana5_bord[BANANA_BORDERS] =
+   {{1,0,0},{15,0,0},{15,3,0},{1,4,0},
+    {1,0,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far banana_bord_tab[BANANA_NUM_STATES] =
+   {banana1_bord,banana2_bord,banana3_bord,banana4_bord,
+    banana5_bord};
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void banana_reinit(PART *banana)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!banana)
+   {
+      set_border_table_slopes(PT_BANANA,0,banana_bord_tab,0,
+         BANANA_NUM_STATES);
+      return;
+   }
+
+   banana->border = banana_bord_tab[banana->state];
+   set_adjusted_loc_size(banana);
+}
+
+#pragma argsused 
+void banana_internal(PART *banana)
+{
+
+}
+
+

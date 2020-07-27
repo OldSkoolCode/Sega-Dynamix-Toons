@@ -1,0 +1,1068 @@
+/* * * * *
+*
+*  COLLIDE.C
+*
+*  This file contains collide support routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  02/14/92 Kevin Ryan  File created
+*
+* * * * */
+
+#include <stdio.h>
+
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "simlib.h"
+
+
+
+/*local routines */
+void set_pptr_col_vars( void);
+short is_rolling( short);
+short get_move_angle( PART *);
+short get_slope_index( short);
+void set_supported( LINE_SEG *, short, COLLIDE_INFO *);
+short check_collide( short);
+short check_collide1( short);
+/*static short check_collide2( void ); */
+
+/*local vars */
+static short movement_angle,last_slope,last_slope_index;
+static short x,xw,y,yh,center_x,x_move;
+static short cmp_x,cmp_y,ox,oy,cox,coy;
+static short cx,cxw,cy,cyh,y_move;
+static PART *pptr,*cpptr,*last_part;
+static const short x_add_tab[4] = { 0,-1,0,1};
+static const short y_add_tab[4] = {-1, 0,1,0};
+
+#define DISPLAY 0
+#if DISPLAY
+enum dtype { COLLIDE, CHECK_COLLIDE, CHECK_COLLIDE1, CHECK_COLLIDE2 };
+void display(enum dtype dtype)
+{
+   /* Redraw borders */
+   vm_dstptr = 0xa000;
+   vm_lcolor = vm_fcolor = 4;
+   vm_fill = 1;
+   vm_rect(0,0,vm_width,vm_height);
+   vm_lcolor = vm_fcolor = 4;
+/*   draw_boundry_rect(pptr); */
+   draw_part_border(pptr);
+   draw_part_border(cpptr);
+}
+
+void display_segment(short c,short x0,short y0,short x1,short y1)
+{
+      vm_lcolor = c;
+      vm_line( pptr->scrn_loc.x - ledge + x0,
+               pptr->scrn_loc.y - tedge + y0,
+               pptr->scrn_loc.x - ledge + x1,
+               pptr->scrn_loc.y - tedge + y1);
+      vm_dstptr = vm_buffptr;
+}
+#else
+   #define display(x)
+   #define display_segment(c,x0,y0,x1,y1)
+#endif
+
+
+
+void set_pptr_col_vars()
+{
+   cmp_x = x = pptr->scrn_loc.x;
+   cmp_y = y = pptr->scrn_loc.y;
+   xw = x + pptr->size.x;
+   yh = y + pptr->size.y;
+   ox = pptr->offset.x;
+   oy = pptr->offset.y;
+   center_x = x + ox + (pptr->place_size.x>>1);
+
+   x_move = x - pptr->old_scrn_loc.x;
+   y_move = y - pptr->old_scrn_loc.y;
+}
+
+
+
+
+short is_rolling(short slope)
+{
+   short slope_index,si1,si2,do_check;
+
+
+   if (!last_part)
+      return(0);
+
+   slope_index = get_slope_index(slope);
+
+   if (slope_index != last_slope_index)
+      return(0);
+
+   do_check = 0;
+   si1 = slope + 0x2000;
+   si2 = last_slope + 0x2000;
+
+   if ((si1>=0x0000) && (si1<=0x4000) &&
+       (si2>=0x0000) && (si2<=0x4000))
+      do_check = 1;
+   else
+   {
+      si1 = slope - 0x6000;
+      si2 = last_slope - 0x6000;
+
+      if ((si1>=0x0000) && (si1<=0x4000) &&
+          (si2>=0x0000) && (si2<=0x4000))
+         do_check = 1;
+   }
+
+   if (do_check)
+   {
+      if (slope == last_slope)
+         return(1);
+
+      if ((si1==0x2000) || (si2==0x2000))
+         return(1);
+
+      if ((si1<0x2000) && (si2<0x2000))
+         return(1);
+
+      if ((si1>0x2000) && (si2>0x2000))
+         return(1);
+   }
+
+   return(0);
+}
+
+
+
+short get_move_angle(PART *pptr)
+{
+   return(angle_to(pptr->old_scrn_loc.x-pptr->scrn_loc.x,pptr->scrn_loc.y-pptr->old_scrn_loc.y));
+}
+
+
+
+short get_slope_index(short slope)
+{
+   if (slope == 0x2000)
+      return(0);
+   if (slope == (short)0xa000)
+      return(2);
+   slope += 0x2000;
+   slope >>= 14;
+   slope &= 0x03;
+   return(slope);
+}
+
+
+
+void set_supported(LINE_SEG *bseg,short cntr_x,COLLIDE_INFO *ci_ptr)
+{
+   if (within_range(cntr_x,bseg->x0,bseg->x1))
+   {
+      ci_ptr->left_of_cog_supported = 1;
+      ci_ptr->right_of_cog_supported = 1;
+   }
+   else
+   {
+      if (bseg->x0 < bseg->x1)
+      {
+         if (cntr_x < bseg->x0)
+            ci_ptr->right_of_cog_supported = 1;
+         else
+            ci_ptr->left_of_cog_supported = 1;
+      }
+      else
+      {
+         if (cntr_x < bseg->x1)
+            ci_ptr->left_of_cog_supported = 1;
+         else
+            ci_ptr->right_of_cog_supported = 1;
+      }
+   }
+}
+
+
+
+/* * * * *
+*
+*  This function will perform a rough check of cur_part to every other part.
+*  If a collision is detected it will perform a border check. This border
+*  check is performed in two function check_collision and check_collision1
+*
+* * * * */
+short collide(PART *cur_part)
+{
+   short collision, i;
+   COLLIDE_INFO *ci_ptr;
+
+   /* If specified part has no border, don't worry about collisions */
+   pptr = cur_part;
+   if (!pptr->border)
+      return(0);
+
+   ci_ptr = &pptr->col_info;
+   if ((last_part=pptr->col_info.part) != 0)
+   {
+      last_slope = ci_ptr->slope;
+      last_slope_index = get_slope_index(last_slope);
+   }
+   ci_ptr->left_of_cog_supported = ci_ptr->right_of_cog_supported = 0;
+   movement_angle = get_move_angle(pptr);
+
+   set_pptr_col_vars();
+
+   collision = 0;
+   if (last_part)
+   {
+      cpptr = last_part;
+      display(COLLIDE);
+      if (cpptr->border && !(cpptr->flags2&F2_INACTIVE))
+      {
+         cx = cpptr->scrn_loc.x;
+         cy = cpptr->scrn_loc.y;
+         cxw = cx + cpptr->size.x;
+         cyh = cy + cpptr->size.y;
+         cox = cpptr->offset.x;
+         coy = cpptr->offset.y;
+
+         if (  (cx+cox<=xw+ox) && (cxw+cox>=cmp_x+ox)
+            && (cy+coy<=yh+oy) && (cyh+coy>=cmp_y+oy)
+            && check_collide(0))
+         {
+            collision = 1;
+            movement_angle = get_move_angle(pptr);
+         }
+
+         if (  (cx+cox<=xw+ox) && (cxw+cox>=cmp_x+ox)
+            && (cy+coy<=yh+oy) && (cyh+coy>=cmp_y+oy)
+            && check_collide1(0))
+         {
+            collision = 1;
+            movement_angle = get_move_angle(pptr);
+         }
+
+      }
+   }
+
+   /* Here the loop has been changed. The function calls to get_first_part and */
+   /* get_next_part have been replaced with their equivalent in_line code. */
+   cpptr = static_list.next;
+   for (i = 0; i < 2; i++)
+   {
+      while (cpptr)
+      {
+         if ((pptr!=cpptr) && (last_part!=cpptr) &&
+            cpptr->border && !(cpptr->flags2&F2_INACTIVE))
+         {
+/*            display(COLLIDE); */
+            cx = cpptr->scrn_loc.x;
+            cy = cpptr->scrn_loc.y;
+            cxw = cx + cpptr->size.x;
+            cyh = cy + cpptr->size.y;
+            cox = cpptr->offset.x;
+            coy = cpptr->offset.y;
+
+            if (  (cx+cox<=xw+ox) && (cxw+cox>=cmp_x+ox)
+               && (cy+coy<=yh+oy) && (cyh+coy>=cmp_y+oy)
+               &&  check_collide(0))
+            {
+               collision = 1;
+               movement_angle = get_move_angle(pptr);
+            }
+
+            if (  (cx+cox<=xw+ox) && (cxw+cox>=cmp_x+ox)
+               && (cy+coy<=yh+oy) && (cyh+coy>=cmp_y+oy)
+               &&  check_collide1(0))
+            {
+               collision = 1;
+               movement_angle = get_move_angle(pptr);
+            }
+
+         }
+
+      skip_this_pair:
+         cpptr = cpptr->next;
+      }
+      cpptr = move_list.next;
+   }
+
+   if (collision == 0)
+      ci_ptr->part = 0;
+   else
+      if (is_rolling(ci_ptr->slope))
+         pptr->flags1 |= F1_ROLLING;
+
+   return(collision);
+}
+
+
+
+/* * * * *
+*
+*  This function will compare pptr to cpptr and tell pptr the collision
+*  information it needs
+*
+* * * * */
+short check_collide(short quick_exit)
+{
+   short collision,rolling;
+   short cp_bord_num,c_point_num;
+   short cp_slope,prev_slope,slope_diff;
+   short x0,x1,first_x0;
+   short y0,y1,first_y0;
+   short init_x_new,init_y_new;
+   short slope_index;
+   short c1,a2,b2,c2,d;
+   COLLIDE_INFO *ci_ptr;
+   LINE_SEG bseg,mseg;
+   TIM_VEC is;
+   P_PART_BORDER cpbptr,pbptr;
+
+
+   collision = 0;
+   cp_bord_num = 1;
+   cpbptr = cpptr->border;
+   first_x0 = x0 = cx + cpbptr->x + cpptr->border_offset.x;
+   first_y0 = y0 = cy + cpbptr->y + cpptr->border_offset.y;
+   x1 = cx + (cpbptr+1)->x + cpptr->border_offset.x;
+   y1 = cy + (cpbptr+1)->y + cpptr->border_offset.y;
+   cp_slope = cpbptr->slope;
+   while (cpbptr)
+   {
+      slope_index = get_slope_index(cp_slope);
+      slope_diff = movement_angle - cp_slope + 0x4000;
+      if (slope_diff <= 0)
+         goto skip_this_border;
+
+      pbptr = pptr->border;
+      prev_slope = pbptr->slope;
+      pbptr++;
+      c_point_num = 1;
+      while (pbptr)
+      {
+         slope_diff = prev_slope - cp_slope + 0x8000;
+         if ((slope_diff < 0) && (slope_diff != (short)0x8000))
+            goto skip_this_point;
+         slope_diff = pbptr->slope - cp_slope + 0x8000;
+         if (slope_diff > 0)
+            goto skip_this_point;
+
+         if ((x_move==0) && (y_move==0))
+            goto skip_this_point;
+
+         mseg.x0 = pptr->old_scrn_loc.x + pbptr->x + pptr->border_offset.x - x0;
+         mseg.y0 = pptr->old_scrn_loc.y + pbptr->y + pptr->border_offset.y - y0;
+         init_x_new = mseg.x1 = mseg.x0 + x_move;
+         init_y_new = mseg.y1 = mseg.y0 + y_move;
+
+         bseg.x0 = 0;
+         bseg.y0 = 0;
+         bseg.x1 = x1 - x0;
+         bseg.y1 = y1 - y0;
+         adjust_segment_slope(&bseg);
+
+         if (!segment_intersect(&mseg,&bseg,&is))
+            goto skip_this_point;
+
+         if ((is.y == bseg.y1) && (is.x == bseg.x1))
+            goto skip_this_point;
+
+         if (quick_exit)
+            return(1);
+
+         bseg.x0 = x_add_tab[slope_index];
+         bseg.y0 = y_add_tab[slope_index];
+         bseg.x1 += x_add_tab[slope_index];
+         bseg.y1 += y_add_tab[slope_index];
+
+         rolling = is_rolling(cp_slope);
+         if (!rolling)
+         {
+            if (!segment_intersect(&mseg,&bseg,&is))
+            {
+               pptr->scrn_loc.x = pptr->old_scrn_loc.x;
+               pptr->scrn_loc.y = pptr->old_scrn_loc.y;
+            }
+            else
+            {
+               pptr->scrn_loc.x += (is.x - init_x_new);
+               pptr->scrn_loc.y += (is.y - init_y_new);
+            }
+         }
+         else
+         {
+            c1 = mseg.x1;
+
+            a2 = bseg.y1 - bseg.y0;
+            b2 = bseg.x1 - bseg.x0;
+            c2 = a2*bseg.x0 - b2*bseg.y0;
+
+            d = 0 - b2;
+            if (d != 0)
+            {
+               is.y = (c2 - a2*c1)/d;
+               pptr->scrn_loc.y += (is.y - init_y_new);
+            }
+            else
+            {
+               pptr->scrn_loc.x = pptr->old_scrn_loc.x;
+               pptr->scrn_loc.y = pptr->old_scrn_loc.y;
+            }
+         }
+
+         pptr->loc.x = (long)pptr->scrn_loc.x << SCALE_SHIFT;
+         pptr->loc.y = (long)pptr->scrn_loc.y << SCALE_SHIFT;
+         set_adjusted_loc_size(pptr);
+         set_pptr_col_vars();
+/*         display(CHECK_COLLIDE); */
+
+         pptr->flags1 &= (F1_COLLIDE|F1_IMPACT) ^ 0xffff;
+         /* if the part collided with is always a colide part or is a static */
+         /* part, then set the F1_COLLIDE flag. Otherwise set the F1_IMPACT  */
+         /* flag. */
+         if ( ((pptr->flags2|cpptr->flags2)&F2_ALWAYS_COL) ||
+               (cpptr->flags1&F1_STATIC))
+            pptr->flags1 |= F1_COLLIDE;
+         else
+            pptr->flags1 |= F1_IMPACT;
+
+         /* initiallizes the collision information pointer of the part to  */
+         /* indicate what the last part collided with was. */
+         ci_ptr = &pptr->col_info;
+         ci_ptr->part = cpptr;
+         ci_ptr->slope = cp_slope;
+         ci_ptr->border_num = cp_bord_num - 1;
+         set_supported(&bseg,center_x-x0,ci_ptr);
+         collision = 1;
+
+      /* This advances to the next point in the border check. */
+      skip_this_point:
+         c_point_num++;
+         if (c_point_num > pptr->num_borders)
+            pbptr = 0;
+         else
+         {
+            prev_slope = pbptr->slope;
+            if (c_point_num == pptr->num_borders)
+               pbptr = pptr->border;
+            else
+               pbptr++;
+         }
+      }
+
+   /* This advances to the next border. */
+   skip_this_border:
+      cp_bord_num++;
+      if (cp_bord_num > cpptr->num_borders)
+         cpbptr = 0;
+      else
+      {
+         cpbptr++;
+         x0 = x1;
+         y0 = y1;
+         cp_slope = cpbptr->slope;
+         if (cp_bord_num == cpptr->num_borders)
+         {
+            x1 = first_x0;
+            y1 = first_y0;
+         }
+         else
+         {
+            x1 = cx + (cpbptr+1)->x + cpptr->border_offset.x;
+            y1 = cy + (cpbptr+1)->y + cpptr->border_offset.y;
+         }
+      }
+   }
+
+   return(collision);
+}
+
+
+
+/* * * * *
+*
+*  This function will compare pptr to cpptr and tell cpptr the collision
+*  information it needs. It is almost identical to check_collision.
+*
+* * * * */
+short check_collide1(short quick_exit)
+{
+   short collision,rolling;
+   short cp_bord_num,c_point_num;
+   short cp_slope,prev_slope,slope_diff;
+   short x0,x1,first_x0;
+   short y0,y1,first_y0;
+   short init_x_new;
+   short init_y_new;
+   short work_center_x;
+   short slope_index;
+   short c1,a2,b2,c2,d;
+   LINE_SEG bseg,mseg;
+   TIM_VEC is;
+   P_PART_BORDER cpbptr,pbptr;
+
+
+   collision = 0;
+
+   cp_bord_num = 1;
+   cpbptr = pptr->border;
+   first_x0 = x0 = x + cpbptr->x + pptr->border_offset.x;
+   first_y0 = y0 = y + cpbptr->y + pptr->border_offset.y;
+   x1 = x + (cpbptr+1)->x + pptr->border_offset.x;
+   y1 = y + (cpbptr+1)->y + pptr->border_offset.y;
+   cp_slope = cpbptr->slope;
+   while (cpbptr)
+   {
+      slope_index = get_slope_index(cp_slope+0x8000);
+      slope_diff = (movement_angle+0x8000) - cp_slope + 0x4000;
+      if (slope_diff <= 0)
+         goto skip_this_border;
+
+      pbptr = cpptr->border;
+      prev_slope = pbptr->slope;
+      pbptr++;
+      c_point_num = 1;
+      while (pbptr)
+      {
+         slope_diff = prev_slope - cp_slope + 0x8000;
+         if ((slope_diff < 0) && (slope_diff != (short)0x8000))
+            goto skip_this_point;
+         slope_diff = pbptr->slope - cp_slope + 0x8000;
+         if (slope_diff > 0)
+            goto skip_this_point;
+
+         if ((x_move==0) && (y_move==0))
+            goto skip_this_point;
+
+         init_x_new = mseg.x1 = cpptr->scrn_loc.x + pbptr->x + cpptr->border_offset.x - x0;
+         init_y_new = mseg.y1 = cpptr->scrn_loc.y + pbptr->y + cpptr->border_offset.y - y0;
+         mseg.x0 = mseg.x1 + x_move;
+         mseg.y0 = mseg.y1 + y_move;
+
+         bseg.x0 = 0;
+         bseg.y0 = 0;
+         bseg.x1 = x1 - x0;
+         bseg.y1 = y1 - y0;
+         adjust_segment_slope(&bseg);
+
+         if (!segment_intersect(&mseg,&bseg,&is))
+            goto skip_this_point;
+
+         if ((is.y == bseg.y1) && (is.x == bseg.x1))
+            goto skip_this_point;
+
+         if (quick_exit)
+            return(1);
+
+         bseg.x0 = 0 - x_add_tab[slope_index];
+         bseg.y0 = 0 - y_add_tab[slope_index];
+         bseg.x1 += 0 - x_add_tab[slope_index];
+         bseg.y1 += 0 - y_add_tab[slope_index];
+
+         rolling = is_rolling(cp_slope+0x8000);
+         if (!rolling)
+         {
+            if (!segment_intersect(&mseg,&bseg,&is))
+            {
+               pptr->scrn_loc.x = pptr->old_scrn_loc.x;
+               pptr->scrn_loc.y = pptr->old_scrn_loc.y;
+            }
+            else
+            {
+               pptr->scrn_loc.x -= (is.x - init_x_new);
+               pptr->scrn_loc.y -= (is.y - init_y_new);
+            }
+         }
+         else
+         {
+            c1 = mseg.x1;
+
+            a2 = bseg.y1 - bseg.y0;
+            b2 = bseg.x1 - bseg.x0;
+            c2 = a2*bseg.x0 - b2*bseg.y0;
+
+            d = 0 - b2;
+            if (d != 0)
+            {
+               is.y = (c2 - a2*c1)/d;
+               pptr->scrn_loc.y -= (is.y - init_y_new);
+            }
+            else
+            {
+               pptr->scrn_loc.x = pptr->old_scrn_loc.x;
+               pptr->scrn_loc.y = pptr->old_scrn_loc.y;
+            }
+         }
+
+         work_center_x = center_x - x0;
+
+         pptr->loc.x = (long)pptr->scrn_loc.x << SCALE_SHIFT;
+         pptr->loc.y = (long)pptr->scrn_loc.y << SCALE_SHIFT;
+         set_adjusted_loc_size(pptr);
+         set_pptr_col_vars();
+/*         display(CHECK_COLLIDE1); */
+
+         pptr->flags1 &= (F1_COLLIDE|F1_IMPACT) ^ 0xffff;
+         /* if the part collided with is always a colide part or is a static */
+         /* part, then set the F1_COLLIDE flag. Otherwise set the F1_IMPACT  */
+         /* flag. */
+         if ( ((pptr->flags2|cpptr->flags2)&F2_ALWAYS_COL) ||
+               (cpptr->flags1&F1_STATIC))
+            pptr->flags1 |= F1_COLLIDE;
+         else
+            pptr->flags1 |= F1_IMPACT;
+
+         /* initiallizes the collided parts collison information pointer to the  */
+         /* indicate what the last part collided with was. */
+         pptr->col_info.part = cpptr;
+         pptr->col_info.slope = cp_slope + 0x8000;
+         if (x0 > x1)
+         {
+            if (work_center_x > is.x)
+               pptr->col_info.left_of_cog_supported = 1;
+            else
+               pptr->col_info.right_of_cog_supported = 1;
+         }
+         else
+         {
+            if (work_center_x > is.x)
+               pptr->col_info.right_of_cog_supported = 1;
+            else
+               pptr->col_info.left_of_cog_supported = 1;
+         }
+         pptr->col_info.border_num = c_point_num - 1;
+         collision = 1;
+
+
+      skip_this_point:
+         c_point_num++;
+         if (c_point_num > cpptr->num_borders)
+            pbptr = 0;
+         else
+         {
+            prev_slope = pbptr->slope;
+            if (c_point_num == cpptr->num_borders)
+               pbptr = cpptr->border;
+            else
+               pbptr++;
+         }
+      }
+
+   skip_this_border:
+      cp_bord_num++;
+      if (cp_bord_num > pptr->num_borders)
+         cpbptr = 0;
+      else
+      {
+         cpbptr++;
+         x0 = x1;
+         y0 = y1;
+         cp_slope = cpbptr->slope;
+         if (cp_bord_num == pptr->num_borders)
+         {
+            x1 = first_x0;
+            y1 = first_y0;
+         }
+         else
+         {
+            x1 = x + (cpbptr+1)->x + pptr->border_offset.x;
+            y1 = y + (cpbptr+1)->y + pptr->border_offset.y;
+         }
+      }
+   }
+
+   return(collision);
+}
+
+/* * * * *
+*
+*  check_collide2();
+*
+*  This function is a special case function.  It only gets
+*  called when the default TIM collision routines have failed
+*  and a part that has changing borders is being checked.
+*
+*  This function checks for a border to border collision with
+*  the current part (cpptr) and the colliding part (pptr).
+*
+*  If the event that a collision is determined, the colliding
+*  part is moved very roughly to a point where it is not colliding.
+*
+*  This function will return TRUE if a collision is detected.
+*
+* * * * */
+#if 0
+void find_point(TIM_VEC *is, TIM_VEC *p, short alpha, short beta, TIM_VEC *intersect);
+short check_collide2(void)
+{
+   PART *tptr;
+   P_PART_BORDER cpbptr,pbptr,tbptr;
+   LINE_SEG cpseg,pseg,tseg;
+   TIM_VEC is,is2,point,cpoint;
+   short cpbcount, pbcount, tbcount;
+   short collision = 0;
+   short px,py,cpx,cpy;
+   short pslope,cpslope;
+   short dx,dy;
+   short swapped = 0;
+
+   /* If the other part is moving, switch places with it */
+   if(cpptr->flags1 & F1_MOVE_L)
+   {
+      tptr = pptr;
+      pptr = cpptr;
+      cpptr = tptr;
+      swapped = 1;
+   }
+
+   /* Setup some misc. info */
+    px =  pptr->border_offset.x;
+    py =  pptr->border_offset.y;
+   cpx = cpptr->scrn_loc.x - pptr->scrn_loc.x + cpptr->border_offset.x;
+   cpy = cpptr->scrn_loc.y - pptr->scrn_loc.y + cpptr->border_offset.y;
+   pbptr  =  pptr->border;
+   pbcount = pptr->num_borders;
+   pseg.x0 = pbptr[pbcount-1].x + px;
+   pseg.y0 = pbptr[pbcount-1].y + py;
+   pslope  = pbptr[pbcount-1].slope;
+
+   /* Check each of the colliding part's borders */
+   while(pbcount--)
+   {
+      /* Setup second point of border segment */
+      pseg.x1 = pbptr->x + px;
+      pseg.y1 = pbptr->y + py;
+      if((pseg.x1 == pseg.x0) && (pseg.y1 == pseg.y0))
+      {
+         pslope  = pbptr->slope;
+         pbptr++;
+         continue;   /* Go back to top of while */
+      }
+      display_segment(6,pseg.x0,pseg.y0,pseg.x1,pseg.y1);
+
+      /* Check each of the other part's borders */
+      cpbcount = cpptr->num_borders;
+      cpbptr = cpptr->border;
+      cpseg.x0 = cpbptr[cpbcount-1].x + cpx;
+      cpseg.y0 = cpbptr[cpbcount-1].y + cpy;
+      cpslope  = cpbptr[pbcount-1].slope;
+      while(cpbcount--)
+      {
+         /* Setup second point of border segment */
+         cpseg.x1 = cpbptr->x + cpx;
+         cpseg.y1 = cpbptr->y + cpy;
+         if((cpseg.x1 == cpseg.x0) && (cpseg.y1 == cpseg.y0))
+         {
+            cpslope  = cpbptr->slope;
+            cpbptr++;
+            continue;   /* Go back to top of inner while */
+         }
+         display_segment(6,cpseg.x0,cpseg.y0,cpseg.x1,cpseg.y1);
+
+         /* Check for border intersection and resolve collision */
+         if(   segment_intersect(&pseg,&cpseg,&is)
+)/*            && ((is.x != pseg.x0) && (is.y != pseg.y0)) */
+ /*            && ((is.x != pseg.x1) && (is.y != pseg.y1))) */
+         {
+            /* Determine which point of the colliding object could be inside */
+            if((cpslope - pslope + 0x8000) & 0x8000)
+            {
+               point.x = pseg.x1;
+               point.y = pseg.y1;
+            }
+            else
+            {
+               point.x = pseg.x0;
+               point.y = pseg.y0;
+            }
+
+            /* Determine which point of the colliding object could be inside */
+            if((pslope - cpslope + 0x8000) & 0x8000)
+            {
+               cpoint.x = cpseg.x1;
+               cpoint.y = cpseg.y1;
+            }
+            else
+            {
+               cpoint.x = cpseg.x0;
+               cpoint.y = cpseg.y0;
+            }
+
+            /* Determine if point is inside the other part */
+            tbptr = cpbptr;
+            tbcount = cpbcount;
+            tseg = cpseg;
+            while(tbcount--)
+            {
+               tbptr++;
+               tseg.x0 = tseg.x1;
+               tseg.y0 = tseg.y1;
+               tseg.x1 = tbptr->x + cpx;
+               tseg.y1 = tbptr->y + cpy;
+               display_segment(9,tseg.x0,tseg.y0,tseg.x1,tseg.y1);
+               if(   segment_intersect(&pseg,&tseg,&is2)
+)/*                  && ((is2.x != tseg.x0) && (is2.y != tseg.y0)) */
+ /*                  && ((is2.x != tseg.x1) && (is2.y != tseg.y1))) */
+                  break;
+            }
+
+            /* If moving part is inside the other, adjust the part */
+            if(tbcount < 0)
+            {
+               find_point(&is, &point,
+                     angle_to(cpoint.x-is.x,cpoint.y-is.y),
+                     angle_to( point.x-is.x, point.y-is.y), &is2);
+               dx = is2.x+is.x-point.x;
+               dy = is2.y+is.y-point.y;
+            }
+
+            /* If point is not inside other part, check other part's point */
+            else
+            {
+               /* Determine if point is inside the other part */
+               tbptr = pptr->border; /* pbptr; */
+               tbcount = pptr->num_borders; /* pbcount; */
+               tseg = pseg;
+               tseg.x1 = tbptr[tbcount-1].x + px;
+               tseg.y1 = tbptr[tbcount-1].y + py;
+               while(tbcount--)
+               {
+                  tseg.x0 = tseg.x1;
+                  tseg.y0 = tseg.y1;
+                  tseg.x1 = tbptr->x + px;
+                  tseg.y1 = tbptr->y + py;
+                  if(tbptr != pbptr)
+                  {
+                     display_segment(9,tseg.x0,tseg.y0,tseg.x1,tseg.y1);
+                     if(   segment_intersect(&cpseg,&tseg,&is2)
+   )/*                     && ((is2.x != tseg.x0) && (is2.y != tseg.y0)) */
+    /*                     && ((is2.x != tseg.x1) && (is2.y != tseg.y1))) */
+                        break;
+                  }
+                  tbptr++;
+               }
+
+               /* If point is inside, move colliding part */
+               if(tbcount < 0)
+               {
+                  find_point(&is, &cpoint,
+                     angle_to( point.x-is.x, point.y-is.y),
+                     angle_to(cpoint.x-is.x,cpoint.y-is.y), &is2);
+                  dx = -(is2.x+is.x-cpoint.x);
+                  dy = -(is2.y+is.y-cpoint.y);
+               }
+
+               /* If point is not inside, use the colliding part's point */
+               else
+               {
+                  find_point(&is, &point,
+                        angle_to(cpoint.x-is.x,cpoint.y-is.y),
+                        angle_to( point.x-is.x, point.y-is.y), &is2);
+                  dx = is2.x+is.x-point.x;
+                  dy = is2.y+is.y-point.y;
+               }
+            }
+
+            /* Adjust an extra pixel */
+            if(dx)
+               dx += (dx < 0 ? -1 : 1);
+            if(dy)
+               dy += (dy < 0 ? -1 : 1);
+
+            if((pslope < 0x4000) && (pslope > -0x4000))
+               dx = dy = 0;
+            if((cpslope > 0x4000) || (cpslope < -0x4000))
+               dx = dy = 0;
+
+            /* Adjust location and size of colliding part */
+            if(dx || dy)
+            {
+               pptr->scrn_loc.x += dx;
+               pptr->scrn_loc.y += dy;
+               pptr->loc.x = (long)pptr->scrn_loc.x << SCALE_SHIFT;
+               pptr->loc.y = (long)pptr->scrn_loc.y << SCALE_SHIFT;
+               set_adjusted_loc_size(pptr);
+               px = pptr->border_offset.x;
+               py = pptr->border_offset.y;
+               cpx = cpptr->scrn_loc.x - pptr->scrn_loc.x + cpptr->border_offset.x;
+               cpy = cpptr->scrn_loc.y - pptr->scrn_loc.y + cpptr->border_offset.y;
+               #if DISPLAY
+                  pseg.x0 += (pseg.x1 - (pbptr->x + px));
+                  pseg.y0 += (pseg.y1 - (pbptr->y + py));
+                  cpseg.x0 -= (cpseg.x1 - (cpbptr->x + cpx));
+                  cpseg.y0 -= (cpseg.y1 - (cpbptr->y + cpy));
+               #endif
+               pseg.x1 = pbptr->x + px;
+               pseg.y1 = pbptr->y + py;
+               cpseg.x1 = cpbptr->x + cpx;
+               cpseg.y1 = cpbptr->y + cpy;
+               collision++;
+            }
+
+            /* Redraw borders (only during debugging) */
+            display(CHECK_COLLIDE2);
+            display_segment(6,pseg.x0,pseg.y0,pseg.x1,pseg.y1);
+            display_segment(6,cpseg.x0,cpseg.y0,cpseg.x1,cpseg.y1);
+         }
+
+         /* Move on to next border */
+         display_segment(7,cpseg.x0,cpseg.y0,cpseg.x1,cpseg.y1);
+         cpseg.x0 = cpseg.x1;
+         cpseg.y0 = cpseg.y1;
+         cpslope  = cpbptr->slope;
+         cpbptr++;
+      }
+
+      /* Move on to next border */
+      display_segment(7,pseg.x0,pseg.y0,pseg.x1,pseg.y1);
+      pseg.x0 = pseg.x1;
+      pseg.y0 = pseg.y1;
+      pslope  = pbptr->slope;
+      pbptr++;
+   }
+
+   /* If the other part is moving, switch places with it */
+   if(swapped)
+   {
+      tptr = pptr;
+      pptr = cpptr;
+      cpptr = tptr;
+   }
+
+   /* Return TRUE if a collision occured */
+   return(collision);
+}
+
+void find_point(TIM_VEC *is, TIM_VEC *p, short alpha, short beta, TIM_VEC *intersect)
+{
+   long R, R1;
+   short dx,dy;
+   short l1,l2;
+   short angle;
+
+   /* Handle special case for horizontal slopes */
+   if((alpha == 0x4000) || (alpha == -0x4000))
+   {
+      intersect->x = p->x-is->x;
+      intersect->y = 0;
+      return;
+   }
+
+   l1 = abs(p->x-is->x);
+   l2 = abs(p->y-is->y);
+   R = ( l1<l2 ? l2+(l1*3)/8 : l1+(l2*3)/8) << 8;
+   angle = (beta-alpha);
+   if((angle > 0x4000) || (angle < -0x4000))
+      alpha = alpha+0x8000;
+   R1 = (R * ts_cos(angle)) >> TRIGSHIFT;
+   if(R1 < 0)
+      R1 = -R1;
+   dx = (R1 * ts_cos(alpha+0x4000)) >> TRIGSHIFT;
+   dy = (R1 * ts_sin(alpha+0x4000)) >> TRIGSHIFT;
+   intersect->x = (dx + 0x100/2) >> 8;
+   intersect->y = -((dy + 0x100/2) >> 8);
+}
+
+#if 0
+#define LINE(x1,y1,x2,y2) vm_line((x1)*10+vm_width/2,-(y1)*10+vm_height/2, \
+                                  (x2)*10+vm_width/2,-(y2)*10+vm_height/2)
+#define POINT(c,x1,y1) \
+         vm_setpix((x1)*10+vm_width/2-1,-(y1)*10+vm_height/2+0, c);  \
+         vm_setpix((x1)*10+vm_width/2+0,-(y1)*10+vm_height/2-1, c);  \
+         vm_setpix((x1)*10+vm_width/2+1,-(y1)*10+vm_height/2+0, c);  \
+         vm_setpix((x1)*10+vm_width/2+0,-(y1)*10+vm_height/2+1, c)
+
+void test_find_point(void)
+{
+   struct tfp { TIM_VEC is,point,cpoint; } test_data[] =
+   {
+      {  {  0,0},  { 3,8},   { -20,0}  },
+   };
+   TIM_VEC is,is2,point,cpoint;
+   short i,x,y;
+   char string[80];
+
+/*   for(i=0; i<sizeof(test_data)/sizeof(struct tfp); i++) */
+/*      is = test_data[i].is; */
+/*      point = test_data[i].point; */
+/*      cpoint = test_data[i].cpoint; */
+   is = test_data[0].is;
+   point = test_data[0].point;
+   cpoint = test_data[0].cpoint;
+   while(1)
+   {
+
+      find_point(&is, &point,
+            angle_to(cpoint.x-is.x,cpoint.y-is.y),
+            angle_to( point.x-is.x, point.y-is.y), &is2);
+
+      vm_lcolor = vm_fcolor = 4;
+      vm_clip = 1;
+      vm_lclip = vm_tclip = 0;
+      vm_rclip = vm_width-1;
+      vm_bclip = vm_height-1;
+      vm_dstptr = vm_buffptr;
+      vm_rect(0,0,vm_width,vm_height);
+      vm_lcolor = 3;
+      for(i=-30; i<30; i++)
+      {
+         vm_lcolor = (i ? 3 : 1);
+         LINE(-30,i,30,i);
+         LINE(i,-30,i,30);
+      }
+      sprintf(string, " point=(%+2d,%+2d)  angle=%4x",
+           point.x-is.x,point.y-is.y, angle_to(point.x-is.x, point.y-is.y));
+      vm_mode = 1;
+      vm_fgcolor = 7;
+      vm_str(string, 0, 5);
+      sprintf(string, "cpoint=(%+2d,%+2d)  angle=%4x",
+           cpoint.x-is.x,cpoint.y-is.y, angle_to(cpoint.x-is.x, cpoint.y-is.y));
+      vm_fgcolor = 11;
+      vm_str(string, 0, 25);
+
+      vm_lcolor = 7;
+      LINE(0,0,point.x-is.x,point.y-is.y);
+      vm_lcolor = 11;
+      LINE(0,0,cpoint.x-is.x,cpoint.y-is.y);
+      vm_lcolor = 13;
+      LINE(point.x-is.x,point.y-is.y,is2.x,-is2.y);
+      POINT( 7, point.x-is.x,point.y-is.y);
+      POINT(11, cpoint.x-is.x,cpoint.y-is.y);
+      POINT( 9, is2.x,-is2.y);
+
+      sprintf(string, "is2=(%+2d,%+2d)", is2.x,-is2.y);
+      vm_fgcolor = 13;
+      vm_str(string, 4, 45);
+      vm_flip(1);
+
+      while(1)
+      {
+         vm_get_mouse(&x,&y);
+         x = (x - vm_width/2)/10;
+         y = -(y - vm_height/2)/10;
+
+         if(vm_mouse_button(0) && ((x!=point.x) || (y!=point.y)))
+         {
+            point.x = x;
+            point.y = y;
+            break;
+         }
+         if(vm_mouse_button(1) && ((x!=cpoint.x) || (y!=cpoint.y)))
+         {
+            cpoint.x = x;
+            cpoint.y = y;
+            break;
+         }
+      }
+
+      if((vm_scankey()>>8) == 1)
+         break;
+   }
+}
+#endif
+#endif

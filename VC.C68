@@ -1,0 +1,347 @@
+/* * * * *
+*
+*  VC.C
+*
+*  This file contains the vacuum cleaner routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  12/07/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+/*local routines */
+static short get_pull_speed( PART *);
+static void vc_inhale( PART *);
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   VACUUM                                   *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+   The root shape is supershape #1. The sequence starts with 4,4,4,4 and
+   loops with 1,2,3,4.
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C vacuum1 = {0, VACUUM_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C vacuum2 = {0, VACUUM_PLANE, {1,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C vacuum3 = {0, VACUUM_PLANE, {2,255,255,255},
+   {{1,-4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C vacuum4 = {0, VACUUM_PLANE, {3,255,255,255},
+   {{0,-4},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far vacuum_ss_tab[VACUUM_NUM_STATES] = 
+   {&vacuum1,&vacuum2,&vacuum3,&vacuum4};
+
+/* size. */
+TIM_VEC_C far vacuum_size[VACUUM_NUM_STATES] = 
+   {{44,27},{43,28},{43,30},{47,31}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far vacuum_os[VACUUM_NUM_STATES] = 
+   {{0,0},{1,-1},{1,-8},{1,-9}};
+
+/* border definitions. */
+static PART_BORDER_C far vacuum1_bord[VACUUM_BORDERS] =
+   {{25,0,0},{31,2,0},{36,12,0},{36,21,0},
+    {43,25,0},{5,25,0},{0,21,0},{2,13,0},
+    {11,9,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far vacuum_bord_tab[VACUUM_NUM_STATES] =
+   {vacuum1_bord,vacuum1_bord,vacuum1_bord,vacuum1_bord};
+static P_PART_BORDER far vacuum_fbord_tab[VACUUM_NUM_STATES];
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void vc_reinit(PART *vc_part)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!vc_part)
+   {
+      set_border_table_slopes(PT_VACUUM, 1, vacuum_bord_tab, vacuum_fbord_tab,
+         VACUUM_NUM_STATES);
+      return;
+   }
+
+   if (vc_part->flags2 & F2_FLIP_H_DRAW)
+      vc_part->border = vacuum_fbord_tab[vc_part->state];
+   else
+      vc_part->border = vacuum_bord_tab[vc_part->state];
+  
+   set_adjusted_loc_size(vc_part);
+}
+
+
+
+short vc_bounce(PART *cur_part)
+{
+   short slope;
+   PART *vc_part;
+
+   vc_part = cur_part->col_info.part;
+   slope = cur_part->col_info.slope;
+
+   /* check if the vacuum is on and the collision is on the bottom */
+   if ((vc_part->sub_state) && (slope == (short)0x8000))
+   {
+      vc_inhale(cur_part);
+      return(0);
+   }
+
+   return(1);
+}
+
+
+
+void vc_internal(PART *vc_part)
+{
+   short vc_cntr_x,other_cntr_x, vc_x, vb_y, y_diff;
+   PART *pptr;
+
+   static char far state_array[] =
+   {
+      3,3,3,3,3,0,1,2   
+   };
+   #define NUM_STATES  (sizeof(state_array)/sizeof(char))
+   #define VC_X               51
+   #define VC_FX              1
+   #define VC_Y               50
+   #define VC_LENGTH          50
+   #define VC_HEIGHT          100
+   #define VC_WIDTH           (VC_LENGTH>>1)
+   #define VC_CENTER_X        (VC_X + VC_WIDTH)
+   #define VC_FCENTER_X       (VC_FX + VC_WIDTH)
+
+   /* check if the vacuum is on */
+   if (vc_part->sub_state)
+   {
+      jtp_sx_play(SX_VACUUM,0,0);
+
+      /* animate the vacuum */
+      vc_part->toon_state++;
+      if (vc_part->toon_state == NUM_STATES)
+         vc_part->toon_state -= NUM_STATES - 4;
+      vc_part->state = state_array[vc_part->toon_state];
+      vc_reinit(vc_part);
+
+      /* check for an object to be influenced by the vacuum */
+      if (vc_part->flags2 & F2_FLIP_H_DRAW)
+         vc_cntr_x = VC_FCENTER_X;
+      else
+         vc_cntr_x = VC_CENTER_X;
+
+      vc_x = vc_part->scrn_loc.x + vc_cntr_x;
+      vb_y = vc_part->scrn_loc.y + vc_part->base_size.y;
+      tn_query_dist(vc_part,F1_MOVE_L,vc_cntr_x-VC_WIDTH,vc_part->base_size.y,
+         VC_LENGTH,VC_HEIGHT);
+      pptr = vc_part->qptr;
+      while (pptr)
+      {
+         other_cntr_x = pptr->scrn_loc.x + pptr->base_size.x/2;
+         pptr->flags1 &= (F1_ROLLING^0xffff);
+         
+         /* check if the part is in the mouth of the vacuum */
+         if ((pptr->scrn_loc.y < vb_y + 3) &&
+            (other_cntr_x > vc_x - VC_WIDTH) &&
+            (other_cntr_x < vc_x + VC_WIDTH))
+            vc_inhale(pptr);
+
+         /* check if the part should accellerate upward */
+         if (pptr->speed.y > (0-TWO_PIX))
+         {
+            pptr->speed.y -= TWO_PIX;
+            check_term_velocity(pptr);
+            if (pptr->speed.y < (0-TWO_PIX))
+               pptr->speed.y = 0 - TWO_PIX;
+         }
+
+         /* check if the part should accellerate left */
+         if (other_cntr_x < vc_x - 4)
+         {
+            if (pptr->speed.x < ONE_PIX)
+            {
+               pptr->speed.x += ONE_PIX;
+               if (pptr->speed.x > ONE_PIX)
+                  pptr->speed.x = ONE_PIX;
+            }
+         }
+
+         /* check if the part should accellerate right */
+         if (other_cntr_x > vc_x + 4)
+         {
+            if (pptr->speed.x > (0-ONE_PIX))
+            {
+               pptr->speed.x -= ONE_PIX;
+               if (pptr->speed.x < (0-ONE_PIX))
+                  pptr->speed.x = 0 - ONE_PIX;
+            }
+         }
+
+         /* check for special cases */
+         switch (pptr->type)
+         {
+            case PT_SID_MOUSE:
+               /* If mouse is already being sucked up, keep doing it */
+               if(pptr->toon_state == SID_VAC2_INDEX)
+                  pptr->sub_state = SID_VAC2_INDEX;
+
+               /* check if one of the sucked up sequences should be used. */
+               else if ((other_cntr_x > vc_x - 8) && (other_cntr_x < vc_x + 8))
+               {
+                  y_diff = pptr->scrn_loc.y - vb_y;
+                  if ((y_diff > 50) && (y_diff < VC_HEIGHT-16))
+                     pptr->sub_state = SID_VAC2_INDEX;
+                  else
+                     pptr->sub_state = SID_VAC3_INDEX;
+               }
+               else
+                  pptr->sub_state = SID_VAC_INDEX;
+               if(pptr->sub_state != SID_VAC3_INDEX)
+                  pptr->speed.y += TWO_PIX;
+               break;
+            case PT_AL_CAT:
+               /* reset the vertical speed */
+               pptr->speed.y += TWO_PIX;
+
+               /* check if the vacuum should really suck on the cat */
+               if ((other_cntr_x > vc_x - VC_WIDTH - 15) &&
+                  (other_cntr_x < vc_x + VC_WIDTH + 15))
+               {
+                  /* set the default sequence */
+                  pptr->sub_state = CAT_VAC1_INDEX;
+
+                  /* check if the cat is trying to move across the screen. */
+                  switch (pptr->toon_state)
+                  {
+                     case CAT_WALK_INDEX:
+                     case CAT_RUN_INDEX:
+                     case CAT_RUNAW_INDEX:
+                     case CAT_SPIN_INDEX:
+                     case CAT_SPINAW_INDEX:
+                     case CAT_VAC2_INDEX:
+                        /* reset the vertical speed */
+                        pptr->speed.x = 0;
+                        pptr->speed.y += TWO_PIX;
+                        pptr->sub_state = CAT_VAC2_INDEX;
+                        break;
+                     default:
+                        /* check if the cat should be sucked up */
+                        if ((other_cntr_x > vc_x - 8) && (other_cntr_x < vc_x + 8))
+                        {
+                           pptr->sub_state = CAT_VAC3_INDEX;
+                           pptr->speed.y -= TWO_PIX;
+                        }
+                        else
+                           pptr->speed.y += TWO_PIX;
+                        break;
+                  }
+               }
+               break;
+         }
+         pptr = pptr->qptr;
+      }
+   }
+
+
+   /* This turns the vacuum off. */
+   else if(vc_part->toon_state)
+   {
+      if(vc_part->toon_state < NUM_STATES-1)
+      {
+         vc_part->toon_state++;
+         vc_part->state = state_array[vc_part->toon_state];
+      }
+      else
+      {
+         jtp_sx_stop(SX_VACUUM);
+         vc_part->toon_state = vc_part->state = 0;
+      }
+
+      vc_reinit(vc_part);
+   }
+}
+
+
+#pragma argsused
+void vc_flip(PART *vc_part,short flip_mode)
+{
+   vc_part->flags2 ^= F2_FLIP_H_DRAW;
+   vc_reinit(vc_part);
+   part_to_er(vc_part,1|2);
+   set_redraw(vc_part,2);
+}
+
+
+#pragma argsused
+static short get_pull_speed(PART *pptr)
+{
+#if 0
+   short mass,pull_speed;
+
+   mass = prop[pptr->type].mass;
+   if (mass < 2)
+      pull_speed = SIX_PIX;
+   else
+      if (mass < 6)
+         pull_speed = FIVE_PIX;
+      else
+         if (mass < 10)
+            pull_speed = FOUR_PIX;
+         else
+            if (mass < 21)
+               pull_speed = THREE_PIX;
+            else
+               if (mass < 121)
+                  pull_speed = TWO_PIX;
+               else
+                  if (mass < 151)
+                     pull_speed = ONE_PIX;
+                  else
+                     if (mass < 201)
+                        pull_speed = ONE_PIX>>1;
+                     else
+                        pull_speed = ONE_PIX>>2;
+
+   return(pull_speed);
+#endif
+
+   return(TWO_PIX);
+}
+
+
+
+static void vc_inhale(PART *cur_part)
+{
+   switch (cur_part->type)
+   {
+      case PT_BALLOON:
+         cur_part->sub_state = 1;
+         break;
+
+      default:
+         part_to_er(cur_part,1|2);
+         cur_part->flags2 |= F2_INACTIVE;
+         cur_part->flags3 |= F3_IN_VACUUM;
+         break;
+   }
+}
+
+

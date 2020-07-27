@@ -1,0 +1,140 @@
+/* * * * *
+*
+*  EP.C
+*
+*  This file contains the electrical plug routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/05/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "simlib.h"
+#include "tim.h"
+
+
+/* super shape - knife-switch (part 2) */
+static F_SSHAPE_C p2_s0 = {0,5,{0,1,2,4},{{4,8},{0,0},{11,15},{20,6}}};
+static F_SSHAPE_C p2_s1_0 = {0,5,{5,255,255,255},{{24,8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p2_s1 = {&p2_s1_0,5,{0,1,2,4},{{4,8},{0,0},{11,15},{20,6}}};
+static F_SSHAPE_C p2_s2_0 = {0,5,{5,255,255,255},{{24,19},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p2_s2 = {&p2_s2_0,5,{0,1,2,4},{{4,8},{0,0},{11,15},{20,6}}};
+static F_SSHAPE_C p2_s3_0 = {0,5,{5,5,255,255},{{24,8},{24,19},{0,0},{0,0}}};
+static F_SSHAPE_C p2_s3 = {&p2_s3_0,5,{0,1,2,4},{{4,8},{0,0},{11,15},{20,6}}};
+static F_SSHAPE_C p2_s4 = {0,5,{0,3,4,255},{{4,8},{0,20},{20,6},{0,0}}};
+static F_SSHAPE_C p2_s5 = {0,5,{0,3,4,5},{{4,8},{0,20},{20,6},{24,8}}};
+static F_SSHAPE_C p2_s6 = {0,5,{0,3,4,5},{{4,8},{0,20},{20,6},{24,19}}};
+static F_SSHAPE_C p2_s7 = {&p2_s2_0,5,{0,3,4,5},{{4,8},{0,20},{20,6},{24,8}}};
+PC_SSHAPE_C far p2_ss_tab[] = {&p2_s0,&p2_s1,&p2_s2,&p2_s3,&p2_s4,&p2_s5,&p2_s6,&p2_s7};
+TIM_VEC_C far p2_size[] = {{31,29},{31,29},{31,29},{31,29},{31,29},{31,29},{31,29},{31,29}};
+TIM_SCVEC_C far p2_os[] = {{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0}};
+
+
+short ep_bounce(PART *cur_part)
+{
+   short slope;
+   PART *ep_part;
+
+   ep_part = cur_part->col_info.part;
+   slope = cur_part->col_info.slope;
+   slope += 0x4000;
+
+   if (ep_part->state < 4)
+   {
+      if ((slope & 0x8000) == 0)
+      {
+         ep_part->state += 4;
+         ep_reinit(ep_part);
+      }
+   }
+   else
+      if (slope & 0x8000)
+      {
+         ep_part->state -= 4;
+         ep_reinit(ep_part);
+      }
+
+   if (ep_part->state != ep_part->start_state)
+      ep_part->sub_state = 1;
+   else
+      ep_part->sub_state = 0;
+
+   if (cur_part->type == PT_BULLET)
+      cur_part->speed.x--;
+
+   /* start sx */
+   jtp_sx_play(SX_SWITCH, 1, 0);
+   
+   return(0);
+}
+
+
+
+void ep_reinit(PART *ep_part)
+{
+   /* these borders are only around the actual switch. */
+   static PART_BORDER_C far bord0[4] = {{0,5,0},{13,5,0},{13,5,0},{0,5,0}};
+   static PART_BORDER_C far bord1[4] = {{13,24,0},{0,24,0},{0,23,0},{13,23,0}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!ep_part)
+   {
+      set_border_slopes(PT_E_PLUG, 0, bord0, 0, 0);
+      set_border_slopes(PT_E_PLUG, 0, bord1, 0, 0);
+      return;
+   }
+
+   /* state < 4 means the switch is up. */
+   if (ep_part->state < 4)
+      ep_part->border = bord0;
+   else
+      ep_part->border = bord1;
+   
+/*   ep_part->num_borders = 4; */
+/*   set_border_slope(ep_part); */
+   ep_part->num_borders = 1;
+
+   ep_part->state &= 0x04;
+   if (ep_part->wpptr[4])
+      ep_part->state |= 0x01;
+   if (ep_part->wpptr[5])
+      ep_part->state |= 0x02;
+}
+
+
+
+#pragma argsused
+void ep_internal(PART *ep_part)
+{
+   short i;
+   PART *pptr;
+
+   ep_part->flags2 |= F2_INTERNAL;
+   for (i=4;i<6;i++)
+      if ((pptr=ep_part->wpptr[i]) != 0)
+         pptr->sub_state = ep_part->sub_state;
+}
+
+
+
+#pragma argsused
+void ep_flip(PART *ep_part,short flip_mode)
+{
+   if (ep_part->state < 4)
+      ep_part->state = 4;
+   else
+      ep_part->state = 0;
+   ep_part->start_state = ep_part->toon_state = ep_part->state;
+
+   ep_reinit(ep_part);
+
+   sub_parts_to_er(ep_part,1|2);
+   part_to_er(ep_part,1|2);
+   set_redraw(ep_part,2);
+}
+
+

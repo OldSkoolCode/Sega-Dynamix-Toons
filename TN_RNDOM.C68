@@ -1,0 +1,56 @@
+/* * * * *
+*
+*  TN_RNDOM.C
+*
+*  This module contains Rich's random number generator code.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/10/93 ChrisC   File created
+*
+* * * * */
+
+/* * * * *
+*
+*  This routine is based upon the additive generator devised by
+*  G. J. Mitchell and D. P. Moore:
+*  X[n] = ( X[n-24] + X[n-55] ) mod m
+*
+* * * * */
+#include "defs.h"
+
+static short n24 = 24;
+static short n55 = 55;
+static short far rndtab[] =
+{
+   56611, 38195, 62413, 19394, 63458, 41695, 43632, 24746,  5195,
+   35144,  6442, 27405, 40459, 64497, 34311, 18013, 60148, 27133,
+   27716,  6951, 56177, 58255, 43956, 56391,  4062, 19854, 64637,
+   36152, 22856, 58223, 43554, 12070, 17402, 46501,  8427, 60805,
+   62915, 33183, 11676, 45677, 59691, 38869, 15777, 35309, 58356,
+   29877,    44, 54111, 15112,  3573, 62078, 49776,  9609, 11915,
+   25426, 55853                        
+};
+
+/* * * * *
+*
+*  my_random();
+*
+* * * * */
+unsigned short my_random(void)
+{
+   unsigned short rndval;
+
+   rndval = (rndtab[n55] += rndtab[n24]);
+
+   if (++n55 == 56)
+      n55 = 0;
+   if (++n24 == 56)
+      n24 = 0;
+
+   return(rndval);
+}
+
+

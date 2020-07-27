@@ -1,0 +1,84 @@
+/* * * * *
+*
+*  LEVEL.C
+*
+*  This file contains routines to completely run a level.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  02/14/92 Kevin Ryan  File created
+*
+* * * * */
+#include <stdio.h>
+#include <string.h>
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "tim_text.h"
+#include "toons.h"
+
+
+
+
+void reset_level()
+{
+   clear_the_pb();
+   free_the_parts();
+   strcpy(current_title, default_title);
+   strcpy(cur_level.name, default_title);
+   strcpy(cur_level.description, default_description);
+   solution_has_ropes = FALSE;
+}
+
+
+void load_part_shape(short part_num)
+{
+#if 0
+   char filename[14];
+   char worknum[8];
+
+   strcpy(filename,TX_PART);
+   itoa(part_num,worknum,10);
+   strcat(filename,worknum);
+   strcat(filename,BMP_EXT);
+   my_mouse_off();
+   prop[part_num].part_shapes = vm2_shapeload(filename);
+   my_mouse_on();
+#else
+   load_part_bitmaps(part_num);
+#endif
+}
+
+
+
+void free_part_shapes()
+{
+   short i;
+
+   for (i=0;i<TN_NUM_PARTS;i++)
+      switch (i)
+      {
+         case PT_AL_CAT:
+            free_cat_shapes();
+            break;
+         case PT_SID_MOUSE:
+            free_mouse_shapes();
+            break;
+         default:
+            free_part_shape(i);
+      }
+}
+
+
+void free_part_shape(short part_num)
+{
+   if (prop[part_num].part_shapes)
+   {
+      free_bitmap_file(prop[part_num].part_shapes);
+/*      prop[part_num].part_shapes = 0; */
+   }
+}
+
+

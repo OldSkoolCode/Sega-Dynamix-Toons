@@ -1,0 +1,220 @@
+/* * * * *
+*
+*  M_GLASS.C
+*
+*  This file contains the magnifying glass routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/01/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+
+/* supershape structure definition  */
+static F_SSHAPE_C Magnify1 = {0,4,{0,255,255,255},{{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C Magnify2 = {0,4,{0,1,255,255},  {{0,0},{-7,-5},{0,0},{0,0}}};
+static F_SSHAPE_C Magnify3 = {0,4,{2,0,255,255},  {{8,-3},{0,0},{0,0},{0,0}}};
+PC_SSHAPE_C far mag_ss_tab[] = {&Magnify1,&Magnify2,&Magnify3};
+TIM_VEC_C far mag_size[] = {{10,18},{16,23},{19,22}};
+TIM_SCVEC_C far mag_os[] = {{0,0},{-13,-10},{0,-7}};
+
+
+#define MAG_MAX_CAT_WIDTH     400
+#define MAG_MAX_MOUSE_WIDTH   125
+#define MAG_MIN_WIDTH         35
+#define MAG_FACE_LEFT         1
+#define MAG_FACE_RIGHT        2
+#define MAG_FACE_TIME         15
+#define MAG_FACE_DELAY        30
+
+
+void mg_internal(PART *magnifier)
+{
+   PART *mouse;
+
+   /* check if the magnifier should make a face. */
+   if (  magnifier->sub_state 
+      && ((mouse = magnifier->toon_link) != 0)
+      && (mouse->type == PT_SID_MOUSE)
+      && (mouse->toon_state == SID_BRONX_INDEX)
+      && !magnifier->state && !magnifier->work_var1)
+   {
+      magnifier->state = magnifier->sub_state;
+      magnifier->work_var = MAG_FACE_TIME;
+      magnifier->work_var1 = MAG_FACE_DELAY;
+      magnifier->sub_state = 0;
+      magnifier->toon_link = 0;
+      set_adjusted_loc_size(magnifier);
+   }
+
+   if (magnifier->work_var)
+   {
+      if (!(--magnifier->work_var))
+      {
+         magnifier->state = 0;
+         set_adjusted_loc_size(magnifier);
+      }
+   }
+   else
+      if (magnifier->work_var1)
+         if (!(--magnifier->work_var1))
+            magnifier->sub_state = 0;
+}
+
+
+/* * * * *
+*
+*  short magnify_check_cat(PART *magnifier, PART *cat);
+*
+* * * * */
+short magnify_check_cat(PART *magnifier, PART *cat)
+{
+   short cat_x, mg_x;
+
+   /* calculate midpoints offsets */
+   cat_x = cat->scrn_loc.x + cat->offset.x + (cat->size.x >> 1);
+   mg_x = magnifier->scrn_loc.x + magnifier->offset.x + (magnifier->size.x >> 1);
+
+   if ((cat_x > mg_x - MAG_MAX_CAT_WIDTH) &&
+      (cat_x < mg_x - MAG_MIN_WIDTH) &&
+      (magnifier->state == MAG_FACE_LEFT))
+      return(CAT_TAKE_INDEX);
+
+   if ((cat_x < mg_x + MAG_MAX_CAT_WIDTH) &&
+      (cat_x > mg_x + MAG_MIN_WIDTH) &&
+      (magnifier->state == MAG_FACE_RIGHT))
+      return(CAT_TAKE_INDEX);
+
+   return(-1);
+}
+
+/* * * * *
+*
+*  short magnify_check_mouse(PART *magnifier, PART *mouse);
+*
+*  This function will check if the mouse is in position to scare the cat.
+*  It also checks if the cat is in position to be scared.
+*  If the cat is in position, the mouse will bronx cheer him. This will set
+*  the state of the magnifying glass accordingly. The cat will take care of
+*  being scared.
+*  If the cat is not in position but there is a cat around, then the mouse
+*  will wait until the cat gets closer.
+*  It should be noted that the query_dist function will have been called
+*  just prior to this function. This will save having to recalculate the
+*  query.
+*
+* * * * */
+short magnify_check_mouse(PART *magnifier, PART *mouse)
+{
+   PART *cat;
+   char exit;
+   short sid_x, cat_x, mg_x;
+
+   /* calculate midpoints offsets */
+   sid_x = mouse->scrn_loc.x + (mouse->base_size.x >> 1);
+   mg_x = magnifier->scrn_loc.x + (magnifier->base_size.x >> 1);
+
+   /* is the mouse in the correct position? */
+   if (  (sid_x < mg_x - MAG_MAX_MOUSE_WIDTH)
+      || (sid_x > mg_x + MAG_MAX_MOUSE_WIDTH)
+      || ((sid_x > mg_x - MAG_MIN_WIDTH) && (sid_x < mg_x + MAG_MIN_WIDTH)))
+      return(-1);
+
+   /* is there a cat within sight? */
+   /* NOTE: This assumes that this function was called from mouse_observation */
+   cat = mouse->qptr;
+   exit = 0;
+   while (!exit && cat)
+   {
+      /* check if a cat has been found */
+      if (cat->type == PT_AL_CAT)
+      {
+         exit = 1;
+
+         /* check if the cat is of any threat to the mouse. */
+         switch (cat->toon_state)
+         {
+            case CAT_FLAIL_INDEX:
+            case CAT_SPINAW_INDEX:
+            case CAT_RUNAW_INDEX:
+            case CAT_SLEEP_INDEX:
+            case CAT_BOMB_INDEX:
+            case CAT_CRACK_INDEX:
+            case CAT_HAIR_INDEX:
+            case CAT_YARN_INDEX:
+            case CAT_SHOT_INDEX:
+            case CAT_ANGEL_INDEX:
+            case CAT_ATE_INDEX:
+            case CAT_TAKE_INDEX:
+               exit = 0;
+               cat = cat->qptr;
+               break;
+         }
+      }
+      else
+         cat = cat->qptr;
+   }
+
+   /* if I do not have a cat to worry about, do not worry. */
+   if (!cat)
+      return(-1);
+
+   /* calculate the mid point of the cat */
+   cat_x = cat->scrn_loc.x + (cat->base_size.x >> 1);
+
+   /* check if the cat and mouse are on the same side of the glass */
+   if (((cat_x < mg_x) && (sid_x < mg_x)) ||
+      ((cat_x > mg_x) && (sid_x > mg_x)))
+      return(-1);
+
+   /* So now I can see a cat and I have a mouse in the  correct position. */
+   /* Now I need to check if the cat is in the correct position. */
+
+   /* First I will check if the mouse has got any immediate concerns from */
+   /* the cat. */
+   if ((cat_x > mg_x - MAG_MIN_WIDTH) && (cat_x < mg_x + MAG_MIN_WIDTH))
+      return(-1);    /* -1 Here drops the magnifier as a concern of the mouse. */
+
+   /* Next I will check if the cat is not anywhere near the magnifier. */
+   if (  (cat_x < mg_x - MAG_MAX_CAT_WIDTH)
+      || (cat_x > mg_x + MAG_MAX_CAT_WIDTH))
+      return(SID_WAIT_INDEX);
+
+   /* If I have made it to here, then I know I have a cat in the correct  */
+   /* position and a mouse in the correct position. Now all that remains is to  */
+   /* orient the mouse and scare the cat. */
+
+   /* I will check the orientation of the mouse. */
+   if (sid_x < mg_x)
+   {
+      if (!magnifier->work_var1)
+      {
+         magnifier->sub_state = MAG_FACE_RIGHT;
+         magnifier->toon_link = mouse;
+         return(SID_BRONX_INDEX);
+      }
+   }
+   else
+   {
+      if (!magnifier->work_var1)
+      {
+         magnifier->sub_state = MAG_FACE_LEFT;
+         magnifier->toon_link = mouse;
+         return(SID_BRONX_INDEX);
+      }
+   }
+      
+   if (mouse->toon_state != SID_WAIT_INDEX)
+      return(SID_WAIT_INDEX);
+   else
+      return(-1);
+}
+
+

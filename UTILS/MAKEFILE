@@ -1,0 +1,14 @@
+
+
+CFLAGS = -c -v -mm
+AFLAGS = -mx -zi
+
+.c.obj:
+	bcc $(CFLAGS) $<
+
+.asm.obj:
+	tasm $(AFLAGS) $<
+
+bmp2fpa.exe: bmp2fpa.obj
+	tlink /v c0m+bmp2fpa,bmp2fpa,,cm tpacklib.lib vm.lib vm2.lib
+

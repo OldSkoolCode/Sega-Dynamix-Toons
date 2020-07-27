@@ -1,0 +1,59 @@
+/* * * * *
+*
+*  TN_MALLT.C
+*
+*  This file contains the code associated with the hammer.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  06/27/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "simlib.h"
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   HAMMER                                   *
+*                                 (part65.it)                                *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* border definitions. */
+static PART_BORDER_C far hammer1_bord[HAMMER_BORDERS] =
+   {{9,0,0},{18,0,0},{20,2,0},{20,13,0},
+    {17,15,0},{0,15,0},{0,13,0},{8,8,0},
+    {8,1,0}};
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void hammer_reinit(PART *hammer)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!hammer)
+   {
+      set_border_slopes(PT_HAMMER,0,hammer1_bord,0,0);
+      return;
+   }
+
+   hammer->border = hammer1_bord;
+   set_adjusted_loc_size(hammer);
+}
+
+/* * * * *
+*
+*  void mallet_internal(PART *mallet);
+*
+* * * * */
+#pragma argsused
+void mallet_internal(PART *mallet)
+{
+
+}
+
+

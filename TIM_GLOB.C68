@@ -1,0 +1,97 @@
+/* * * * *
+*
+*  TIM_GLOB.C
+*
+*  This file contains global variables.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  02/14/92 Kevin Ryan  File created
+*
+* * * * */
+
+
+#include "vm.h"
+#include "tim.h"
+
+
+
+char file_name[13];
+
+unsigned int _stklen;
+long free_k;
+
+short time_to_quit;
+
+FILE *sx_fp;
+short snd_vol_tab[7] = { 0, 3, 5, 8, 10, 13, 15};
+/*short snd_tag[26] = {SND_TG_BELT,SND_TG_BIKE,SND_TG_JACK_BOX,SND_TG_BOUNCE, */
+/*   SND_TG_BOUNCE3,SND_TG_CANNON,SND_TG_CAT,SND_TG_EXPLOSION,SND_TG_FAN, */
+/*   SND_TG_GLASS,SND_TG_GUNSHOT,SND_TG_HUM,SND_TG_MOUSE,SND_TG_POP, */
+/*   SND_TG_ROCKET,SND_TG_SHEARS,SND_TG_SWITCH,SND_TG_TEETER,SND_TG_WHEW, */
+/*   SND_TG_FOOTSTEP,SND_TG_VACUUM,SND_TG_YELL,SND_TG_DOOR,SND_TG_SLURP, */
+/*   SND_TG_TEAPOT,SND_TG_BUMPER}; */
+/*short snd_mem_needed[26] = {0,0,0,999,999,0,0,0,0,0,0,0,0,0,0,0,0, */
+/*   313,339,0,0,323,329,0,0,0}; */
+
+
+void *mouse_shapes,*cp_shapes;
+short show_mouse;
+unsigned short my_key;
+
+char far *tim_pal;
+char far *title_pal;
+char far *black_pal;
+short tim_font;
+
+short pf_lclip,pf_rclip1,pf_rclip2,pf_tclip,pf_bclip;
+
+
+short background_color,pb_color,hilite_color,line_color;
+TIM_VEC line_pt1,line_pt2;
+
+#if TIM_EDITOR
+short in_edit_mode;
+#endif 
+
+PART static_list, move_list, avail_list, *active_part, *pb_part;
+PART *draw_plane[10];
+short ap_flags;
+
+LEVEL cur_level;
+void *score_shapes,*bord_shapes,*menu_shapes;
+void *icon_shapes;
+short old_mouse_icon,last_icon;
+
+short tim_sound_volume;
+short b1_fraction,b2_fraction;
+short run_count,victory_count,tim_timing;
+
+short ledge,tedge;
+short old_ledge,old_tedge,old_old_ledge,old_old_tedge;
+short place_offset_x,place_offset_y;
+
+short redraw_rbi,redraw_tb,redraw_bb,redraw_lb,redraw_rb,redraw_ai;
+short go_count;
+
+short force_fail,warned_low;
+
+short is_valentine,is_st_pat,is_halloween,is_christmas,is_forth_july;
+
+HOT_SPOT *hot_spots,*cp_hot_spots,*disk_hot_spots,*ask_hot_spots,*puz_hot_spots;
+HOT_SPOT *ask_yes_hs,*ask_no_hs;
+unsigned short tim_mode,tim_sub_mode,freeform_mode;
+unsigned short old_tim_mode;
+short unique_pb;
+
+char ReturnBuffer[13];
+
+FORCE_TRANSFER *ft_list,*ft_avail;
+
+#ifdef _MSDOS_
+ERASE_RECT far *er_list;
+ERASE_RECT far *er_avail;
+ERASE_RECT far *er_processed;
+#endif

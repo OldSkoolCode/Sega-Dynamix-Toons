@@ -1,0 +1,305 @@
+/* * * * *
+*
+*  BORDERS.C
+*
+*  This file contains code that deals with the borders in
+*  the Incredible Toons.
+*
+*  By Rich Rayl -- (c) 1993 Dynamix, Inc.  (Jeff Tunnell Productions)
+*
+*  Modification History:
+*  ---------------------
+*  07/28/93 RichR    File created - Some code moved from other files.
+*
+* * * * */
+
+#include "vm.h"
+#include "tim.h"
+
+#ifndef EMM_H
+   #define my_emm_malloc   vm_hmalloc
+   #define my_emm_free     vm_hfree
+#endif
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void   set_border_table_slopes(id, flip, btable, fbtable, num_states);
+*
+*     This function will assign slopes to all of the borders that
+*     are referenced in the specified border table.  It will also
+*     allocate memory and create flipped borders and assign them
+*     to the specified flip border table.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     id             short / Id of the part the specified border table
+*                    belongs to.  Note - id is the same as the part type.
+*
+*     flip           short / How the borders should be flipped.
+*                       0 = none (fbtable will be ignored).
+*                       1 = horizontally
+*                       2 = vertically
+*                       3 = both
+*                     
+*     btable         P_P_PART_BORDER / Pointer to the border table
+*                    that the slope are to be calculated for.
+*                    This can not be 0!
+*
+*     fbtable        P_P_PART_BORDER / Pointer to the border table
+*                    that the flip borders are to be create for.
+*                    If fbtable is 0, then no flip borders will
+*                    be created.
+*
+*     num_states     short / Number of states in the border table.
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void set_border_table_slopes(short id, short flip, P_P_PART_BORDER btable,
+                                 P_P_PART_BORDER fbtable, short num_states)
+{
+   P_P_PART_BORDER   pborder;
+   P_PART_BORDER     fborder, bptr;
+   short             i, num_borders;
+
+   /* Handle special cases where parts have only one border and no table */
+   if(!btable)
+      switch(id)
+      {
+         case PT_AL_CAT:
+            bptr = cat_root_border;
+            break;
+         case PT_SID_MOUSE:
+            bptr = mouse_root_border;
+            break;
+         default:
+            return;
+      }
+
+   /* Get some misc. information */
+   num_borders = prop[id].num_borders;
+
+   /* If a flip border table is specified, allocate memory for flip borders */
+   HEAP_STRING("Flip borders");
+   if(flip && fbtable)
+      #ifdef EMM_H
+         fborder = (P_PART_BORDER) my_emm_malloc((long)num_states*num_borders*sizeof(PART_BORDER),0);
+         if(!fborder)
+      #endif
+      fborder = (P_PART_BORDER) vm_hmalloc((long)num_states*num_borders*sizeof(PART_BORDER),0);
+   HEAP_STRING(0);
+
+   /* Fill in the flip border table */
+   if(flip && fbtable && fborder)
+   {
+      pborder = fbtable;
+      for(i=num_states; i; i--)
+      {
+         *pborder++ = fborder;
+         fborder += num_borders;
+      }
+   }
+
+   /* Assign slopes to the borders */
+   for(i=0; i<num_states; i++)
+   {
+      if(btable)
+         bptr = *btable++;
+      if(!flip || !fbtable || !fborder)
+         set_border_slopes(id, 0, bptr, 0, 0);
+      else
+         set_border_slopes(id, flip, bptr, *fbtable++, i);
+   }
+}
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     set_border_slopes(id, flip, borders, fborders);
+*
+*     This function will assign slopes to the specified borders
+*     and will calculate the flip borders and slopes.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     id             short / Id of the part the specified borders
+*                    belongs to.  Note - id is the same as the part type.
+*
+*     flip           short / How the borders should be flipped.
+*                       0 = none (fborders will be ignored).
+*                       1 = horizontally
+*                       2 = vertically
+*                       3 = both
+*                     
+*     borders        P_PART_BORDER / Pointer to the borders that
+*                    the slopes are to be calculated for.
+*                    This can not be 0!
+*
+*     fborders       P_PART_BORDER / Pointer to the border table
+*                    that the flip borders are to be placed.
+*                    If fbtable is 0, then no flip borders will
+*                    be calculated.
+*
+*     state          short / State part would be in if the specified
+*                    borders are used.  For parts that only have
+*                    one set of borders, state would be 0.
+*                    This is only needed is fborders is not 0.
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void set_border_slopes(short id, short flip, P_PART_BORDER borders,
+                                       P_PART_BORDER fborders, short state)
+{
+   P_PART_BORDER     pborder;
+   short             i, num_borders;
+   TIM_SCVEC         offset;
+   TIM_VEC           size;
+
+   /* If no borders are specified, just return */
+   if(!borders)
+      return;
+
+   /* Determine the number of borders */
+   num_borders = prop[id].num_borders;
+
+   /* Create the flip borders */
+   if(flip && fborders)
+   {
+      /* If no offset table is defined, calculate the offset */
+      if(prop[id].shp_offset)
+         offset = prop[id].shp_offset[state];
+      else
+      {
+         offset.x = offset.y = 9999;
+         pborder = borders;
+         for(i=num_borders; i; i--)
+         {
+            if(pborder->x < offset.x)
+               offset.x = pborder->x;
+            if(pborder->y < offset.y)
+               offset.y = pborder->y;
+            pborder++;
+         }
+      }
+
+      /* If no size table is defined, calculate the size */
+      if(prop[id].shape_size)
+         size = prop[id].shape_size[state];
+      else
+      {
+         size.x = size.y = 0;
+         pborder = borders;
+         for(i=num_borders; i; i--)
+         {
+            if(pborder->x > offset.x + size.x)
+               size.x = pborder->x - offset.x;
+            if(pborder->y > offset.y + size.y)
+               size.y = pborder->y - offset.y;
+            pborder++;
+         }
+      }
+
+      /* If flipping horz or vert but not both, reverse flip borders order */
+      if(flip != 3)
+         fborders += num_borders - 1;
+
+      /* Flip each of the borders */
+      for(i=num_borders; i; i--)
+      {
+         fborders->x = (flip&1 ? (offset.x<<1) - borders->x + size.x : borders->x);
+         fborders->y = (flip&2 ? (offset.y<<1) - borders->y + size.y : borders->y);
+         borders++;
+         fborders += (flip!=3 ? -1 : 1);
+      }
+
+      /* Restore border and fborder */
+      borders  -= num_borders;
+      fborders -= (flip!=3 ? -1 : num_borders);
+   }
+
+   /* Calculate the slopes for the borders */
+   my_set_border_slope(borders, num_borders);
+
+   /* Calculate the slopes for the flip borders */
+   if(flip && fborders)
+      my_set_border_slope(fborders, num_borders);
+}
+
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     set_boundry_rect(id, boundry, btable, num_states);
+*
+*     This function will create the boundry rectangle table from
+*     the borders in the specified border table.  The boundry
+*     rectangles are the smallest rectangle that surrounds the
+*     borders.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     id             short / Id of the part the specified borders
+*                    belongs to.  Note - id is the same as the part type.
+*
+*     boundy         RECT * / Array of rectangle that will contain the
+*                    boundry rectangles.  The array must be able to
+*                    hold num_state entries.
+*
+*     btable         P_P_PART_BORDER / Pointer to the border table
+*                    that the boundy rectangles are to be determined from.
+*
+*     num_states     short / Number of states in the border table.
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void set_boundry_rect(short id, RECT far *boundry, P_P_PART_BORDER btable, short num_states)
+{
+   P_PART_BORDER bptr;
+   short max_x, max_y, min_x, min_y;
+   short i, j;
+
+   /* If no boundry rectangle array or border array, just return */
+   if(!boundry || !btable || !num_states)
+      return;
+
+   /* Calculate a boundy rectange for each state */
+   for(i=num_states; i; i--)
+   {
+      /* Calculate the boundry rectangle */
+      max_x = max_y = 0;
+      min_x = min_y = 1000;
+      bptr = *btable++;
+      for(j=prop[id].num_borders; j; j--)
+      {
+         if(bptr->x > max_x) (max_x = bptr->x);
+         if(bptr->y > max_y) (max_y = bptr->y);
+         if(bptr->x < min_x) (min_x = bptr->x);
+         if(bptr->y < min_y) (min_y = bptr->y);
+         bptr++;
+      }
+
+      /* Save boundry rectangle */
+      boundry->x = min_x;
+      boundry->y = min_y;
+      boundry->w = max_x - min_x + 1;
+      boundry->h = max_y - min_y + 1;
+      boundry++;
+   }
+}
+
+

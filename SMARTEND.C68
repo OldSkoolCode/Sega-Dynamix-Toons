@@ -1,0 +1,542 @@
+/* * * * *
+*
+*  SMARTEND.C
+*
+*  This file contains the code that handles the smart ends
+*  in the Incredible Toons.
+*
+*  By Rich Rayl -- (c) 1993 Dynamix, Inc.  (Jeff Tunnell Productions)
+*
+*  Modification History:
+*  ---------------------
+*  07/01/93 RichR    File created
+*
+* * * * */
+
+/* #include "smartprt.h" */
+#include "vm.h"
+#include "vm2.h"
+#include "tim.h"
+
+/* Define the different was walls can connect to each other */
+/*    HL = Horizontal Left       VT = Vertical Top */
+/*    HR = Horizontal Right      VB = Vertical Bottom */
+/*    HM = Horizontal Middle     VM = Vertical Middle */
+enum wall_pos { SE_NONE,
+                HL_VT, HR_VT, HL_VM, HR_VM, HL_VB, HR_VB,
+                VT_HL, VT_HM, VT_HR, VB_HL, VB_HM, VB_HR,
+                NUM_WALL_POS };
+
+
+/* Define the data structure types */
+typedef struct wall_end
+{
+   unsigned char  shape;      /* shape index into bitmap file */
+   signed   char  dx,dy;      /* offset from edge to draw bitmap */
+   unsigned char  w,h;        /* width and height of bitmap */
+} WALL_END;
+
+typedef const WALL_END WALL_END_C;
+typedef WALL_END far * P_WALL_END;
+
+/* Define the local variables */
+static WALL_END far metal_wall_ends[NUM_WALL_POS] =  /* PT_WALL0 = 26 */
+{
+   { 0,0,0 },   /* First one is ignored */
+   { 6,-16,-1 },     { 7,-16,0 },      { 8,-17,0 },      { 9,-4,-5 },
+   { 10,-16,0 },     { 11,-5,0 },      { 12,0,-16 },     { 13,0,-19 },
+   { 14,-14,-16 },   { 15,0,-10 },     { 16,-21,-25 },   { 17,-9,-22 }
+};
+static WALL_END far wood_wall_ends[NUM_WALL_POS] =  /* PT_WALL1 = 27 */
+{
+   { 0,0,0 },   /* First one is ignored */
+   { 12,-5,0 },      { 13,-15,1 },     { 14,-6,0 },      { 15,-12,0 },
+   { 16,-8,0 },      { 17,-14,-1 },    { 18,0,0 },       { 19,5,-10 },
+   { 20,-3,-12 },    { 21,1,-10 },     { 22,-2,-7 },     { 23,-4,-6 }
+};
+static WALL_END far rock_wall_ends[NUM_WALL_POS] =  /* PT_WALL2 = 28 */
+{
+   { 0,0,0 },   /* First one is ignored */
+   { 12,-18,1 },     { 13,-9,-2 },     { 14,-19,-6 },    { 15,-13,-9 },
+   { 16,-16,-27 },   { 17,-26,-9 },    { 18,0,-11 },     { 19,-4,-16 },
+   { 20,-11,-17 },   { 21,-1,-15 },    { 22,-10,-8 },    {23,-22,-12 }
+};
+static WALL_END far log_wall_ends[NUM_WALL_POS] =  /* PT_WALL3 = 29 */
+{
+   { 0,0,0 },   /* First one is ignored */
+   { 12,-15,1 },     { 13,-12,2 },     { 14,-18,-9 },   { 15,-16,-10 },
+   { 16,-16,-5 },    { 17,-6,-2 },     { 18,0,-5 },      { 19,0,-13 },
+   { 20,-5,-3 },     { 21,0,-19 },     { 22,-4,-5 },     { 23,-13,-14 }
+};
+static WALL_END far vertribrae_wall_ends[NUM_WALL_POS] =  /* PT_WALL4 = 82 */
+{
+   { 0,0,0 },   /* First one is ignored */
+   { 10,-10,4 },     { 11,-4,0 },      { 12,-16,3 },     { 13,-3,1 },
+   { 14,-16,-3 },    { 15,-8,-5 },     { 16,0,-14 },     { 17,-10,-15 },
+   { 18,0,-10 },     { 19,1,-4 },      { 20,-4,0 },      { 21,-12,-6 }
+};
+static WALL_END far bone_wall_ends[NUM_WALL_POS] =  /* PT_WALL5 = 83 */
+{
+   { 0,0,0 },   /* First one is ignored */
+   { 10,-16,-1 },    { 11,-14,0 },     { 12,-12,-1 },    { 13,-14,-4 },
+   { 14,-16,0 },     { 15,-5,-3 },     { 16,0,-10 },     { 17,0,-12 },
+   { 18,2,-7 },      { 19,0,-11 },     { 20,-7,-11 },    { 21,0,-15 }
+};
+
+/* Declare the local functions */
+short      determine_wall_ends(PART *part);
+void       draw_wall_ends(PART *part);
+short      check_wall_ends(PART *part, ERASE_RECT far *erptr);
+short      check_overlap(RECT *rect, ERASE_RECT far *erptr);
+P_WALL_END is_a_wall(PART *part);
+
+
+/* * * * *
+*
+*  Syntax:
+*
+*     short    determine_smart_ends(part);
+*
+*     This function will determine whether the specified
+*     part needs to have smart ends or not.  If it does,
+*     the smart end is calculated and updated in the part.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     part           PART * / Pointer to the part to be checked.
+*
+*  Return Value:
+*     This function will return TRUE if the specified part has
+*     a smart end, otherwise it will return FALSE.
+*
+*  Comments:
+*     Only static parts can have smart ends, so this function
+*     will only check the static list of parts.
+*
+* * * * */
+short determine_smart_ends(PART *part)
+{
+   /* If part is 0, search all parts */
+   if(!part)
+   {
+      part = static_list.next;
+      while(part)
+      {
+         determine_smart_ends(part);
+         part = part->next;
+      }
+      return(0);
+   }
+
+   /* If part is a wall, determine the smart ends */
+   if( is_a_wall(part) )
+      return( determine_wall_ends(part) );
+
+   /* If part does not have smart ends, return 0 */
+   return(0);
+}
+
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     draw_smart_ends(part);
+*
+*     This function will draw the smart ends for the specified part.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     part           PART * / Pointer to the part the smart ends
+*                    are to be drawn for.
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void draw_smart_ends(PART *part)
+{
+#if 0
+   /* If part is a wall type part, call seperate function */
+   if(is_a_wall(part))
+   {
+      my_mouse_off();
+      draw_wall_ends(part);
+      my_mouse_on();
+      return;
+   }
+#endif
+}
+
+/* * * * *
+*
+*  Syntax:
+*
+*     short    check_smart_ends(part, erptr);
+*
+*     This function will determine if the specified erase rectangle
+*     overlaps either of the smart ends of the specified part.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     part           PART * / Pointer to the part with smart ends.
+*
+*     erptr          ERASE_RECT * / Pointer to the erase rectangle
+*                    that is being used for the overlap check.
+*
+*  Return Value:
+*     Returns TRUE if either of the two smart ends overlap the
+*     specified erase rectangle.
+*
+*  Comments:
+*
+* * * * */
+short check_smart_ends(PART *part, ERASE_RECT far *erptr)
+{
+   /* If part is a wall type part, call seperate function */
+   if(is_a_wall(part))
+      return( check_wall_ends(part, erptr) );
+
+   /* Part does not have smart ends */
+   return(0);
+}
+
+
+
+/* * * * *
+*
+*  determine_wall_ends(part);
+*
+*  This function will determine the smart ends for the specified wall.
+*
+*  Return value is the same as determine_smart_ends().
+*
+* * * * */
+short determine_wall_ends(PART *part)
+{
+   PART *qptr;
+   enum wall_pos end_pos1 = SE_NONE;
+   enum wall_pos end_pos2 = SE_NONE;
+
+   /* If wall is vertical, check top and bottom ends */
+   if(part->size.x == 16)
+   {
+      /* Check top end first */
+      query_rect(part,F1_STATIC_L,0,16,-16,0);
+      qptr = part->qptr;
+      while(qptr && (end_pos1 == SE_NONE))
+      {
+         /* If part is a wall, determine smart end */
+         if((qptr->size.y == 16) && is_a_wall(qptr))
+         {
+            /* Check for left end of query wall */
+            if(qptr->scrn_loc.x == part->scrn_loc.x)
+               end_pos1 = VT_HL;
+            else if(qptr->scrn_loc.x + qptr->size.x == part->scrn_loc.x + part->size.x)
+               end_pos1 = VT_HR;
+            else
+               end_pos1 = VT_HM;
+         }
+
+         /* Move to next query part */
+         qptr = qptr->qptr;
+      }
+
+      /* Check bottom end */
+      query_rect(part,F1_STATIC_L,0,16,part->size.y,part->size.y+16);
+      qptr = part->qptr;
+      while(qptr && (end_pos2 == SE_NONE))
+      {
+         /* If part is a wall, determine smart end */
+         if((qptr->size.y == 16) && is_a_wall(qptr))
+         {
+            /* Check for left end of query wall */
+            if(qptr->scrn_loc.x == part->scrn_loc.x)
+               end_pos2 = VB_HL;
+            else if(qptr->scrn_loc.x + qptr->size.x == part->scrn_loc.x + part->size.x)
+               end_pos2 = VB_HR;
+            else
+               end_pos2 = VB_HM;
+         }
+
+         /* Move to next query part */
+         qptr = qptr->qptr;
+      }
+   }
+
+   /* If wall is horizontal, check left and right ends */
+   else if(part->size.y == 16)
+   {
+      /* Check left end first */
+      query_rect(part,F1_STATIC_L,-16,0,0,16);
+      qptr = part->qptr;
+      while(qptr && (end_pos1 == SE_NONE))
+      {
+         /* If part is a wall, determine smart end */
+         if((qptr->size.x == 16) && is_a_wall(qptr))
+         {
+            /* Check for top end of query wall */
+            if(qptr->scrn_loc.y == part->scrn_loc.y)
+               end_pos1 = HL_VT;
+            else if(qptr->scrn_loc.y + qptr->size.y == part->scrn_loc.y + part->size.y)
+               end_pos1 = HL_VB;
+            else
+               end_pos1 = HL_VM;
+         }
+
+         /* Move to next query part */
+         qptr = qptr->qptr;
+      }
+
+      /* Check right end */
+      query_rect(part,F1_STATIC_L,part->size.x,part->size.x+16,0,16);
+      qptr = part->qptr;
+      while(qptr && (end_pos2 == SE_NONE))
+      {
+         /* If part is a wall, determine smart end */
+         if((qptr->size.x == 16) && is_a_wall(qptr))
+         {
+            /* Check for left end of query wall */
+            if(qptr->scrn_loc.y == part->scrn_loc.y)
+               end_pos2 = HR_VT;
+            else if(qptr->scrn_loc.y + qptr->size.y == part->scrn_loc.y + part->size.y)
+               end_pos2 = HR_VB;
+            else
+               end_pos2 = HR_VM;
+         }
+
+         /* Move to next query part */
+         qptr = qptr->qptr;
+      }
+   }
+
+   /* Save the smart end types */
+   part->smart_end1 = end_pos1;
+   part->smart_end2 = end_pos2;
+
+   /* If end_pos1 or end_pos2 is a smart end, return TRUE */
+   return((end_pos1 != SE_NONE) || (end_pos2 != SE_NONE));
+}
+
+
+/* * * * *
+*
+*  void draw_wall_ends(part);
+*
+*  This function will draw the smart ends for the specified wall part.
+*
+* * * * */
+void draw_wall_ends(PART *part)
+{
+   P_WALL_END wptr;
+   enum wall_pos pos;
+   void *bitmaps;
+   short x, y;
+	short w,h;
+
+   /* Get pointer to wall smart ends table */
+   wptr = is_a_wall(part);
+
+   /* If bitmaps are not in memory, just return */
+   bitmaps = prop[part->type].part_shapes;
+   if(!bitmaps)
+      return;
+
+   /* If end bitmap sizes have not been assigned yet, do them now */
+   if(!wptr->w || !wptr->h)
+   {
+      for(pos=1; pos<NUM_WALL_POS; pos++)
+      {
+			GetFrameWH(0,wptr->shape,bitmaps, &w, &h);
+			w <<= VIRTUALCOORDS;
+			h <<= VIRTUALCOORDS;
+			wptr->w = (unsigned char)w;
+			wptr->h = (unsigned char)h;
+
+         wptr++;
+      }
+      wptr = is_a_wall(part);
+   }
+
+   /* Draw the first smart end (left and top) */
+   if(part->smart_end1 != SE_NONE)
+   {
+      /* Determine location to draw smart end */
+      pos = part->smart_end1;
+      x = part->scrn_loc.x - ledge + wptr[pos].dx;
+      y = part->scrn_loc.y - tedge + wptr[pos].dy;
+
+      /* Draw smart end */
+      draw_bitmap(bitmaps,x,y,0, wptr[pos].shape);
+   }
+
+   /* Draw the second smart end (right and bottom) */
+   if(part->smart_end2 != SE_NONE)
+   {
+      /* Determine location to draw smart end */
+      pos = part->smart_end2;
+      x = part->scrn_loc.x - ledge + wptr[pos].dx;
+      y = part->scrn_loc.y - tedge + wptr[pos].dy;
+
+      /* Adjust location based on the end type */
+      switch(pos)
+      {
+         case HR_VT:
+         case HR_VM:
+         case HR_VB:
+            x += part->size.x;
+            break;
+
+         case VB_HL:
+         case VB_HM:
+         case VB_HR:
+            y += part->size.y;
+            break;
+      }
+
+      /* Draw smart end */
+      draw_bitmap(bitmaps,x,y,0, wptr[pos].shape);
+   }
+}
+
+/* * * * *
+*
+*  void check_wall_ends(part, erptr);
+*
+*  This function will check to see if either of the ends of the
+*  specified wall overlap with the specified erase rectangle.
+*
+* * * * */
+short check_wall_ends(PART *part, ERASE_RECT far *erptr)
+{
+   P_WALL_END wptr;
+   RECT rect;
+   enum wall_pos pos;
+
+   /* Get pointer to wall smart ends table */
+   wptr = is_a_wall(part);
+
+   /* Check rectangle around the first smart end (left and top) */
+   if(part->smart_end1 != SE_NONE)
+   {
+      /* Determine location and size of smart end */
+      pos = part->smart_end1;
+      rect.x = part->scrn_loc.x - ledge + wptr[pos].dx;
+      rect.y = part->scrn_loc.y - tedge + wptr[pos].dy;
+      rect.w = wptr[pos].w;
+      rect.h = wptr[pos].h;
+
+      /* See if rectangles overlap */
+      if(check_overlap(&rect,erptr))
+         return(1);
+   }
+
+   /* Check rectangle around the second smart end (right and bottom) */
+   if(part->smart_end2 != SE_NONE)
+   {
+      /* Determine location and size of smart end */
+      pos = part->smart_end2;
+      rect.x = part->scrn_loc.x - ledge + wptr[pos].dx;
+      rect.y = part->scrn_loc.y - tedge + wptr[pos].dy;
+      rect.w = wptr[pos].w;
+      rect.h = wptr[pos].h;
+
+      /* Adjust location based on the end type */
+      switch(pos)
+      {
+         case HR_VT:
+         case HR_VM:
+         case HR_VB:
+            rect.x += part->size.x;
+            break;
+
+         case VB_HL:
+         case VB_HM:
+         case VB_HR:
+            rect.y += part->size.y;
+            break;
+      }
+
+      /* See if rectangles overlap */
+      if(check_overlap(&rect,erptr))
+         return(1);
+   }
+
+   /* There is no overlap, return FALSE */
+   return(0);
+}
+
+
+/* * * * *
+*
+*  check_overlap(rect, erptr);
+*
+*  Check for overlap between the specified rectangle and
+*  the specified erase rectangle.
+*
+* * * * */
+short check_overlap(RECT *rect, ERASE_RECT far *erptr)
+{
+   short x1, x2, y1, y2;
+
+   /* Determine x1 and x2 */
+   if(rect->w > 0)
+   {
+      x1 = rect->x;
+      x2 = rect->x + rect->w;
+   }
+   else
+   {
+      x1 = rect->x + rect->w;
+      x2 = rect->x;
+   }
+
+   /* Determine y1 and y2 */
+   if(rect->h > 0)
+   {
+      y1 = rect->y;
+      y2 = rect->y + rect->h;
+   }
+   else
+   {
+      y1 = rect->y + rect->h;
+      y2 = rect->y;
+   }
+
+   /* Return TRUE if the rectangles overlap */
+   return (    (erptr->cx < x2) && (erptr->cxw >= x1)
+            && (erptr->cy < y2) && (erptr->cyh >= y1));
+}
+
+/* * * * *
+*
+*  is_a_wall(part);
+*
+*  This function returns TRUE if the specified part is
+*  a wall or not.
+*
+* * * * */
+P_WALL_END is_a_wall(PART *part)
+{
+   switch(part->type)
+   {
+      case PT_WALL0:
+         return(metal_wall_ends);
+      case PT_WALL1:
+         return(wood_wall_ends);
+      case PT_WALL2:
+         return(rock_wall_ends);
+      case PT_WALL3:
+         return(log_wall_ends);
+      case PT_WALL4:
+         return(vertribrae_wall_ends);
+      case PT_WALL5:
+         return(bone_wall_ends);
+      default:
+         return(0);
+   }
+}
+
+

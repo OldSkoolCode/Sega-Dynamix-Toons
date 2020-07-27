@@ -1,0 +1,193 @@
+/* * * * *
+*
+*  TN_RTRNS.C
+*           
+*  This file contains all the code associated with the rotation to translation
+*  part.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/06/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+#define ROTTRANS_BELT_X       18 /* 19      */
+#define ROTTRANS_BELT_Y       88 /* 89 */
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  ROTTRANS                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* Constant data */
+#define ROTTRANS_NUM_STATES  4
+
+/* supershape structure definition */
+static F_SSHAPE_C rottrans1_2 = {0, ROTTRANS_PLANE1, {1,255,255,255},
+   {{4,21},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C rottrans1 = {&rottrans1_2, ROTTRANS_PLANE, {0,4,2,3},
+   {{0,19},{0,36},{6,0},{7,25}}};
+static F_SSHAPE_C rottrans2 = {0, ROTTRANS_PLANE, {0,5,2,1},
+   {{0,19},{-2,31},{6,6},{4,21}}};
+static F_SSHAPE_C rottrans3_2 = {0, ROTTRANS_PLANE1, {1,255,255,255},
+   {{4,21},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C rottrans3 = {&rottrans3_2, ROTTRANS_PLANE, {0,6,3,2},
+   {{0,19},{0,36},{6,35},{6,10}}};
+static F_SSHAPE_C rottrans4 = {0, ROTTRANS_PLANE, {0,7,2,1},
+   {{0,19},{-1,29},{5,6},{4,21}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far rottrans_ss_tab[ROTTRANS_NUM_STATES] = 
+   {&rottrans1,&rottrans2,&rottrans3,&rottrans4};
+
+/* size. */
+TIM_VEC_C far rottrans_size[ROTTRANS_NUM_STATES] = 
+   {{19,52},{21,45},{19,42},{20,44}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far rottrans_os[ROTTRANS_NUM_STATES] = 
+   {{0,0},{-3,12},{0,20},{-2,12}};
+
+/* border definitions. */
+static PART_BORDER_C far rottrans1_bord[ROTTRANS_BORDERS] =
+   {{6,1,0},{19,1,0},{10,20,0},{17,48,0},{2,49,0},{1,20,0},
+    {6,1,0}};
+static PART_BORDER_C far rottrans2_bord[ROTTRANS_BORDERS] =
+   {{8,1,0},{20,2,0},{14,15,0},{20,40,0},{10,44,0},{0,36,0},
+    {2,14,0}};
+static PART_BORDER_C far rottrans3_bord[ROTTRANS_BORDERS] =
+   {{7,1,0},{18,1,0},{13,12,0},{17,37,0},{7,40,0},{0,33,0},
+    {1,10,0}};
+static PART_BORDER_C far rottrans4_bord[ROTTRANS_BORDERS] =
+   {{8,1,0},{19,2,0},{14,15,0},{18,38,0},{8,44,0},{0,36,0},
+    {2,14,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far rottrans_bord_tab[ROTTRANS_NUM_STATES] =
+   {rottrans1_bord,rottrans2_bord,rottrans3_bord,rottrans4_bord};
+static P_PART_BORDER far rottrans_fbord_tab[ROTTRANS_NUM_STATES];
+
+/* rope tie tables */
+static TIM_CVEC_C far rottrans_rope_tab[ROTTRANS_NUM_STATES] =
+{
+   {20,5}, {20,17}, {19,25}, {17,18}
+};
+static TIM_CVEC_C far rottrans_frope_tab[ROTTRANS_NUM_STATES] =
+{
+   {20,99}, {20,87}, {19,79}, {17,86}
+};
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void rottrans_reinit(PART *rottrans)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!rottrans)
+   {
+      set_border_table_slopes(PT_ROT_TRANS, 2, rottrans_bord_tab,
+                                 rottrans_fbord_tab, ROTTRANS_NUM_STATES);
+      return;
+   }
+
+   if (rottrans->flags2 & F2_FLIP_V_DRAW)
+   {
+      rottrans->border = rottrans_fbord_tab[rottrans->state];
+      rottrans->rope_loc[0].x = rottrans_frope_tab[rottrans->state].x;
+      rottrans->rope_loc[0].y = rottrans_frope_tab[rottrans->state].y;
+      rottrans->belt_loc.x = ROTTRANS_BELT_X - ROTTRANS_BELT_SIZE/2;
+      rottrans->belt_loc.y = (104-ROTTRANS_BELT_Y) - ROTTRANS_BELT_SIZE/2;
+   }
+   else
+   {
+      rottrans->border = rottrans_bord_tab[rottrans->state];
+      rottrans->rope_loc[0].x = rottrans_rope_tab[rottrans->state].x;
+      rottrans->rope_loc[0].y = rottrans_rope_tab[rottrans->state].y;
+      rottrans->belt_loc.x = ROTTRANS_BELT_X - ROTTRANS_BELT_SIZE/2;
+      rottrans->belt_loc.y = ROTTRANS_BELT_Y - ROTTRANS_BELT_SIZE/2;
+   }
+   set_adjusted_loc_size(rottrans);
+}
+
+
+#pragma argsused
+void rottrans_flip(PART *rottrans,short flip_mode)
+{
+   rottrans->flags2 ^= F2_FLIP_V_DRAW;
+   rottrans_reinit(rottrans);
+   sub_parts_to_er(rottrans,1|2);
+   part_to_er(rottrans,1|2);
+   sub_parts_to_er(rottrans,1|2);
+   set_redraw(rottrans,2);
+}
+
+
+void rottrans_internal(PART *rottrans)
+{
+   #define ROTTRANS_RATE      2
+
+   static short far direction_array[ROTTRANS_NUM_STATES] =
+   {
+      MOVING_UP, MOVING_DOWN, MOVING_DOWN, MOVING_UP
+   };
+   static short far direction_farray[ROTTRANS_NUM_STATES] =
+   {
+      MOVING_DOWN, MOVING_UP, MOVING_UP, MOVING_DOWN
+   };
+
+   short direction, rottrans_link, other_tie, rope_action, advance;
+   ROPE *rptr;
+   PART *other_part;
+
+   if (rottrans->sub_state)
+   {
+      /* animate rottrans */
+      advance = !(++rottrans->work_var % ROTTRANS_RATE);
+      if (rottrans->sub_state > 0)
+      {
+         if (advance && (++rottrans->state == ROTTRANS_NUM_STATES))
+            rottrans->state = 0;
+         direction = direction_array[rottrans->state];
+      }
+      else
+      {
+         if (advance && (--rottrans->state < 0))
+            rottrans->state = ROTTRANS_NUM_STATES - 1;
+         direction = direction_farray[rottrans->state];
+      }
+
+      /* if there is a rope, then tell the other end that it has been pulled */
+      if ((rptr = rottrans->rope_tie[0]) != 0)
+      {
+/*            rptr->slack = 0; */
+         if (rptr->link1 == rottrans)
+         {
+            rottrans_link = 0;
+            other_tie = rptr->l2_num;
+         }
+         else
+         {
+            rottrans_link = 1;
+            other_tie = rptr->l1_num;
+         }
+
+         rope_action = get_rope_action(rptr, rottrans_link, direction);
+         other_part = get_rope_link(rottrans,rptr);
+         prop[other_part->type].rope_func(rottrans,other_part,other_tie,
+            rope_action,0,MAX_FORCE);
+         if(advance)
+            rottrans_reinit(rottrans);
+      }
+      rottrans->sub_state = 0;
+   }
+}
+
+

@@ -1,0 +1,249 @@
+/* * * * *
+*
+*  TEAPOT.C
+*
+*  This file contains teapot routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  12/22/92 Kevin Ryan  File created
+*
+* * * * */
+#include "defs.h"
+#include "tim.h"
+
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   TEAPOT                                   *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        The teapot boils. The sequence is:
+   1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4,5,6,5,6,5,6,5,6,
+   5,6,5,6,5,6,5,6,5,6,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,
+   7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8.
+        The teapot is blowing during supershape #7 & #8. The blow rectange
+   is (47,-16) offset from the root and is 50 by 51 in size.
+*/
+
+#define TEAPOT_NUM_STATES  8
+
+/* supershape structure definition */
+static F_SSHAPE_C teapot1 = {0, TEAPOT_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C teapot2 = {0, TEAPOT_PLANE, {0,255,255,255},
+   {{-1,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C teapot3 = {0, TEAPOT_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C teapot4 = {0, TEAPOT_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C teapot5 = {0, TEAPOT_PLANE, {1,255,255,255},
+   {{-7,-7},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C teapot6 = {0, TEAPOT_PLANE, {1,255,255,255},
+   {{-8,-8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C teapot7 = {0, TEAPOT_PLANE, {2,255,255,255},
+   {{-1,-9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C teapot8 = {0, TEAPOT_PLANE, {3,255,255,255},
+   {{0,-10},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far teapot_ss_tab[TEAPOT_NUM_STATES] = 
+   {&teapot1,&teapot2,&teapot3,&teapot4,&teapot5,&teapot6,
+    &teapot7,&teapot8};
+
+/* size. */
+TIM_VEC_C far teapot_size[TEAPOT_NUM_STATES] = 
+   {{21,16},{22,16},{21,16},{22,16},{28,23},{29,24},
+    {46,26},{49,27}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far teapot_os[TEAPOT_NUM_STATES] = 
+   {{0,0},{-1,0},{0,-1},{0,-1},{-14,-15},{-15,-16},{-1,-19},{0,-21}};
+
+/* border definitions. */
+static PART_BORDER_C far teapot1_bord[TEAPOT_BORDERS] =
+   {{8,0,0},{13,0,0},{19,5,0},{21,5,0},
+    {21,9,0},{14,15,0},{5,15,0},{0,8,0},
+    {0,4,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far teapot_bord_tab[TEAPOT_NUM_STATES] =
+   {teapot1_bord,teapot1_bord,teapot1_bord,teapot1_bord,
+    teapot1_bord,teapot1_bord,teapot1_bord,teapot1_bord};
+static P_PART_BORDER far teapot_fbord_tab[TEAPOT_NUM_STATES];
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void teapot_reinit(PART *t_part)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!t_part)
+   {
+      set_border_table_slopes(PT_TEAPOT, 1, teapot_bord_tab, teapot_fbord_tab,
+         TEAPOT_NUM_STATES);
+      return;
+   }
+
+   if (t_part->flags2 & F2_FLIP_H_DRAW)
+      t_part->border = teapot_fbord_tab[t_part->state];
+   else
+      t_part->border = teapot_bord_tab[t_part->state];
+   set_adjusted_loc_size(t_part);
+}
+
+
+#pragma argsused
+void teapot_flip(PART *t_part,short flip_mode)
+{
+   t_part->flags2 ^= F2_FLIP_H_DRAW;
+
+   teapot_reinit(t_part);
+   part_to_er(t_part,1|2);
+   set_redraw(t_part,2);
+}
+
+
+
+void teapot_internal(PART *t_part)
+{
+   short push_speed;
+   PART *pptr;
+   static char far state_array[] =
+   {
+      1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4,5,6,5,6,5,6,5,6,
+      5,6,5,6,5,6,5,6,5,6,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,
+      7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8,7,8
+   };
+   #define NUM_STATES  (sizeof(state_array)/sizeof(char))
+
+   /* check if a fire is on the pot */
+   if (t_part->sub_state)
+   {
+      /* check if the pot is not boiling */
+      if (t_part->state < 6)
+      {
+         t_part->state = state_array[t_part->work_var1++] - 1;
+         teapot_reinit(t_part);
+         t_part->sub_state = 0;
+      }
+
+      if (  (t_part->state == 4)
+         && (t_part->old_state == 3))
+         jtp_sx_play(SX_TEAPOT_GASP, 2, 0);
+   }
+   else
+   {
+      /* check if the pot is not yet boiling and should be cooled down */
+      if ((t_part->state < 6) && t_part->work_var1)
+      {
+         t_part->state = state_array[--t_part->work_var1] - 1;
+         teapot_reinit(t_part);
+      }
+   }
+
+   /* check if the teapot is boiling and it should continue to boil. */
+   if ((t_part->state > 5) && (t_part->work_var1 < NUM_STATES))
+   {
+      jtp_sx_play(SX_TEAPOT_BLOW, 0, 0);
+
+      /* animate the boil */
+      t_part->state = state_array[t_part->work_var1++] - 1;
+
+      /* check if the system should be reset */
+      if (t_part->work_var1 == NUM_STATES)
+      {
+         jtp_sx_stop(SX_TEAPOT_BLOW);
+         t_part->work_var1 = t_part->sub_state = t_part->state = 0;
+      }
+
+      teapot_reinit(t_part);
+
+      /* check the query rectangles for the interaction parts. */
+      if (t_part->flags2  & F2_FLIP_H_DRAW)
+         tn_query_dist(t_part,F1_STATIC_L|F1_MOVE_L,
+            t_part->base_size.x - (50 + 47),-16,47,45);
+      else
+         tn_query_dist(t_part,F1_STATIC_L|F1_MOVE_L,50,-16,47,45);
+
+      pptr = t_part->qptr;
+      while (pptr)
+      {
+         if (pptr->flags1 & F1_MOVE_L)
+         {
+            switch (pptr->type)
+            {
+               case PT_AL_CAT:
+                  if (t_part->scrn_loc.x < pptr->scrn_loc.x)
+                  {
+                     if (pptr->flags2 & F2_FLIP_H_DRAW)
+                        cat_flip(pptr,F2_FLIP_H_DRAW);
+                  }
+                  else
+                  {
+                     if (!(pptr->flags2 & F2_FLIP_H_DRAW))
+                        cat_flip(pptr,F2_FLIP_H_DRAW);
+                  }
+                  pptr->sub_state = CAT_BUTT_INDEX;
+                  pptr->speed.y = -THREE_PIX;
+                  goto DEFAULT_BLOW;
+               case PT_SID_MOUSE:
+                  if (t_part->scrn_loc.x < pptr->scrn_loc.x)
+                  {
+                     if (pptr->flags2 & F2_FLIP_H_DRAW)
+                        sid_flip(pptr,F2_FLIP_H_DRAW);
+                  }
+                  else
+                  {
+                     if (!(pptr->flags2 & F2_FLIP_H_DRAW))
+                        sid_flip(pptr,F2_FLIP_H_DRAW);
+                  }
+                  pptr->sub_state = SID_HDRYR_INDEX;
+                  goto DEFAULT_BLOW;
+               default:
+DEFAULT_BLOW:
+                  push_speed = TWO_PIX;
+                  if (t_part->flags2 & F2_FLIP_H_DRAW)
+                  {
+                     if (pptr->speed.x > (0-THREE_PIX))
+                        pptr->speed.x -= push_speed;
+                  }
+                  else
+                  {
+                     if (pptr->speed.x < THREE_PIX)
+                        pptr->speed.x += push_speed;
+                  }
+                  if (pptr->speed.y > (0-THREE_PIX))
+                     pptr->speed.y -= push_speed;
+
+                  check_term_velocity(pptr);
+                  break;
+            }
+         }
+         else
+         {
+            switch (pptr->type)
+            {
+               case PT_ANT:
+                  startle_ant(pptr);
+                  break;
+               case PT_ELEPHANT:
+                  pptr->sub_state = 3;
+                  break;
+               case PT_TEAPOT:
+                  pptr->sub_state = 1;
+                  break;
+            }
+         }
+         pptr = pptr->qptr;
+      }
+   }
+}
+

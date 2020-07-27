@@ -1,0 +1,101 @@
+/* * * * *
+*
+*  TN_NUKE.C
+*
+*  This module contains all the code for the nuke-a-toon requester.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/17/93 ChrisC   File created
+*
+* * * * */
+#include <stdlib.h>
+#include <stdio.h>
+#include <alloc.h>
+#include <string.h>
+#include <ctype.h>
+#include <math.h>
+#include "vm.h"
+#include "vm_keys.h"
+#include "vm_mylib.h"
+#include "simlib.h"
+#include "sx.h"
+#include "mouse.h"
+#include "keyboard.h"
+#include "tim.h"
+#include "tim_text.h"
+#include "toons.h"
+
+
+/* * * * *
+*
+*  local function to this module
+*
+* * * * */
+
+
+
+/* * * * *
+*
+*  void do_toon_nuke(void);
+*
+*  This function manages the interface and functionallity of the nuke button.
+*  It assumes that tim_mode = TOON_NUKE.
+*
+* * * * */
+void do_toon_nuke(void)
+{
+}
+
+
+
+/* * * * *
+*
+*  void draw_toon_nuke(char button, short x, short y);
+*
+*  This function will handle all the drawing and animation of the load arrow
+*  button.
+*  if
+*     button = 0, then draw button off.
+*     button = 1, then draw button on.
+*     button = 2, then toggle button from off to on to off.
+*
+*  This function will draw all shapes to vm_dstptr = vm_buffptr.
+*
+* * * * */
+void draw_toon_nuke(char button, short x, short y)
+{
+}
+
+
+
+
+/* * * * *
+*
+*  void draw_nuke(char button, short x, short y);
+*
+*  This function will draw all the cells of the nuke requester.
+*
+*  If button
+*     =  0,  then draw background.
+*     =  1,  then draw toaster.
+*     =  2,  then draw cord up.
+*     =  3,  then draw cord out and down.
+*     =  4,  then draw knob at 5.
+*     =  5,  then draw knob at four.
+*     =  6,  then draw knob at 3.
+*     =  7,  then draw knob at 2.
+*     =  8,  then draw knob at 1.
+*     =  9,  then draw knob almost down.
+*     = 10,  then draw knob hits bottom.
+*  
+*  This function assumes that the shape tables are loaded into memory.
+*
+* * * * */
+void draw_nuke(char button, short x, short y)
+{
+}
+
+

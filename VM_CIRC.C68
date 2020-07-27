@@ -1,0 +1,155 @@
+/* * * * *
+* VM_CIRC.C68
+* COPYRIGHT 1989 BY DYNAMIX, INC
+*
+* MODIFICATION HISTORY
+* NAME            DATE         WHAT
+*
+* K Hurley			Oct 26 93	 Circle routine for Sega
+* P Lukaszuk      Nov 7 91     Put an old dinosaur out of it's misery 
+*                              and rewrote to use an edge table.
+* * * * */
+
+#include "defs.h"
+#include "vm_types.h"
+#include "vm_defs.h"
+#include "vm_globs.h"
+
+
+extern short edge_table;
+
+#define MIN(a,b)  (((a) < (b))?   (a):(b));
+#define MAX(a,b)  (((a) > (b))?   (a):(b));
+
+
+static short *do_circle( short, short, short );
+static void circ_line( short, short );
+static void circ_points( short, short );
+
+static short cx, cy, cbclip, ctclip, ctop;
+static short *cptr;
+static void (*circ_func)( short , short );
+
+
+
+
+void vm_circle( short radius, short x, short y )
+{
+   short *circ;
+   if( vm_fill )
+   {
+      circ_func = circ_line;
+      if( (circ = do_circle( radius, x, y )) != 0 )
+         vm_edraw( circ );
+   }
+   if( vm_lcolor != vm_fcolor || !vm_fill )
+   {
+      circ_func = circ_points;
+      do_circle( radius, x, y );
+   }
+}
+
+
+
+
+
+static short *do_circle( short radius, short x, short y )
+{
+   short ox, oy, d, y2, *table;
+
+   table = cptr = &edge_table;
+
+   ox = 0;
+   oy = radius;
+   d = 3 - 2 * radius;
+
+   *cptr++ = ctop = MAX( vm_tclip, y - radius);
+   y2 = y - ctop + radius + 1;
+   *cptr++ = y2 = MIN( y2 , vm_bclip - ctop + 1 );
+
+   if( ctop > vm_bclip )
+      return 0;
+   else if( ctop+y2 < vm_tclip )
+      return 0;
+
+   ctclip = vm_tclip - ctop;
+   cbclip = vm_bclip - ctop;
+   cx = x;
+   cy = y - ctop;
+
+
+   while( ox <= oy )
+   {
+      (*circ_func)( ox, -oy );
+      (*circ_func)( ox, oy );
+      (*circ_func)( oy, -ox );
+      (*circ_func)( oy, ox );
+      if( d< 0 )
+         d += (ox<<2) +6;
+      else
+      {
+         d += ((ox-oy)<<2) + 10;
+         oy--;
+      }
+      ox++;
+   }
+   return( table );
+}
+
+
+static void circ_line( short x, short y )
+{
+   short x1, x2, *tptr;
+
+   x1 = cx - x - (x>>3);
+   x2 = cx + x + (x>>3);
+   y += cy;
+
+   if( vm_clip )
+   {
+      if( y < ctclip || y > cbclip )
+         return;
+      if( x1 < vm_lclip )
+      {
+         x1 = vm_lclip;
+         if( x2 < vm_lclip )
+            x2 = vm_lclip;
+      }
+      if( x2 > vm_rclip )
+      {
+         x2 = vm_rclip;
+         if( x1 > vm_rclip )
+            x1 = x2 = 0;
+      }
+   }
+   tptr = &cptr[ y<<1 ];
+   *tptr++ = x1;
+   *tptr   = x2;
+}
+
+
+static void circ_points( short x, short y )
+{
+   short x1, x2;
+
+   x1 = cx - x - (x>>3);
+   x2 = cx + x + (x>>3);
+   y += cy;
+
+   if( vm_clip )
+   {
+      if( y < ctclip || y > cbclip )
+         return;
+      y += ctop;
+      if( x1 >= vm_lclip && x1 <= vm_rclip )
+         SYS_setpix( x1, y, vm_lcolor );
+      if( x2 >= vm_lclip && x2 <= vm_rclip )
+         SYS_setpix( x2, y, vm_lcolor );
+   }
+   else
+   {
+      y += ctop;
+      SYS_setpix( x1, y, vm_lcolor );
+      SYS_setpix( x2, y, vm_lcolor );
+   }
+}

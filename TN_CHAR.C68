@@ -1,0 +1,405 @@
+/* * * * *
+*
+*  TN_CHAR.C
+*
+*  This module contain the common code needed to drive the characters of Toons.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  05/16/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+/* * * * *
+*
+*  void update_character(PART *pptr);
+*
+*  This function will modify the prop[] array (contained in TN_PROP.C).
+*  The specified characters associated information will be translated into
+*  something the existing T.I.M. code can use. This will minimize the number
+*  of cludges to the system.
+*
+* * * * */
+void update_character(PART *pptr)
+{
+   P_PART_ELEMENTS element;
+   CHARACTER_SEQ *character;
+   void *shape_table;
+   SHORT type, sequence;
+
+   type = pptr->type;
+   sequence = pptr->toon_state;
+
+   switch (type)
+   {
+      case  PT_AL_CAT:
+         character = cat_sequences[sequence];
+         load_cat_bitmaps(character->character_index);
+         shape_table = cat_shape_tables[character->character_index];
+         break;
+      case  PT_SID_MOUSE:
+         character = mouse_sequences[sequence];
+         load_mouse_bitmaps(character->character_index);
+         shape_table = mouse_shape_tables[character->character_index];
+         break;
+      default:
+         return;
+   }
+
+   /* reinitial the prop array */
+   element = &prop[type];
+   element->part_shapes = shape_table;
+}
+
+
+/* * * * *
+*
+*  void update_character_position(PART *pptr, short direction);
+*
+*  This function will modify the position of the character so that the
+*  boundaries align on the specified direction.
+*
+* * * * */
+#if 0
+void update_character_position(PART *pptr, short direction)
+{
+   P_PART_ELEMENTS element;
+   RECT far *bound_rect;
+   short state,old_state;
+   short size_y1,size_y2,os_y1,os_y2;
+   short y1,y2,dy;
+   short size_x1,size_x2,os_x1,os_x2;
+   short x1,x2,dx;
+
+   bound_rect = 0;
+   switch (pptr->type)
+   {
+      case PT_AL_CAT:
+         bound_rect = cat_bound_rect;
+         break;
+      case PT_SID_MOUSE:
+         bound_rect = sid_bound_rect;
+         break;
+   }
+   
+   state = pptr->state;
+   old_state = pptr->old_state;
+   y1 = pptr->old_scrn_loc.y;
+   y2 = pptr->scrn_loc.y;
+   x1 = pptr->old_scrn_loc.x;
+   x2 = pptr->scrn_loc.x;
+
+   size_y1 = bound_rect[old_state].h;
+   size_y2 = bound_rect[state].h;
+   os_y1 = bound_rect[old_state].y;
+   os_y2 = bound_rect[state].y;
+   size_x1 = bound_rect[old_state].w;
+   size_x2 = bound_rect[state].w;
+   os_x1 = bound_rect[old_state].x;
+   os_x2 = bound_rect[state].x;
+   
+   switch (direction)
+   {
+      case ALIGN_DOWN:
+         dy = (y2 + os_y2 + size_y2) - (y1 + os_y1 + size_y1);
+         pptr->old_scrn_loc.y = pptr->loc.y = pptr->scrn_loc.y -= dy;
+         pptr->loc.y <<= SCALE_SHIFT;
+         break;
+
+      case ALIGN_UP:
+         dy = (y2 + os_y2) - (y1 + os_y1);
+         pptr->old_scrn_loc.y = pptr->loc.y = pptr->scrn_loc.y -= dy;
+         pptr->loc.y <<= SCALE_SHIFT;
+         break;
+
+      case ALIGN_RIGHT:
+         if (pptr->flags2 & F2_FLIP_H_DRAW)
+            dx = -((x2 + os_x2) - (x1 + os_x1));
+         else
+            dx = (x2 + os_x2 + size_x2) - (x1 + os_x1 + size_x1);
+         pptr->old_scrn_loc.x = pptr->loc.x = pptr->scrn_loc.x -= dx;
+         pptr->loc.x <<= SCALE_SHIFT;
+         break;
+
+      case ALIGN_LEFT:
+         if (pptr->flags2 & F2_FLIP_H_DRAW)
+            dx = -((x2 + os_x2 + size_x2) - (x1 + os_x1 + size_x1));
+         else
+            dx = (x2 + os_x2) - (x1 + os_x1);
+         pptr->old_scrn_loc.x = pptr->loc.x = pptr->scrn_loc.x -= dx;
+         pptr->loc.x <<= SCALE_SHIFT;
+         break;
+   }
+}
+#endif
+
+
+/* * * * *
+*
+*  void character_from_move_to_static(PART *character);
+*
+*  This function will move the cat part from the move list to the static list.
+*  It does not however update the flags1 field.
+*
+* * * * */
+void character_from_move_to_static(PART *character)
+{
+   character->speed.x = character->speed.y = 0;
+   character->flags1 &= (F1_MOVE_L^0xffff);
+   character->flags1 |= F1_STATIC_L;
+   remove_from_list(character);
+   insert_into_list(character, &static_list);
+}
+
+
+/* * * * *
+*
+*  void character_from_static_to_move(PART *character);
+*
+*  This function will move the cat part from the static list to the move list.
+*  It does not however update the flags1 field.
+*
+* * * * */
+void character_from_static_to_move(PART *character)
+{
+   character->speed.x = character->speed.y = 0;
+   character->flags1 &= ((F1_STATIC_L|F1_STATIC)^0xffff);
+   character->flags1 |= F1_MOVE_L;
+   remove_from_list(character);
+   insert_into_list(character, &move_list);
+}
+
+
+/* * * * *
+*
+*  PART *create_part(SHORT part_number, SHORT x_loc, SHORT y_loc,
+*     SHORT old_x_loc, SHORT old_y_loc, SHORT speed_x, SHORT speed_y,
+*     SHORT flags1, SHORT flags2);
+*
+*  This function will create the specified part with the specified properties.
+*
+* * * * */
+PART *create_part(SHORT part_number, SHORT x_loc, SHORT y_loc,
+   SHORT old_x_loc, SHORT old_y_loc, SHORT speed_x, SHORT speed_y,
+   SHORT flags1, SHORT flags2)
+{
+   PART *new_part;
+
+   /* See if a part can be reused */
+   new_part = reuse_a_part(part_number);
+
+   /* If no reusable part, make a new one */
+   if(!new_part)
+   {
+      if ((new_part = make_a_part(part_number)) == 0)
+         return(0);
+
+      if (flags1 & F1_STATIC)
+      {
+         insert_into_list(new_part,&static_list);
+         new_part->flags1 &= ~(F1_AVAIL_L|F1_MOVE_L|F1_STATIC_L);
+         new_part->flags1 |= F1_STATIC_L;
+      }
+      else
+         insert_into_list(new_part,&move_list);
+   }
+   
+   new_part->flags1 |= F1_CREATED | flags1;
+   new_part->flags2 |= flags2;
+   
+   new_part->speed.x = speed_x;
+   new_part->speed.y = speed_y;
+   new_part->loc.x = new_part->scrn_loc.x = x_loc;
+   new_part->loc.x <<= SCALE_SHIFT;
+   new_part->old_scrn_loc.x = new_part->old_old_scrn_loc.x = old_x_loc;
+   new_part->loc.y = new_part->scrn_loc.y = y_loc;
+   new_part->loc.y <<= SCALE_SHIFT;
+   new_part->old_scrn_loc.y = new_part->old_old_scrn_loc.y = old_y_loc;
+   check_term_velocity(new_part);
+   set_adjusted_loc_size(new_part);
+
+   /* verify that the part will be initially erased correctly */
+/*   new_part->old_old_adj_loc = new_part->old_adj_loc = new_part->adj_loc;  */
+/*   new_part->old_old_size = new_part->old_size = new_part->size; */
+/*   new_part->start_scrn_loc = new_part->scrn_loc; */
+/*   part_to_er(new_part,1|2); */
+   return(new_part);
+}
+
+
+/* * * * *
+*
+*  void kill_character(PART *character);
+*
+*  This function will erase the dead character and make it inactive.
+*
+* * * * */
+void kill_character(PART *character)
+{
+   /* This can be made into a global kill part function. */
+   part_to_er(character,1|2);
+   character->flags2 |= F2_INACTIVE;
+}
+
+/* * * * *
+*
+*  void character_collision(PART *cat, PART *mouse);
+*
+* * * * */
+void character_collision(PART *cat, PART *mouse)
+{
+   if (preempt_cat(cat))
+   {
+      switch (cat->toon_state)
+      {
+         case CAT_POUNCE_INDEX:
+         case CAT_RUN_INDEX:
+            switch (mouse->toon_state)
+            {
+               case SID_TUNNEL_INDEX:
+               case SID_PENCIL1_INDEX:
+               case SID_PENCIL2_INDEX:
+               case SID_PENCIL3_INDEX:
+               case SID_PENCIL4_INDEX:
+               case SID_CLIMB_INDEX:
+                  break;
+               default:
+                  cat->sub_state = CAT_ATE_INDEX;
+            
+                  /* link the mouse to the cat so that it can be killed */
+                  /* without a flicker on the screen */
+                  cat->toon_link = mouse;
+                  break;
+            }
+            break;
+         default:
+            cat->sub_state = CAT_SHAKE_INDEX;
+            mouse->sub_state = SID_SHAKE_INDEX;
+      }
+   }
+}
+
+/* * * * *
+*
+*  short short_to_pix(short num);
+*
+* * * * */
+short short_to_pix(short num)
+{
+   return(num<<SCALE_SHIFT);
+}
+
+/* * * * *
+*
+*  short generic_static_to_static_collide(PART *ppt1, PART *pptr2);
+*
+* * * * */
+short generic_static_to_static_collide(PART *pptr1, PART *pptr2)
+{
+   switch (pptr2->type)
+   {
+      case PT_UD_COUNTER:
+         collide_with_ud_counter(pptr2, pptr1);
+         break;
+      case PT_ANT:
+         startle_ant(pptr2);
+         break;
+      case PT_DRAGON:
+      case PT_CATAPULT:
+      case PT_CHICKEN:
+         pptr2->sub_state = 1;
+         break;
+      case PT_ELEPHANT:
+         pptr2->sub_state = 3;
+         break;
+      case PT_SCISSORS:
+         if (pptr2->scrn_loc.x > pptr1->scrn_loc.x)
+         {
+            if (pptr2->flags2 & F2_FLIP_H_DRAW)
+               pptr2->sub_state = 1;
+         }
+         else
+         {
+            if (!(pptr2->flags2 & F2_FLIP_H_DRAW))
+               pptr2->sub_state = 1;
+         }
+         break;
+      case PT_TRANS_ROT:
+         collide_with_transrot(pptr2,pptr1);
+         break;
+      case PT_TRAP_DOOR:
+         collide_with_trap_door(pptr2,pptr1);
+         break;
+      default:
+         return(0);
+   }
+
+   return(1);
+}
+
+/* * * * *
+*
+*  short is_opaque(PART *character, PART *pptr, short threshold);
+*
+*  This function will return true if the object is opaque. It considers a line
+*  of sight and a threshold limit. 
+*
+* * * * */
+short is_opaque(PART *character, PART *pptr, short threshold)
+{
+   /* check if the current object is in the correct vertical position */
+   /* to be checked as an opaque object. In other words check to see if  */
+   /* the character can see under or over the object. */
+   if (  (character->scrn_loc.y  <
+         pptr->scrn_loc.y + pptr->offset.y + pptr->size.y - threshold)
+      && (character->scrn_loc.y + character->offset.y +
+         character->base_size.y - threshold > pptr->scrn_loc.y))
+   {
+      /* check if the current object is opaque because it is static */
+      if (pptr->flags1 & F1_STATIC_L)
+      {
+         switch (pptr->type)
+         {
+            case PT_M_GLASS:
+            case PT_TUNNEL:
+            case PT_LADDER:
+            case PT_HATPIN:
+            case PT_EYEHOOK:
+               return(0);
+            default:
+               return(1);
+         }
+      }
+      else
+      {
+         /* check if the current object is opaque because it works that */
+         /* way */
+         switch (pptr->type)
+         {
+            case PT_PIANO:
+            case PT_ANVIL:
+            case PT_ROCK:
+            case PT_AL_CAT:
+            case PT_SID_MOUSE:
+               return(1);
+            case PT_BANANA:
+               if (pptr->state == BANANA_PEEL)
+                  return(0);
+               else
+                  return(1);
+            default:
+               return(0);
+         }
+      }
+   }
+   else
+   {
+      return(0);
+   }
+}
+
+

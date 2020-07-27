@@ -1,0 +1,1059 @@
+/* * * * *
+*
+*  TN_FIX.C
+*
+*  This file contains code that fixes the super shape offsets,
+*  erase rectangles, and other misc. data that had to be changed
+*  at the last minute.  It adds another level of complexity to the
+*  already complex program, but another was could not be found.
+*
+*  By Rich Rayl -- (c) 1993 Dynamix, Inc.  (Jeff Tunnell Productions)
+*
+*  Modification History:
+*  ---------------------
+*  09/07/93 RichR    File created
+*
+* * * * */
+
+#include <string.h>
+#include "tim.h"
+#include "vm_mylib.h"
+
+#if !FINAL
+   #define EDIT_ACTIVE     0     // Set to 1 to include fix editor code
+   #if !EDIT_ACTIVE
+      void edit_cat_data(void) {}
+      void edit_sid_data(void) {}
+   #endif
+#else
+   #define EDIT_ACTIVE     0
+#endif
+
+/* Define the data types */
+typedef struct fix_info { TIM_VEC ss, offset,size; char border; } FIX_INFO;
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     fix_char_data(type);
+*
+*     This function will load a data file from disk that will
+*     modify the specified character data.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     type           short / ID type of the character that is to be
+*                    modified.  Should be one of the following:
+*                       PT_AL_CAT
+*                       PT_SID_MOUSE
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*     NOTE - The data structure has been written in PC format
+*     with the low byte preceeding the high byte.  To port to
+*     a different CPU, you will need to write a utility that
+*     will load the data files and do the byte swapping (and
+*     possible padding) to fit your machine.
+*
+* * * * */
+void fix_char_data(short type)
+{
+   P_SSHAPE far *ss_table, ssptr;
+   TIM_VEC far *size_table;
+   TIM_SCVEC far *os_table;
+   FIX_INFO fi;
+   FILE *fp;
+   char *filename;
+   short num_states, state, i;
+
+   /* Get character specific data */
+   switch(type)
+   {
+      case PT_AL_CAT:
+         ss_table       = cat_ss_table;
+         size_table     = cat_size;
+         os_table       = cat_os;
+         num_states     = CAT_NUM_STATES;
+         filename       = "CAT.DAT";
+         break;
+      case PT_SID_MOUSE:
+         ss_table       = mouse_ss_table;
+         size_table     = mouse_size;
+         os_table       = mouse_os;
+         num_states     = SID_NUM_STATES;
+         filename       = "SID.DAT";
+         break;
+   }
+
+   /* Open data file for reading */
+   if(!(fp = my_fopen(filename,"rb")))
+      return;
+
+   /* Read and fix the character data */
+   for(state = 0; state < num_states; state++)
+   {
+      /* Read fix_info structure */
+      my_fread(&fi,sizeof(FIX_INFO),1,fp);
+
+      /* Modify the super shapes */
+      ssptr = ss_table[state];
+      while(ssptr)
+      {
+         for(i=0; i<4; i++)
+            if(ssptr->shp_num[i] != 255)
+            {
+               ssptr->offset[i].x += fi.ss.x;
+               ssptr->offset[i].y += fi.ss.y;
+            }
+         ssptr = ssptr->next;
+      }
+
+      /* Modify the size and offset */
+      size_table[state].x += fi.size.x;
+      size_table[state].y += fi.size.y;
+      os_table[state].x += fi.offset.x;
+      os_table[state].y += fi.offset.y;
+   }
+
+   /* Close file and return */
+   my_fclose(fp);
+}
+
+
+#if EDIT_ACTIVE
+
+#include "vm.h"
+#include "keyboard.h"
+#include "mouse.h"
+extern short keyboard_flag;
+
+/* Declare the external data */
+typedef struct char_tables
+{
+   short index2seq;
+   void (* func) (PART *);
+} CHAR_TABLE;
+typedef CHAR_TABLE far * P_CHAR_TABLE;
+extern CHAR_TABLE far cat_tables[];
+extern CHAR_TABLE far mouse_tables[];
+
+typedef FIX_INFO far * P_FIX_INFO;
+typedef struct name { char string[20]; } far NAME;
+typedef NAME * P_NAME;
+
+static NAME cat_seq2str[] =
+{
+   "CAT_ROOT",
+   "CAT_SLEEP",
+   "CAT_BOMB",
+   "CAT_WALK",
+   "CAT_CRACK",
+   "CAT_SHAKE",
+   "CAT_RUN",
+   "CAT_HAIR",
+   "CAT_BIRDS",
+   "CAT_FLAIL",
+   "CAT_UNUSED1_SEQ",
+   "CAT_UNUSED2_SEQ",
+   "CAT_UNUSED3_SEQ",
+   "CAT_UNUSED4_SEQ",
+   "CAT_POUNCE_SEQ",
+   "CAT_YARN_SEQ",
+   "CAT_SHOT",
+   "CAT_ANGEL",
+   "CAT_SPIN",
+   "CAT_SKID",
+   "CAT_ATE",
+   "CAT_RUNAW",
+   "CAT_SPINAW",
+   "CAT_TAKE",
+   "CAT_CLIMB",
+   "CAT_CUT",
+   "CAT_STOP",
+   "CAT_HIT_FLOOR",
+   "CAT_HIT_CEILING",
+   "CAT_HIT_LEFT_WALL",
+   "CAT_HIT_RIGHT_WALL",
+   "CAT_SLIDE1",
+   "CAT_SLIDE2",
+   "CAT_SLIDE3",
+   "CAT_SLIDE4",
+   "CAT_PIN1",
+   "CAT_PIN2",
+   "CAT_PIN3",
+   "CAT_VAC1",
+   "CAT_VAC2",
+   "CAT_VAC3",
+   "CAT_PIANO",
+   "CAT_GUM",
+   "CAT_BUTT",
+   "CAT_LUNCH",
+   "CAT_TUNNEL",
+   "CAT_PENCIL1",
+   "CAT_PENCIL2",
+   "CAT_SCRATCH_SEQ",
+   "CAT_PENCIL4",
+   "CAT_FISH",
+   "CAT_HAIRDRYER",
+   "CAT_MIRROR1",
+   "CAT_MIRROR2",
+   "CAT_PEEL",
+   "CAT_BANANA",
+   "CAT_RUG",
+   "CAT_GUM2_SEQ",
+   "CAT_GUM3_SEQ",
+   "CAT_EGG_SEQ"
+};
+static NAME mouse_seq2str[] =
+{
+   "SID_ROOT",
+   "SID_TAKE",
+   "SID_RUN",
+   "SID_GIGGLE",
+   "SID_BRONX",
+   "SID_FALL",
+   "SID_SPLAT",
+   "SID_WAIT",
+   "SID_HAIR",
+   "SID_CUT",
+   "SID_WHOP",
+   "SID_CLIMB",
+   "SID_WALK",
+   "SID_GUN",
+   "SID_DUSTB",
+   "SID_BUTT",
+   "SID_BONK",
+   "SID_ANVIL",
+   "SID_CHEESE",
+   "SID_LUNCH",
+   "SID_PIANO",
+   "SID_HIT_FLOOR",
+   "SID_HIT_CEILING",
+   "SID_HIT_LEFT_WALL",
+   "SID_HIT_RIGHT_WALL",
+   "SID_FLY_UP",
+   "SID_BOMB",
+   "SID_SHAKE",
+   "SID_DRAGON",
+   "SID_HDRYR",
+   "SID_GUM",
+   "SID_WAIT1",
+   "SID_WAIT2",
+   "SID_WAIT3",
+   "SID_WAIT4",
+   "SID_STOP",
+   "SID_PIN1",
+   "SID_PIN2",
+   "SID_SLIDE1",
+   "SID_SLIDE2",
+   "SID_SLIDE3",
+   "SID_SLIDE4",
+   "SID_VAC",
+   "SID_VAC2",
+   "SID_VAC3",
+   "SID_TUNNEL",
+   "SID_PENCIL1",
+   "SID_PENCIL2",
+   "SID_PENCIL3",
+   "SID_PENCIL4",
+   "SID_PEEL",
+   "SID_HEADLESS",
+   "SID_BANANA",
+   "SID_BUBBLE_SEQ",
+   "SID_BUBBLE2_SEQ",
+   "SID_EGG_SEQ"
+};
+static struct hrect { short x,y,w,h; } far hotspots[75];
+static short num_hotspots;
+static struct hrect anim_rect;
+static short  anim_root_x, anim_root_y;
+static short  anim_state;
+static short  use_root_border;
+static P_CHAR_TABLE  use_table;
+static P_PART_BORDER root_border;
+static P_FIX_INFO fix_info;
+static struct { short w,h; } far bitmaps[100];
+static struct shape ***shape_tables;
+static P_SSHAPE far *ss_table;
+static P_NAME seq2str;
+static TIM_VEC far *size_table;
+static TIM_SCVEC far *os_table;
+static short edit_active = 0;
+
+/* Define the local functions */
+static void edit_char_data(short,short);
+static void display_states(short type, short seq, short state);
+static void animate_seq(short type, short seq);
+static void update_char_data(short type, short state, short dx, short dy);
+static void set_bitmap_sizes(short seq);
+static void load_fix_info(short type, short num_states);
+static void save_fix_info(short type, short num_states);
+
+/* * * * *
+*
+*  edit_cat_data();
+*
+*  This function allows editing of the data inside of CAT_DEF.C
+*
+* * * * */
+void edit_cat_data(void)
+{
+   static FIX_INFO far cat_fix_info[CAT_NUM_STATES];
+
+   if(edit_active)
+      return;
+
+   fix_info       = cat_fix_info;
+   use_table      = cat_tables;
+   root_border    = cat_root_border;
+   shape_tables   = cat_shape_tables;
+   ss_table       = cat_ss_table;
+   size_table     = cat_size;
+   os_table       = cat_os;
+   seq2str        = cat_seq2str;
+
+   my_set_border_slope(cat_root_border, CAT_BORDERS);
+   load_fix_info(PT_AL_CAT, CAT_NUM_STATES);
+   edit_char_data(PT_AL_CAT, CAT_NUM_SEQUENCES);
+   save_fix_info(PT_AL_CAT, CAT_NUM_STATES);
+   al_cat_reinit(0);
+}
+
+/* * * * *
+*
+*  edit_sid_data();
+*
+*  This function allows editing of the data inside of SID_DEF.C
+*
+* * * * */
+void edit_sid_data(void)
+{
+   static FIX_INFO far sid_fix_info[SID_NUM_STATES];
+
+   if(edit_active)
+      return;
+
+   fix_info       = sid_fix_info;
+   use_table      = mouse_tables;
+   root_border    = mouse_root_border;
+   shape_tables   = mouse_shape_tables;
+   ss_table       = mouse_ss_table;
+   size_table     = mouse_size;
+   os_table       = mouse_os;
+   seq2str        = mouse_seq2str;
+
+   my_set_border_slope(mouse_root_border, SID_BORDERS);
+   load_fix_info(PT_SID_MOUSE, SID_NUM_STATES);
+   edit_char_data(PT_SID_MOUSE, SID_NUM_SEQUENCES);
+   save_fix_info(PT_SID_MOUSE, SID_NUM_STATES);
+   mouse_reinit(0);
+}
+
+/* * * * *
+*
+*  edit_char_data(type, num_seqs);
+*
+*  This function makes it possible for the specified character's
+*  data to be modified.
+*
+* * * * */
+void edit_char_data(short type,short num_seqs)
+{
+   short cur_seq, cur_state;
+   short last_seq, last_state;
+   short i, pickup, pickup_x, pickup_y;
+   short key, dx, dy, step, run;
+   short old_debug_mode, mx, my, show_root;
+   short temp;
+
+   /* Setup some misc. info */
+   run = edit_active = 1;
+   my_key = pickup = step = show_root = 0;
+   cur_seq = cur_state = last_seq = last_state = 0;
+   pickup_x = pickup_y = 0;
+   keyboard_flag = 0;
+   old_debug_mode = debug_mode;
+   debug_mode = 1;
+   display_states(type, cur_seq, cur_state);
+   set_bitmap_sizes(cur_seq);
+   flip_and_copy();
+
+   /* Allow editing of the character data */
+   key = 0;
+   while(key != 1)
+   {
+      /* Read keyboard (keeping scan code only) */
+      vm_countdown = 24;
+      key = vm_scankey() >> 8;
+
+      /* Process the keypress */
+      if(!pickup)
+      {
+         switch(key)
+         {
+            case KB_TAB:
+               if(cur_state + num_hotspots < abs(use_table[cur_seq+1].index2seq))
+                  cur_state += num_hotspots;
+               else
+                  cur_state = abs(use_table[cur_seq].index2seq);
+               break;
+            case KB_BACKSPACE:
+               if(cur_seq)
+                  cur_seq--;
+               break;
+            case KB_SPACE:
+               if(cur_seq < num_seqs-1)
+                  cur_seq++;
+               mouse_clear_buttons();
+               break;
+            case KB_BKEY:
+               use_root_border = !use_root_border;
+               display_states(type, cur_seq, cur_state);
+               flip_and_copy();
+               break;
+            case KB_SKEY:
+               run = 0;
+               step = 1;
+               break;
+            case KB_AKEY:
+               run = 0;
+               step = -1;
+               break;
+            case KB_DKEY:
+               debug_mode = !debug_mode;
+               display_states(type, cur_seq, cur_state);
+               flip_and_copy();
+               break;
+            case KB_RKEY:
+               run = 1;
+               break;
+         }
+      }
+      else switch(key)
+      {
+         case KB_KP_LEFT:
+            mouse_set(pickup_x-1,pickup_y);
+            break;
+         case KB_KP_RIGHT:
+            mouse_set(pickup_x+1,pickup_y);
+            break;
+         case KB_KP_UP:
+            mouse_set(pickup_x,pickup_y-1);
+            break;
+         case KB_KP_DOWN:
+            mouse_set(pickup_x,pickup_y+1);
+            break;
+      }
+      show_root = vm_keystatus(KB_FKEY);
+
+      /* If no key is pressed, process the hotspots */
+      if(!key && !pickup)
+      {
+         /* Determine location of mouse (or location clicked at) */
+         if(mouse_button1 || mouse_button2)
+         {
+            mx = mouse_click_x;
+            my = mouse_click_y;
+         }
+         else
+         {
+            mx = mouse_x;
+            my = mouse_y;
+         }
+
+         /* See if mouse is over animation window */
+         if(   (mx > anim_rect.x)
+            && (my > anim_rect.y)
+            && (mx < anim_rect.x + anim_rect.w)
+            && (my < anim_rect.y + anim_rect.h))
+            i = -1;
+
+         /* Determine which hotspot mouse is over */
+         else
+         for(i=0; i<num_hotspots; i++)
+            if(   (mx > hotspots[i].x)
+               && (my > hotspots[i].y)
+               && (mx < hotspots[i].x+hotspots[i].w)
+               && (my < hotspots[i].y+hotspots[i].h))
+               break;
+
+         /* Change smart cursor */
+         if(i >= num_hotspots)
+            change_mouse_icon(IC_NONE);
+         else
+            change_mouse_icon(IC_HAND);
+
+         /* If button pressed, pickup state */
+         if((i < num_hotspots) && ((mouse_button1|mouse_button2) & MOUSE_HELD))
+         {
+            pickup_x = mouse_click_x;
+            pickup_y = mouse_click_y;
+            if(i != -1)
+               pickup = cur_state + i;
+            else if(mouse_button2 & MOUSE_HELD)
+               pickup = -1;
+            else
+            {
+               pickup = anim_state;
+               run = step = 0;
+            }
+         }
+
+         /* If button clicked pressed, change to using the root border */
+         if((i < num_hotspots) && ((mouse_button1|mouse_button2) & MOUSE_SINGLE))
+         {
+            if((i < 0) && (mouse_button1 & MOUSE_SINGLE))
+            {
+               fix_info[anim_state].border = !fix_info[anim_state].border;
+               update_char_data(type, anim_state, 0,0);
+               run = step = 0;
+            }
+            else if(i < 0)
+            {
+               for(i=abs(use_table[cur_seq].index2seq); i<abs(use_table[cur_seq+1].index2seq); i++)
+               {
+                  fix_info[i].border = 1;
+                  update_char_data(type, i, 0,0);
+               }
+            }
+            else
+            {
+               fix_info[cur_state+i].border = !fix_info[cur_state+i].border;
+               update_char_data(type, cur_state+i, 0,0);
+            }
+            display_states(type, cur_seq, cur_state);
+            flip_and_copy();
+         }
+      }
+
+      /* If adjusting a state, update its data */
+      if(pickup)
+      {
+         temp = (mouse_button1 | mouse_button2) & MOUSE_HELD;
+         dx = (temp ? mouse_x : mouse_click_x) - pickup_x;
+         dy = (temp ? mouse_y : mouse_click_y) - pickup_y;
+
+         /* If mouse location has changed, adjust data */
+         if(dx || dy)
+         {
+            if(pickup != -1)
+               update_char_data(type, pickup, dx,dy);
+            else for(i=abs(use_table[cur_seq].index2seq); i<abs(use_table[cur_seq+1].index2seq); i++)
+               update_char_data(type, i, dx,dy);
+            pickup_x += dx;
+            pickup_y += dy;
+            display_states(type, cur_seq, cur_state);
+            flip_and_copy();
+         }
+
+         /* If button is released drop state */
+         if(!((mouse_button1|mouse_button2) & MOUSE_HELD))
+            pickup = 0;
+      }
+
+      /* If sequence or state changed, redraw states */
+      if((cur_seq != last_seq) || (cur_state != last_state))
+      {
+         if(cur_seq != last_seq)
+            cur_state = abs(use_table[cur_seq].index2seq);
+         display_states(type, cur_seq, cur_state);
+         if(cur_seq != last_seq)
+            set_bitmap_sizes(cur_seq);
+         last_seq = cur_seq;
+         last_state = cur_state;
+         flip_and_copy();
+      }
+
+      /* Animate the sequence */
+      if(show_root)
+         animate_seq(-1, 0);
+      else
+      {
+         if(run)
+            animate_seq(0,1);
+         else if(step)
+            animate_seq(0,step);
+         animate_seq(type, cur_seq);
+      }
+      step = 0;
+
+      /* Flip and wait */
+      my_flip(1);
+      while(vm_timer_on && vm_countdown)
+         ;
+      mouse_move();
+   }
+
+   /* Restore screen */
+   keyboard_flag = 1;
+   edit_active = 0;
+   debug_mode = old_debug_mode;
+   reset_game_screen();
+   redraw_panels();
+   flip_and_copy();
+}
+
+/* * * * *
+*
+*  display_states(type, seq, state);
+*
+*  Display a screen full of states.
+*
+*  Room is left in the top left corner for the part to animate.
+*  A list of hotspot positions is updated each time this function is called.
+*  The current sequence and state is printed at the top of the screen.
+*
+* * * * */
+void display_states(short type, short seq, short state)
+{
+   PART *pptr, *old_static, *old_move;
+   short i, max_x, max_y, min_x, min_y;
+   short x, y;
+   char string[80];
+
+   /* Create a temporary part to work with */
+   pptr = make_a_part(type);
+   old_static = static_list.next;
+   old_move = move_list.next;
+   static_list.next = pptr;
+   move_list.next = 0;
+   anim_root_x = anim_root_y = 0;
+
+   /* Calculate the size of the largest state */
+   max_x = max_y = 0;
+   min_x = min_y = 9999;
+   for(i=abs(use_table[seq].index2seq); i<abs(use_table[seq+1].index2seq); i++)
+   {
+      pptr->toon_state = seq;
+      pptr->scrn_loc.x = pptr->scrn_loc.y = 0;
+      pptr->state = i;
+      prop[type].reinit_func(pptr);
+      set_adjusted_loc_size(pptr);
+      if(pptr->offset.x < min_x)
+         min_x = pptr->offset.x;
+      if(pptr->offset.y < min_y)
+         min_y = pptr->offset.y;
+      if(pptr->offset.x + pptr->size.x > max_x)
+         max_x = pptr->offset.x + pptr->size.x;
+      if(pptr->offset.y + pptr->size.y > max_y)
+         max_y = pptr->offset.y + pptr->size.y;
+   }
+
+   /* If size not changed, select a default size */
+   if((max_x < min_x) || (max_y < min_y))
+   {
+      min_x = min_y = 0;
+      max_x = max_y = 8;
+   }
+
+   /* Define the animation rectangle */
+   anim_root_x = -min_x;
+   anim_root_y = -min_y;
+   anim_rect.x = 5;
+   anim_rect.y = 5;
+   anim_rect.w = max_x-min_x+1;
+   anim_rect.h = max_y-min_y+1;
+
+   /* Clear screen to all white */
+   vm_lcolor = vm_fcolor = 4;
+   vm_fill = 1;
+   my_mouse_off();
+   vm_rect(0,0,vm_width,vm_height);
+   my_mouse_on();
+
+   /* Leaving room in top left corner, draw as many states as possible */
+   x = anim_rect.w + 10;
+   y = 25;
+   num_hotspots = 0;
+   max_x = max_y = 0;
+   for(i=state; i<abs(use_table[seq+1].index2seq); i++)
+   {
+      /* Determine size of state */
+      pptr->toon_state = seq;
+      pptr->scrn_loc.x = pptr->scrn_loc.y = 0;
+      pptr->state = i;
+      prop[type].reinit_func(pptr);
+      if(use_root_border || fix_info[i].border)
+         pptr->border = root_border;
+      set_adjusted_loc_size(pptr);
+
+      /* See if shape will fit in current position */
+      if(x + pptr->size.x > 640)
+      {
+         y += max_y + 5;
+         if(y + pptr->size.y > 400)
+            break;
+         x = (y > anim_rect.h + 10 ? 5 : anim_rect.w + 10);
+      }
+
+      /* Update new y-position based on height */
+      if(pptr->size.y > max_y)
+         max_y = pptr->size.y;
+
+      /* Draw part at new location */
+      pptr->scrn_loc.x = x + ledge - pptr->offset.x;
+      pptr->scrn_loc.y = y + tedge - pptr->offset.y;
+      set_adjusted_loc_size(pptr);
+      if(pptr->size.x || pptr->size.y)
+         draw_parts(1);
+
+      /* Update hotspot data */
+      hotspots[num_hotspots].x = x;
+      hotspots[num_hotspots].y = y;
+      hotspots[num_hotspots].w = pptr->size.x;
+      hotspots[num_hotspots].h = pptr->size.y;
+      num_hotspots++;
+
+      /* Update x-position */
+      x += pptr->size.x + 5;
+   }
+
+   /* Display state and sequence at top of screen */
+   sprintf(string, "%Fs:  Sequence #%d   States %d to %d",
+      &seq2str[seq], seq, state, i-1);
+   if((i<abs(use_table[seq+1].index2seq)) || (state != abs(use_table[seq].index2seq)))
+      strcat(string,"+");
+   vm_fgcolor = 8;
+   vm_mode = 1;
+   my_mouse_off();
+   vm_str(string, anim_rect.x+anim_rect.w+5, 2);
+   my_mouse_on();
+
+   /* Free temporary part */
+   free_a_part(pptr);
+   static_list.next = old_static;
+   move_list.next = old_move;
+
+   /* Draw animation in top left corner */
+   animate_seq(type, seq);
+}
+
+/* * * * *
+*
+*  animate_seq(type, seq);
+*
+*  Animate the specified sequence.
+*
+*  If type is 0, then seq is used to determine the direction.
+*  1 is forwards, -1 is backwards.
+*
+*  If type is -1, then the root frame is displayed.
+*
+* * * * */
+void animate_seq(short type, short seq)
+{
+   static short last_seq=-1;
+   static PART *pptr;
+   PART *old_static, *old_move;
+
+   /* Advance to new frame of animation */
+   if(!type)
+   {
+      anim_state += seq;
+      if(anim_state >= abs(use_table[last_seq+1].index2seq))
+         anim_state = abs(use_table[last_seq].index2seq);
+      if(anim_state < abs(use_table[last_seq].index2seq))
+         anim_state = abs(use_table[last_seq+1].index2seq)-1;
+      return;
+   }
+
+   /* If sequence has changed, reset anim_state to 0 */
+   if((type > 0) && (seq != last_seq))
+   {
+      if(pptr)
+         free_a_part(pptr);
+      last_seq = seq;
+      anim_state = abs(use_table[seq].index2seq);
+      pptr = make_a_part(type);
+   }
+
+   /* Erase old animation frame */
+   vm_lcolor = 11;
+   vm_fcolor = 4;
+   vm_fill = 1;
+   my_mouse_off();
+   vm_rect(anim_rect.x-1, anim_rect.y-1, anim_rect.w+2, anim_rect.h+2);
+   vm_fill = 0;
+   vm_rect(anim_rect.x-2, anim_rect.y-2, anim_rect.w+4, anim_rect.h+4);
+   my_mouse_on();
+
+   /* Draw new frame of animation */
+   old_static = static_list.next;
+   old_move = move_list.next;
+   static_list.next = pptr;
+   move_list.next = 0;
+   pptr->toon_state = (type > 0 ? seq : 0);
+   pptr->state = (type > 0 ? anim_state : 0);
+   prop[pptr->type].reinit_func(pptr);
+   if(use_root_border || fix_info[pptr->state].border)
+      pptr->border = root_border;
+   set_adjusted_loc_size(pptr);
+   pptr->scrn_loc.x = anim_rect.x + ledge + anim_root_x;
+   pptr->scrn_loc.y = anim_rect.y + tedge + anim_root_y;
+   set_adjusted_loc_size(pptr);
+   if(pptr->size.x || pptr->size.y)
+      draw_parts(1);
+   static_list.next = old_static;
+   move_list.next = old_move;
+}
+
+/* * * * *
+*
+*  set_bitmap_sizes(seq);
+*
+*  This function will determine the pixel width and height
+*  of all of the bitmaps for the specified sequence.
+*
+* * * * */
+void set_bitmap_sizes(short seq)
+{
+   struct shape **shape_table, *sptr;
+   short i, x, y, width, height;
+
+   /* Get pointer to shape table */
+   shape_table = shape_tables[seq];
+   if(!shape_table)
+      return;
+
+   /* Determine size of each of the bitmaps */
+   turn_mouse_off();
+   for(i=0; ((sptr = *shape_table++) != 0); i++)
+   {
+      /* Clear screen to black */
+      vm_dstptr = vm_srcptr = vm_scrnptr;
+      vm_lcolor = vm_fcolor = 0;
+      vm_fill = 1;
+      vm_rect(0,0,vm_width,vm_height);
+
+      /* Draw shape in top corner */
+      draw_bitmap(sptr, 0, 0, 0);
+
+      /* Default width and height to size of shape */
+      width = sptr->width;
+      height = sptr->height;
+
+      /* Determine width of shape */
+      while(width)
+      {
+         /* Scan right most column for a not 0 pixel */
+         x = width-1;
+         for(y=0; y<height; y++)
+            if(vm_getpix(x,y))
+               break;
+
+         /* If a pixel is found, stop scanning, width has been determined */
+         if(y<height)
+            break;
+
+         /* Decrease width by one and check next column */
+         width--;
+      }
+
+      /* Determine height of shape */
+      while(height)
+      {
+         /* Scan right most column for a not 0 pixel */
+         y = height-1;
+         for(x=0; x<width; x++)
+            if(vm_getpix(x,y))
+               break;
+
+         /* If a pixel is found, stop scanning, height has been determined */
+         if(x<width)
+            break;
+
+         /* Decrease height by one and check next column */
+         height--;
+      }
+
+      /* Save width and height for next time */
+      bitmaps[i].w = width;
+      bitmaps[i].h = height;
+   }
+   turn_mouse_on();
+}
+
+/* * * * *
+*
+*  update_char_data(type, state, dx, dy)
+*
+*  Update the specified character's data for the specified state and offset.
+*
+* * * * */
+#pragma argsused
+void update_char_data(short type, short state, short dx, short dy)
+{
+   P_SSHAPE ssptr;
+   P_PART_BORDER bptr;
+   short i, min_x, min_y, max_x, max_y;
+   short num_borders, temp;
+
+   /* Update the fix_info array */
+   fix_info[state].ss.x += dx;
+   fix_info[state].ss.y += dy;
+
+   /* Modify the super shapes for the current state */
+   ssptr = ss_table[state];
+   while(ssptr)
+   {
+      for(i=0; i<4; i++)
+         if(ssptr->shp_num[i] != 255)
+         {
+            ssptr->offset[i].x += dx;
+            ssptr->offset[i].y += dy;
+         }
+      ssptr = ssptr->next;
+   }
+
+   /* Determine the smallest rectangle that contains the border */
+   min_x = min_y = 9999;
+   max_x = max_y = 0;
+   bptr = root_border;
+   num_borders = prop[type].num_borders;
+   while(num_borders--)
+   {
+      if(bptr->x < min_x)
+         min_x = bptr->x;
+      if(bptr->x > max_x)
+         max_x = bptr->x;
+      if(bptr->y < min_y)
+         min_y = bptr->y;
+      if(bptr->y > max_y)
+         max_y = bptr->y;
+      bptr++;
+   }
+
+   /* Determine the smallest rectangle the contains the super shapes */
+   ssptr = ss_table[state];
+   while(ssptr)
+   {
+      for(i=0; i<4; i++)
+      {
+         if(ssptr->shp_num[i] != 255)
+         {
+            if(ssptr->offset[i].x < min_x)
+               min_x = ssptr->offset[i].x;
+            temp = ssptr->offset[i].x + bitmaps[ssptr->shp_num[i]].w;
+            if(temp > max_x)
+               max_x = temp;
+            if(ssptr->offset[i].y < min_y)
+               min_y = ssptr->offset[i].y;
+            temp = ssptr->offset[i].y + bitmaps[ssptr->shp_num[i]].h;
+            if(temp > max_y)
+               max_y = temp;
+         }
+      }
+      ssptr = ssptr->next;
+   }
+
+   /* Adjust offset */
+   dx = min_x - os_table[state].x;
+   os_table[state].x += dx;
+   fix_info[state].offset.x += dx;
+   dy = min_y - os_table[state].y;
+   os_table[state].y += dy;
+   fix_info[state].offset.y += dy;
+
+   /* Adjust size */
+   temp = max_x - min_x + 1;
+   dx = temp - size_table[state].x;
+   size_table[state].x += dx;
+   fix_info[state].size.x += dx;
+   temp = max_y - min_y + 1;
+   dy = temp - size_table[state].y;
+   size_table[state].y += dy;
+   fix_info[state].size.y += dy;
+}
+
+/* * * * *
+*
+*  load_fix_info(type);
+*
+*  This function will load the fix_info data.
+*
+* * * * */
+void load_fix_info(short type, short num_states)
+{
+   FILE *fp;
+   FIX_INFO fi;
+   char *filename;
+   short i;
+
+   /* Determine filename based on type */
+   switch(type)
+   {
+      case PT_AL_CAT:
+         filename = "CAT.DAT";
+         break;
+      case PT_SID_MOUSE:
+         filename = "SID.DAT";
+         break;
+   }
+
+   /* Open file for reading */
+   fp = fopen(filename,"rb");
+   if(!fp)
+      return;
+
+   /* Read the fix info */
+   for(i=0; i<num_states; i++)
+   {
+      fread(&fi,sizeof(FIX_INFO),1,fp);
+
+//      if((type == PT_SID_MOUSE) && (i >= SID_TUNNEL_SEQ) &&
+//         (i < SID_TUNNEL_SEQ + SID_TUNNEL_NUM_STATES))
+//         continue;
+
+      fix_info[i] = fi;
+   }
+
+   /* Close file and return */
+   fclose(fp);
+}
+
+/* * * * *
+*
+*  save_fix_info(type);
+*
+*  This function will save the fix_info data.
+*
+* * * * */
+void save_fix_info(short type, short num_states)
+{
+   FILE *fp;
+   FIX_INFO fi;
+   char *filename;
+   short i;
+
+   /* Determine filename based on type */
+   switch(type)
+   {
+      case PT_AL_CAT:
+         filename = "CAT.DAT";
+         break;
+      case PT_SID_MOUSE:
+         filename = "SID.DAT";
+         break;
+   }
+
+   /* Open file for writing */
+   fp = fopen(filename,"wb");
+   if(!fp)
+      return;
+
+   /* Write the fix info */
+   for(i=0; i<num_states; i++)
+   {
+      fi = fix_info[i];
+      fwrite(&fi,sizeof(FIX_INFO),1,fp);
+   }
+
+   /* Close file and return */
+   fclose(fp);
+}
+
+
+#endif

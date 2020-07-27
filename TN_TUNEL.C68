@@ -1,0 +1,46 @@
+/* * * * *
+*
+*  TN_TUNEL.C
+*
+*  Contains the logic for the Tunnel.
+*
+*  By Rich Rayl -- (c) 1993 Dynamix, Inc.  (Jeff Tunnell Productions)
+*
+*  Modifitunnelion History:
+*  ---------------------
+*  10/07/93 RichR    File created
+*
+* * * * */
+
+#include "vm.h"
+#include "tim.h"
+
+/* * * * *
+*
+*  void tunnel_reinit(PART *tunnel);
+*
+*  This function will reinitiallize the borders of the tunnel part.
+*
+* * * * */
+void tunnel_reinit(PART *tunnel)
+{
+   static PART_BORDER_C far tunnel_border[4] =
+      { {0,0,0}, {47,0,0}, {47,47,0}, {0,47,0} };
+
+   /* If initalizing for the first time, just return */
+   if(!tunnel)
+      return;
+   
+   /* Setup border pointer for tunnel */
+   if(!tunnel->state && (tim_mode != TM_RUN))
+   {
+      tunnel->border = tunnel_border;
+      tunnel->num_borders = 4;
+   }
+   else
+   {
+      tunnel->border = 0;
+      tunnel->num_borders = 0;
+   }
+   set_adjusted_loc_size(tunnel);
+}

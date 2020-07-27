@@ -1,0 +1,358 @@
+/* * * * *
+*
+*  TN_HTYPT.C
+*
+*  This file contains all the code associated with the hearty parts
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  08/24/93 ChrisC   File created
+*
+* * * * */
+#include <string.h>
+#include "vm.h"
+#include "tim.h"
+
+
+/* * * * *
+*
+*  Local Functions
+*
+* * * * */
+void update_memory(short count);
+void draw_memory(void);
+
+extern BYTE tuxfnt;
+extern BYTE part59;
+extern BYTE progpart;
+const UWORD heartyanims[] = { 1, 3, 5, 7};
+static const UWORD joyUP[] = { 2, 0, 1 };
+static const UWORD joyDOWN[] = { 1, 2, 0 };
+
+/* * * * *
+*
+*  void do_hearty_part(void);
+*
+* * * * */
+void do_hearty_part(void)
+{
+	UWORD hearty_chars;
+	short selection;
+	short animframe;
+	long lastvbl;
+
+   /* check if control should really be here. */
+   if (!active_part || !(active_part->flags3 & F3_HEARTY_PART))
+      return;
+
+	SYS_LastChar = spriteChar;
+	cursoractive = FALSE;
+	ClearMapBuff(&MapABuff);
+	hearty_chars = DLFPCChars(&progpart) | CHARPRIORITY;
+	spriteChar = SYS_LastChar;
+	DrawAnimMapFrame(0,0,0,&progpart, &MapABuff, hearty_chars);
+	DrawAnimMapFrame(0,0,1,&progpart, &MapABuff, hearty_chars);
+	DrawAnimMapFrame(0,0,3,&progpart, &MapABuff, hearty_chars);
+	DrawAnimMapFrame(0,0,5,&progpart, &MapABuff, hearty_chars);
+
+
+   /* draw the title of the requester */
+   switch (active_part->type)
+   {
+      case PT_HANDGUN:
+			DrawAnimMapFrame(0,0,8,&progpart, &MapABuff, hearty_chars);
+         break;
+      case PT_EGG_TIMER:
+			DrawAnimMapFrame(0,0,11,&progpart, &MapABuff, hearty_chars);
+         break;
+      case PT_MESSAGER:
+			DrawAnimMapFrame(0,0,7,&progpart, &MapABuff, hearty_chars);
+         break;
+      case PT_UD_COUNTER:
+			DrawAnimMapFrame(0,0,10,&progpart, &MapABuff, hearty_chars);
+         break;
+      case PT_BANANA:
+			DrawAnimMapFrame(0,0,9,&progpart, &MapABuff, hearty_chars);
+         break;
+      case PT_CATAPULT:
+			DrawAnimMapFrame(0,0,12,&progpart, &MapABuff, hearty_chars);
+         break;
+      case PT_CHICKEN:
+			DrawAnimMapFrame(0,0,13,&progpart, &MapABuff, hearty_chars);
+         break;
+   }
+
+
+   draw_memory();
+
+	addDMAQueue(ScrBAddr, 64*2*28, &MapABuff);
+	waitDMAQueue();
+
+	my_flip(1);
+
+	selection = 0;
+
+	SYS_JoyHit = FALSE;
+
+	for (;;)
+		{
+		animframe = heartyanims[selection];
+		lastvbl = SYS_VCount;
+		while (!SYS_JoyHit)
+			{
+			if (SYS_VCount >= lastvbl)
+				{
+				lastvbl = SYS_VCount+20;
+				DrawAnimMapFrame(0,0,animframe,&progpart, &MapABuff, hearty_chars);
+				addDMAQueue(ScrBAddr, 64*2*28, &MapABuff);
+				waitDMAQueue();
+				EraseAnimMapFrame(0,0,animframe,&progpart, &MapABuff, hearty_chars);
+				animframe++;
+				if (animframe == heartyanims[selection+1])
+					animframe = heartyanims[selection];
+				}
+			}
+
+		DrawAnimMapFrame(0,0,heartyanims[selection],&progpart, &MapABuff, hearty_chars);
+		addDMAQueue(ScrBAddr, 64*2*28, &MapABuff);
+		waitDMAQueue();
+			
+		SYS_JoyHit = FALSE;
+
+		if ((SYS_JoyTable[JOY_C]) || (SYS_JoyTable[JOY_A] && !selection))
+			{
+			my_flip(1);
+			ClearMapBuff(&MapABuff);
+			addDMAQueue(ScrBAddr, 64*2*28, &MapABuff);
+			waitDMAQueue();
+			SYS_LastChar = spriteChar = hearty_chars;
+			cursoractive = TRUE;
+			return;
+			}
+		if (SYS_JoyTable[JOY_A])
+			{
+			if (selection == 1)			/* up arrow */
+				{
+				update_memory(1);
+	         jtp_sx_play(3038,0,0);
+				}
+			else if (selection == 2)	/* down arrow */
+				{
+				update_memory(-1);
+	         jtp_sx_play(3043,0,0);
+				}
+			}
+		if ((SYS_JoyTable[JOY_UP]) || (SYS_JoyTable[JOY_RIGHT]))
+			selection = joyUP[selection];
+		else if ((SYS_JoyTable[JOY_DOWN]) || (SYS_JoyTable[JOY_LEFT]))
+			selection = joyDOWN[selection];
+		}
+}
+
+
+/* * * * *
+*
+*  void update_memory(short count);
+*
+* * * * */
+void update_memory(short count)
+{
+   static char far alpha_numeric[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:'!@#$%&*()/?+-";
+   #define NUM_CHARACTERS  (sizeof(alpha_numeric)/sizeof(char) - 1)
+
+   char *text;
+   short index,exit,temp;
+   
+   switch (active_part->type)
+   {
+      case PT_EGG_TIMER:
+         /* reset the current state of the egg timer */
+         active_part->state = active_part->start_state = 0;
+         
+         /* set the memory--NOTE: the reinit function will handle the state */
+         active_part->memory += count;
+         if (active_part->memory > 5)
+            active_part->memory = 0;
+         if (active_part->memory < 0)
+            active_part->memory = 5;
+         break;
+      case PT_HANDGUN:
+      case PT_CATAPULT:
+      case PT_CHICKEN:
+         active_part->memory += count;
+         if (active_part->memory > 99)
+            active_part->memory = 0;
+         if (active_part->memory < 0)
+            active_part->memory = 99;
+         break;
+      case PT_UD_COUNTER:
+         temp = (active_part->memory & 0xff) + count;
+         if (temp > 99)
+            temp = 0;
+         if (temp < 0)
+            temp = 99;
+         active_part->memory = (active_part->memory & 0x4000) + temp;
+         break;
+      case PT_MESSAGER:
+         /* set the text pointer to the memory field */
+         text = (char *) &(active_part->memory);
+
+         /* find the correct index of the character in the alpha_numeric  */
+         /* string */
+         exit = index = 0;
+         while (!exit && (index < NUM_CHARACTERS))
+         {
+            if (alpha_numeric[index] == text[0])
+               exit = 1;
+            else
+               index++;
+         }
+
+         /* default to 'a' if the text is invalid */
+         if (!exit)
+            index = 0;
+
+         /* change to the new letter */
+         index += count;
+         if (index >= NUM_CHARACTERS)
+            index = 0;
+         if (index < 0)
+            index = NUM_CHARACTERS - 1;
+
+         /* copy the new letter into the text string */
+         text[0] = alpha_numeric[index];
+         break;
+      case PT_BANANA:
+         if (!active_part->memory)
+         {
+            active_part->memory = 1;
+            active_part->start_state = active_part->state = BANANA_PEEL;
+         }
+         else
+         {
+            active_part->memory = 0;
+            active_part->start_state = active_part->state = 0;
+         }
+
+         banana_reinit(active_part);
+         break;
+   }
+   active_part->start_memory = active_part->memory;
+
+   draw_memory();
+
+	my_flip(1);
+
+}
+
+
+/* 
+	quick and dirty reverse string
+*/
+void reverse(char s[])
+{
+	int c,i,j;
+
+	for (i=0,j=strlen(s)-1;i<j;i++,j--) {
+		c = s[i];
+		s[i] = s[j];
+		s[j] = c;
+	}
+}
+
+
+
+/*
+	quick and dirty itoa
+*/
+void itoa(int n, char s[])
+{
+	int i,sign;
+
+	if ((sign = n) < 0)		/* record sign */
+		n = -n;
+	i = 0;
+	do {
+		s[i++] = n % 10 + '0';		/* get next digit */
+	} while ((n /= 10) > 0);
+
+	if (sign < 0)
+		s[i++] = '-';
+	s[i] = '\0';
+	reverse(s);
+}
+
+
+/* * * * *
+*
+*  void draw_memory(void);
+*
+* * * * */
+void draw_memory(void)
+{
+   short x,y;
+   char text[7];
+	int i;
+	short w, h;
+	short tw;
+
+	globPriority = 0xff;
+	spriteChar |= 0x8000;
+
+   switch (active_part->type)
+   {
+      case PT_HANDGUN:
+      case PT_EGG_TIMER:
+      case PT_CATAPULT:
+      case PT_CHICKEN:
+         itoa(active_part->memory,text);
+         break;
+      case PT_UD_COUNTER:
+         itoa((active_part->memory & 0xff),text);
+         break;
+      case PT_MESSAGER:
+         text[0] = *(char*)&(active_part->memory);
+         text[1] = 0;
+         break;
+      case PT_BANANA:
+         if(active_part->memory)
+				draw_bitmap(&part59, 130, 84, 0, 4); /* Banana Peel */
+         else
+				draw_bitmap(&part59, 130, 84, 0, 0); /* Whole Banana */
+         text[0] = 0;
+         break;
+   }
+
+	i = strlen(text);
+	tw = 0;
+	while (i)
+		{
+		i--;
+		GetFrameWH(0,text[i]-' ',&tuxfnt,&w,&h);
+		tw += w;
+		}
+
+   /* center the text */
+   x = 136 - (tw >> 1);
+   y = 94 - (24 >> 1);
+
+	i = 0;
+	while (text[i])
+   {
+		draw_bitmap(&tuxfnt, x, y, 0, text[i]-' ');
+		GetFrameWH(0,text[i]-' ',&tuxfnt,&w,&h);
+		x += w+1;
+		i++;
+   }
+
+	globPriority = 0xbf;
+
+	spriteChar &= ~0x8000;
+
+
+}
+
+

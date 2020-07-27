@@ -1,0 +1,3389 @@
+/* * * * *
+*
+*  CAT_DEF.C
+*
+*  This file contains the data structure definition for the Al Cat character.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  05/13/93 ChrisC   File created
+*
+* * * * */
+#include "defs.h"
+#include "tim.h"
+
+
+/* Define the root border */
+PART_BORDER_C far cat_root_border[CAT_BORDERS] =
+{
+   {9,6},  {15,6},  {21,13},  {21,22},  {4,22},  {4,14}
+};
+PART_BORDER far cat_place_fborder[CAT_BORDERS];
+PART_BORDER_C far cat_place_border[CAT_BORDERS] =
+{
+   {10, 1},  {13, 1},  {21,13},  {21,22},  {4,22},  {4,14}
+};
+
+
+/* * * * *
+*
+*  CAT_ROOT_POSITION--This is the cat sitting root position that almost
+*  all of the cat animations work from.  This is only one frame.
+*
+* * * * */
+/* supershape structure definition for a single cell of the cat. */
+static F_SSHAPE_C cat_root1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{0,0},{0,0},{0,0},{0,0}}};
+
+/*static PART_BORDER far cat_root1_bord[CAT_BORDERS] = {{19,1,0},{37,5,0}, */
+/* {41,8,0},{41,22,0},{44,27,0},{43,36,0},{28,39,0},{2,36,0},{2,12,0},{19,11,0}}; */
+
+static CHARACTER_SEQ cat_root_character = 
+   {
+      CAT_ROOT_NUM_STATES,
+      CAT_ROOT_INDEX,
+      {0,0,48,42},
+   };
+
+
+/* * * * *
+*
+*  CAT_WALK_SEQUENCE--This is the catwalk sequence..revised edition.
+*  There are eleven frames int this sequence and they go in order.
+*
+* * * * */
+static F_SSHAPE_C cat_walk1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{2,1},{2,1},{4,2},{0,0}}};
+static F_SSHAPE_C cat_walk2 = {CAT_LINK, CAT_PLANE, {1,255,255,255},{{0,-1},{0,-1},{0,-1},{0,-1}}};
+static F_SSHAPE_C cat_walk3 = {CAT_LINK, CAT_PLANE, {2,255,255,255},{{2,-2},{2,-2},{2,-2},{2,-2}}};
+static F_SSHAPE_C cat_walk4 = {CAT_LINK, CAT_PLANE, {3,255,255,255},{{0,2},{0,2},{0,4},{0,0}}};
+static F_SSHAPE_C cat_walk5 = {CAT_LINK, CAT_PLANE, {4,255,255,255},{{-1,1},{-1,1},{-1,1},{-1,1}}};
+static F_SSHAPE_C cat_walk6 = {CAT_LINK, CAT_PLANE, {5,255,255,255},{{0,-1},{0,-1},{0,-1},{0,-1}}};
+static F_SSHAPE_C cat_walk7 = {CAT_LINK, CAT_PLANE, {6,255,255,255},{{0,-1},{0,-1},{0,-1},{0,-1}}};
+static F_SSHAPE_C cat_walk8 = {CAT_LINK, CAT_PLANE, {7,255,255,255},{{-3,1},{-3,1},{-3,1},{-3,1}}};
+static F_SSHAPE_C cat_walk9 = {CAT_LINK, CAT_PLANE, {8,255,255,255},{{0,-1},{0,-1},{0,-1},{0,-1}}};
+static F_SSHAPE_C cat_walk10 = {CAT_LINK, CAT_PLANE, {9,255,255,255},{{1,1},{1,1},{3,3},{0,0}}};
+static F_SSHAPE_C cat_walk11 = {CAT_LINK, CAT_PLANE, {10,255,255,255},{{1,0},{1,0},{1,0},{1,0}}};
+
+
+
+static CHARACTER_SEQ cat_walk_character = 
+{
+CAT_WALK_NUM_STATES,
+CAT_WALK_INDEX};
+
+
+
+/* * * * *
+*
+*  CAT_SLEEP_SEQUENCE--The cat falls asleep.  This works from the root position.
+*  there are 3 frames in this sequence.  the frame order is frame #0-6 times, #1-23 times,
+* and #2-31 times.
+*
+* * * * */
+static F_SSHAPE_C cat_sleep1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_sleep2 = {CAT_LINK, CAT_PLANE, {1,255,255,255},{{-1,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_sleep3 = {CAT_LINK, CAT_PLANE, {2,255,255,255},{{2,0},{0,0},{0,0},{0,0}}};
+
+
+
+static CHARACTER_SEQ cat_sleep_character = 
+{
+CAT_SLEEP_NUM_STATES,
+CAT_SLEEP_INDEX};
+
+
+
+/* * * * *
+*
+*  CAT_BOMB_SEQUENCE--This is what happens when a bomb goes off near the.
+*  cat.  The order of frames is very long.  0,0,0,0,1,1,0,0,0,0,2,2,3,3,3,3,4,4,5,5,6,6,7,7,6,6,7,7,6,
+* There are 9 frames in the sequence but some get repeated.
+*
+* * * * */
+static F_SSHAPE_C cat_bomb1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{0,0},{0,0},{1,0},{0,0}}};
+static F_SSHAPE_C cat_bomb2 = {CAT_LINK, CAT_PLANE, {0,9,255,255},{{0,0},{10,2},{1,0},{0,0}}};
+static F_SSHAPE_C cat_bomb3 = {CAT_LINK, CAT_PLANE, {2,10,3,1},{{3,10},{10,2},{13,2},{2,4}}};
+static F_SSHAPE_C cat_bomb4 = {CAT_LINK, CAT_PLANE, {2,10,3,255},{{3,10},{10,2},{13,2},{0,0}}};
+static F_SSHAPE_C cat_bomb5 = {CAT_LINK, CAT_PLANE, {2,7,7,5},{{3,10},{13,2},{10,2},{15,2}}};
+static F_SSHAPE_C cat_bomb6 = {CAT_LINK, CAT_PLANE, {2,7,7,5},{{3,10},{13,4},{10,4},{15,4}}};
+static F_SSHAPE_C cat_bomb7 = {CAT_LINK, CAT_PLANE, {2,7,7,5},{{3,10},{13,6},{10,6},{15,6}}};
+static F_SSHAPE_C cat_bomb8 = {CAT_LINK, CAT_PLANE, {2,8,8,4},{{3,10},{11,11},{9,11},{14,12}}};
+static F_SSHAPE_C cat_bomb9 = {CAT_LINK, CAT_PLANE, {2,10,3,255},{{3,10},{9,10},{14,9},{0,0}}};
+static F_SSHAPE_C cat_bomb10 = {CAT_LINK, CAT_PLANE, {2,9,9,3},{{3,10},{11,10},{9,10},{14,9}}};
+
+
+
+static CHARACTER_SEQ cat_bomb_character = 
+   {
+      CAT_BOMB_NUM_STATES,
+      CAT_BOMB_INDEX,
+      {-1,-73,137,118}
+   };
+
+
+
+
+/* * * * *
+*
+*  CAT_CRACK_SEQUENCE--Cat gets hit in head then cracks into tiny 
+*  little pieces.  This works out of the root position.the order of the animation should be
+*  0,0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,6,6,6,7,8,9.  may need to add more
+*
+* * * * */
+static F_SSHAPE_C cat_crack1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{-3,0},{-3,0},{-3,0},{-3,0}}};
+static F_SSHAPE_C cat_crack2 = {CAT_LINK, CAT_PLANE, {0,5,255,255},{{-3,0},{11,3},{-3,0},{-3,0}}};
+static F_SSHAPE_C cat_crack3 = {CAT_LINK, CAT_PLANE, {0,2,6,255},{{-3,0},{10,3},{9,2},{-3,0}}};
+static F_SSHAPE_C cat_crack4 = {CAT_LINK, CAT_PLANE, {0,2,7,255},{{-3,0},{10,3},{5,1},{-3,0}}};
+static F_SSHAPE_C cat_crack5 = {CAT_LINK, CAT_PLANE, {0,2,8,255},{{-3,0},{10,3},{-1,2},{0,0}}};
+static F_SSHAPE_C cat_crack6 = {CAT_LINK, CAT_PLANE, {0,2,9,255},{{-3,0},{10,3},{-1,2},{0,0}}};
+static F_SSHAPE_C cat_crack7 = {CAT_LINK, CAT_PLANE, {0,2,9,10},{{-3,0},{10,3},{-1,2},{1,7}}};
+static F_SSHAPE_C cat_crack8 = {CAT_LINK, CAT_PLANE, {1,255,255,255},{{-1,3},{-3,0},{-3,0},{-3,0}}};
+static F_SSHAPE_C cat_crack9 = {CAT_LINK, CAT_PLANE, {3,255,255,255},{{-1,7},{-3,0},{-3,0},{-3,0}}};
+static F_SSHAPE_C cat_crack10 = {CAT_LINK, CAT_PLANE, {4,255,255,255},
+{{-5,10},{-3,0},{-3,0},{-3,0}}};
+
+
+
+static CHARACTER_SEQ cat_crack_character = 
+   {
+      CAT_CRACK_NUM_STATES,
+      CAT_CRACK_INDEX,
+      {-1,-73,137,118}
+   };
+
+
+
+/* * * * *
+*
+*  CAT_SHAKE_SEQUENCE--This header should be used at the beginning of every
+*  character sequence. It should give a brief description of the sequence and
+*  any technical information. Such as number of frames of animation.
+*
+* * * * */
+static F_SSHAPE_C cat_shake1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_shake2 = {CAT_LINK, CAT_PLANE, {1,255,255,255},{{0,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_shake3 = {CAT_LINK, CAT_PLANE, {2,255,255,255},{{1,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_shake4 = {CAT_LINK, CAT_PLANE, {3,255,255,255},{{-1,0},{0,0},{0,0},{0,0}}};
+
+
+
+static CHARACTER_SEQ cat_shake_character = 
+{
+CAT_SHAKE_NUM_STATES,
+CAT_SHAKE_INDEX};
+
+
+
+/* * * * *
+*
+*  CAT_RUN_SEQUENCE--This is catrun.  There are four frames. 
+*  They process as such 0, 1, 2 ,3, 0, 1, ....
+*
+* * * * */
+static F_SSHAPE_C cat_run1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{-2,-2},{-2,-2},{-2,-2},{-2,-2}}};
+static F_SSHAPE_C cat_run2 = {CAT_LINK, CAT_PLANE, {1,255,255,255},{{-2,-2},{-2,-2},{-2,-2},{-2,-2}}};
+static F_SSHAPE_C cat_run3 = {CAT_LINK, CAT_PLANE, {2,255,255,255},{{-2,-2},{-2,-2},{-2,-2},{-2,-2}}};
+static F_SSHAPE_C cat_run4 = {CAT_LINK, CAT_PLANE, {3,255,255,255},{{-2,-2},{-2,-2},{-2,-2},{-2,-2}}};
+
+
+
+static CHARACTER_SEQ cat_run_character = 
+{
+CAT_RUN_NUM_STATES,
+CAT_RUN_INDEX};
+
+
+
+/* * * * *
+*
+*  CAT_HAIR_SEQUENCE--This is the cat horking the hairball.
+*  There are 13 frames in this sequence with a lot of repeat frames..
+*
+* * * * */
+static F_SSHAPE_C cat_hair1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{-3,0},{-1,0},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_hair2 = {CAT_LINK, CAT_PLANE, {1,255,255,255},{{-5,3},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair3 = {CAT_LINK, CAT_PLANE, {2,255,255,255},{{-7,2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair4 = {CAT_LINK, CAT_PLANE, {3,255,255,255},{{-14,2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair5 = {CAT_LINK, CAT_PLANE, {4,255,255,255},{{2,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair6 = {CAT_LINK, CAT_PLANE, {5,255,255,255},{{-4,0 },{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair7 = {CAT_LINK, CAT_PLANE, {6,255,255,255},{{-4,-1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair8 = {CAT_LINK, CAT_PLANE, {7,255,255,255},{{-5,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair9 = {CAT_LINK, CAT_PLANE, {8,255,255,255},{{-1,2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair10 = {CAT_LINK, CAT_PLANE, {9,255,255,255},{{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair11 = {CAT_LINK, CAT_PLANE, {10,255,255,255},{{3,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair12 = {CAT_LINK, CAT_PLANE, {11,255,255,255},{{1,-4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hair13 = {CAT_LINK, CAT_PLANE, {12,255,255,255},{{-6,-2},{-10,2},{-10,2},{-10,2}}};
+
+
+
+static CHARACTER_SEQ cat_hair_character = 
+{
+CAT_HAIR_NUM_STATES,
+CAT_HAIR_INDEX};
+
+
+
+/* * * * *
+*
+*  CAT_BIRDS_SEQUENCE--Birds fly around cat's head.
+*  The order of the animation should be
+*  1,2,3,4,5,6,7,8,9,10,11,1,2...
+*
+* * * * */
+static F_SSHAPE_C cat_birds1 = {CAT_LINK, CAT_PLANE, {0,4,7,255}, {{-1,0},{4,-1},{-4,-11},{-1,0}}};
+static F_SSHAPE_C cat_birds2 = {CAT_LINK, CAT_PLANE, {1,4,7,255}, {{0,0},{9,-1},{-6,-11},{-1,0}}};
+static F_SSHAPE_C cat_birds3 = {CAT_LINK, CAT_PLANE, {2,4,7,255}, {{0,-1},{14,-2},{-8,-10},{-1,0}}};
+static F_SSHAPE_C cat_birds4 = {CAT_LINK, CAT_PLANE, {3,5,8,255}, {{-1,0},{25,-5},{-14,-9},{-1,0}}};
+static F_SSHAPE_C cat_birds5 = {CAT_LINK, CAT_PLANE, {0,5,8,255}, {{0,0},{27,-6},{-16,-9},{0,0}}};
+static F_SSHAPE_C cat_birds6 = {CAT_LINK, CAT_PLANE, {1,5,8,255}, {{0,0},{25,-7},{-16,-7},{-1,0}}};
+static F_SSHAPE_C cat_birds7 = {CAT_LINK, CAT_PLANE, {2,5,8,255}, {{0,-1},{25,-7},{-14,-5},{-1,0}}};
+static F_SSHAPE_C cat_birds8 = {CAT_LINK, CAT_PLANE, {3,6,9,255}, {{-1,0},{16,-9},{-9,-2},{-1,0}}};
+static F_SSHAPE_C cat_birds9 = {CAT_LINK, CAT_PLANE, {0,6,9,255}, {{-1,0},{12,-10},{-7,-1},{-1,0}}};
+static F_SSHAPE_C cat_birds10 = {CAT_LINK, CAT_PLANE, {1,6,9,255},{{0,0},{8,-10},{-5,-1},{-1,0}}};
+static F_SSHAPE_C cat_birds11 = {CAT_LINK, CAT_PLANE, {2,6,9,255},{{0,-1},{5,-10},{-3,-1},{-1,0}}};
+
+
+static CHARACTER_SEQ cat_birds_character = 
+{
+CAT_BIRDS_NUM_STATES,
+CAT_BIRDS_INDEX};
+
+
+
+/* * * * *
+*
+*  CAT_FLAIL_SEQUENCE--This is the cat flailing sequence.  This occurs when
+*  the cat falls from somewhere.there are 12 frames and the repeat in order 1,2,3,...1,2,3,...
+*
+* * * * */
+static F_SSHAPE_C cat_flail1 = {CAT_LINK, CAT_PLANE, {0,5,1,9},{{-2,-4},{3,5},{13,9},{14,0}}};
+static F_SSHAPE_C cat_flail2 = {CAT_LINK, CAT_PLANE, {0,2,6,9},{{-2,-4},{13,9},{9,5},{14,0}}};
+static F_SSHAPE_C cat_flail3 = {CAT_LINK, CAT_PLANE, {0,7,3,4},{{-2,-4},{5,8},{13,9},{15,0}}};
+static F_SSHAPE_C cat_flail4 = {CAT_LINK, CAT_PLANE, {0,8,1,4},{{-2,-4},{3,1},{13,9},{15,0}}};
+static F_SSHAPE_C cat_flail5 = {CAT_LINK, CAT_PLANE, {0,5,2,9},{{-2,-4},{3,5},{13,9},{14,0}}};
+static F_SSHAPE_C cat_flail6 = {CAT_LINK, CAT_PLANE, {0,3,6,9},{{-2,-4},{13,9},{9,5},{14,0}}};
+static F_SSHAPE_C cat_flail7 = {CAT_LINK, CAT_PLANE, {0,7,1,4},{{-2,-4},{5,8},{13,9},{15,0}}};
+static F_SSHAPE_C cat_flail8 = {CAT_LINK, CAT_PLANE, {0,8,2,4},{{-2,-4},{3,1},{13,9},{15,0}}};
+static F_SSHAPE_C cat_flail9 = {CAT_LINK, CAT_PLANE, {0,5,3,9},{{-2,-4},{3,5},{13,9},{14,0}}};
+static F_SSHAPE_C cat_flail10 = {CAT_LINK, CAT_PLANE, {0,1,6,9},{{-2,-4},{13,9},{9,5},{14,0}}};
+static F_SSHAPE_C cat_flail11 = {CAT_LINK, CAT_PLANE, {0,7,2,4},{{-2,-4},{5,8},{13,9},{15,0}}};
+static F_SSHAPE_C cat_flail12 = {CAT_LINK, CAT_PLANE, {0,8,3,4},{{-2,-4},{3,1},{13,9},{15,0}}};
+
+
+
+static CHARACTER_SEQ cat_flail_character = 
+{
+CAT_FLAIL_NUM_STATES,
+CAT_FLAIL_INDEX};
+
+
+
+/* * * * *
+*
+*  CAT_SHOT_SEQUENCE--Cat is shot by gun.  He he dies and turns into an angel
+*  This This sequence works out of the root frame and into the CATANGEL sequence
+*
+* * * * */
+static F_SSHAPE_C cat_shot1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{-5,0},{-5,0},{-5,0},{-5,0}}};
+static F_SSHAPE_C cat_shot2 = {CAT_LINK, CAT_PLANE, {1,255,255,255},{{-3,1},{-3,1},{-3,1},{-3,1}}};
+static F_SSHAPE_C cat_shot3 = {CAT_LINK, CAT_PLANE, {2,255,255,255},{{-12,-10},{-12,-10},{-12,-10},{-12,-10}}};
+static F_SSHAPE_C cat_shot4 = {CAT_LINK, CAT_PLANE, {3,255,255,255},{{-4,0},{-4,0},{-4,0},{-4,0}}};
+static F_SSHAPE_C cat_shot5 = {CAT_LINK, CAT_PLANE, {4,255,255,255},{{-4,-1},{-4,-1},{-4,-1},{-4,-1}}};
+static F_SSHAPE_C cat_shot6 = {CAT_LINK, CAT_PLANE, {5,255,255,255},{{-6,3},{-6,3},{-6,3},{-6,3}}};
+static F_SSHAPE_C cat_shot7 = {CAT_LINK, CAT_PLANE, {6,255,255,255},{{-6,6},{-6,6},{-6,6},{-6,6}}};
+static F_SSHAPE_C cat_shot8 = {CAT_LINK, CAT_PLANE, {7,255,255,255},{{-6,0},{-6,0},{-6,0},{-6,0}}};
+static F_SSHAPE_C cat_shot9 = {CAT_LINK, CAT_PLANE, {8,6,255,255},  {{10,1},{-6,6},{-6,1},{-6,1}}};
+static F_SSHAPE_C cat_shot10 = {CAT_LINK, CAT_PLANE, {9,6,255,255}, {{5,0},{-6,6},{-6,0},{-6,0}}};
+static F_SSHAPE_C cat_shot11 = {CAT_LINK, CAT_PLANE, {6,10,255,255},{{-6,6},{10,-3},{-6,-3},{-6,-3}}};
+static F_SSHAPE_C cat_shot12 = {CAT_LINK, CAT_PLANE, {6,11,255,255},{{-6,6},{11,-8},{-6,-8},{-6,-8}}};
+
+
+
+static CHARACTER_SEQ cat_shot_character = 
+   {
+      CAT_SHOT_NUM_STATES,
+      CAT_SHOT_INDEX
+   };
+
+
+
+/* * * * *
+*
+*  CAT_ANGEL_SEQUENCE--Cat jumps.  There are nine frames of animation.
+*  This works out of the root and sequences as such 0,1,2,3,4,5,6,7,8,
+*
+* * * * */
+static F_SSHAPE_C cat_angel1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{0,1},{0,1},{0,2},{0,0}}};
+static F_SSHAPE_C cat_angel2 = {CAT_LINK, CAT_PLANE, {1,255,255,255},{{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_angel3 = {CAT_LINK, CAT_PLANE, {2,255,255,255},{{2,1},{2,1},{4,2},{0,0}}};
+
+
+static CHARACTER_SEQ cat_angel_character = 
+   {
+      CAT_ANGEL_NUM_STATES,
+      CAT_ANGEL_INDEX
+   };
+
+
+/* * * * *
+*
+*  CAT_SPIN_SEQUENCE--This is catspin.  There are four frames. 
+*  They process as such 0, 1, 2 ,3, 0, 1, ....
+*
+* * * * */
+
+static CHARACTER_SEQ cat_spin_character = 
+{
+CAT_SPIN_NUM_STATES,
+CAT_SPIN_INDEX};
+
+/* * * * *
+*
+*  CAT_SKID_SEQUENCE--This is catskid.  There are four frames. 
+*  They process as such 0, 1, 2 ,3, 0, 1, ....
+*
+* * * * */
+
+static CHARACTER_SEQ cat_skid_character = 
+{
+CAT_SKID_NUM_STATES,
+CAT_SKID_INDEX};
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   CAT_ATE                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        Al fights with Sid and eats him alive. The sequence is:
+   1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,15,15,15,15,15,16,17,18,19,20,21,22,
+   23,23,23,23,24,24,24,24,24,24,24,24,25,24,26,24,25,24,26,24,25,24,26,
+   24,24,27,28,27,28,27,28,27,28,29,30,31,32,33,34,35,36,37,38,38,38,38,
+   39,38,39,38,39,38,39,38,39,38,39,38,38,38,38,38,40,40,40,41,41,42,42,43,
+   44,45,46,42,42,47,47,47,47,47,47.
+        The offset from catroot to the ending frame is (-8,0).
+*/
+
+#define CAT_ATE_PLANE       CAT_PLANE       
+#define CAT_ATE_PLANE1      CAT_PLANE1      
+
+static F_SSHAPE_C cat_ate1_2 = {CAT_LINK, CAT_ATE_PLANE1, {2,4,3,0},
+   {{9,10},{-1,1},{12,-1},{9,3}}};
+static F_SSHAPE_C cat_ate1 = {&cat_ate1_2, CAT_ATE_PLANE, {16,5,12,1},
+   {{24,-3},{10,-10},{-14,1},{26,6}}};
+static F_SSHAPE_C cat_ate2_2 = {CAT_LINK, CAT_ATE_PLANE1, {17,2,1,8},
+   {{9,15},{1,-1},{15,0},{30,10}}};
+static F_SSHAPE_C cat_ate2 = {&cat_ate2_2, CAT_ATE_PLANE, {13,14,15,16},
+   {{-5,-4},{11,-11},{-12,8},{22,-11}}};
+static F_SSHAPE_C cat_ate3_2 = {CAT_LINK, CAT_ATE_PLANE1, {6,17,10,255},
+   {{-5,2},{-3,18},{18,-5},{2,0}}};
+static F_SSHAPE_C cat_ate3 = {&cat_ate3_2, CAT_ATE_PLANE, {1,3,4,2},
+   {{19,1},{-1,-5},{6,11},{4,0}}};
+static F_SSHAPE_C cat_ate4_2 = {CAT_LINK, CAT_ATE_PLANE1, {3,2,0,4},
+   {{10,13},{-3,3},{13,2},{7,-5}}};
+static F_SSHAPE_C cat_ate4 = {&cat_ate4_2, CAT_ATE_PLANE, {14,13,11,3},
+   {{20,-11},{-7,6},{25,16},{-2,-4}}};
+static F_SSHAPE_C cat_ate5_2 = {CAT_LINK, CAT_ATE_PLANE1, {4,1,8,5},
+   {{13,10},{5,1},{29,13},{12,-7}}};
+static F_SSHAPE_C cat_ate5 = {&cat_ate5_2, CAT_ATE_PLANE, {16,15,12,0},
+   {{27,-10},{2,15},{-10,5},{15,-1}}};
+static F_SSHAPE_C cat_ate6_2 = {CAT_LINK, CAT_ATE_PLANE1, {11,11,1,2},
+   {{29,-4},{14,18},{23,4},{-1,7}}};
+static F_SSHAPE_C cat_ate6 = {&cat_ate6_2, CAT_ATE_PLANE, {7,5,3,10},
+   {{-7,9},{9,-10},{4,-3},{-8,0}}};
+static F_SSHAPE_C cat_ate7_2 = {CAT_LINK, CAT_ATE_PLANE1, {4,5,7,8},
+   {{16,9},{8,-9},{-6,9},{24,5}}};
+static F_SSHAPE_C cat_ate7 = {&cat_ate7_2, CAT_ATE_PLANE, {2,1,3,0},
+   {{-4,13},{17,-9},{-8,1},{4,0}}};
+static F_SSHAPE_C cat_ate8_2 = {CAT_LINK, CAT_ATE_PLANE1, {1,15,13,14},
+   {{1,-3},{-11,8},{-3,-8},{23,-18}}};
+static F_SSHAPE_C cat_ate8 = {&cat_ate8_2, CAT_ATE_PLANE, {3,4,1,2},
+   {{2,11},{8,-13},{15,4},{14,-8}}};
+static F_SSHAPE_C cat_ate9_2 = {CAT_LINK, CAT_ATE_PLANE1, {3,16,12,10},
+   {{-3,-5},{27,-2},{-12,4},{13,-9}}};
+static F_SSHAPE_C cat_ate9 = {&cat_ate9_2, CAT_ATE_PLANE, {0,2,3,4},
+   {{6,0},{19,-11},{23,9},{-5,9}}};
+static F_SSHAPE_C cat_ate10_2 = {CAT_LINK, CAT_ATE_PLANE1, {0,10,11,8},
+   {{-1,-8},{8,17},{11,-13},{31,-2}}};
+static F_SSHAPE_C cat_ate10 = {&cat_ate10_2, CAT_ATE_PLANE, {2,1,3,4},
+   {{6,-1},{20,4},{18,-9},{-3,6}}};
+static F_SSHAPE_C cat_ate11_2 = {CAT_LINK, CAT_ATE_PLANE1, {2,7,13,17},
+   {{-1,5},{-4,2},{-1,-9},{9,16}}};
+static F_SSHAPE_C cat_ate11 = {&cat_ate11_2, CAT_ATE_PLANE, {0,1,3,4},
+   {{18,7},{21,-14},{16,0},{6,-9}}};
+static F_SSHAPE_C cat_ate12_2 = {CAT_LINK, CAT_ATE_PLANE1, {4,3,15,14},
+   {{-3,4},{6,15},{4,7},{24,-10}}};
+static F_SSHAPE_C cat_ate12 = {&cat_ate12_2, CAT_ATE_PLANE, {1,2,1,0},
+   {{9,-10},{25,-10},{17,4},{11,-3}}};
+static F_SSHAPE_C cat_ate13_2 = {CAT_LINK, CAT_ATE_PLANE1, {2,4,10,11},
+   {{12,0},{6,-4},{25,12},{-10,5}}};
+static F_SSHAPE_C cat_ate13 = {&cat_ate13_2, CAT_ATE_PLANE, {0,0,0,1},
+   {{-6,-10},{18,-7},{2,10},{0,-2}}};
+static F_SSHAPE_C cat_ate14_2 = {CAT_LINK, CAT_ATE_PLANE1, {7,8,0,13},
+   {{-10,14},{32,9},{8,-1},{-4,2}}};
+static F_SSHAPE_C cat_ate14 = {&cat_ate14_2, CAT_ATE_PLANE, {3,4,4,5},
+   {{1,-4},{24,-1},{1,7},{5,-12}}};
+static F_SSHAPE_C cat_ate15 = {CAT_LINK, CAT_ATE_PLANE, {18,19,21,44},
+   {{0,5},{9,0},{10,7},{22,2}}};
+static F_SSHAPE_C cat_ate16_2 = {CAT_LINK, CAT_ATE_PLANE1, {44,255,255,255},
+   {{22,2},{2,0},{5,1},{0,0}}};
+static F_SSHAPE_C cat_ate16 = {&cat_ate16_2, CAT_ATE_PLANE, {22,18,19,21},
+   {{6,7},{0,5},{9,0},{10,7}}};
+static F_SSHAPE_C cat_ate17_2 = {CAT_LINK, CAT_ATE_PLANE1, {44,255,255,255},
+   {{22,2},{2,0},{5,1},{0,0}}};
+static F_SSHAPE_C cat_ate17 = {&cat_ate17_2, CAT_ATE_PLANE, {22,18,19,21},
+   {{7,7},{0,5},{9,0},{10,7}}};
+static F_SSHAPE_C cat_ate18_2 = {CAT_LINK, CAT_ATE_PLANE1, {44,255,255,255},
+   {{22,2},{2,0},{5,1},{0,0}}};
+static F_SSHAPE_C cat_ate18 = {&cat_ate18_2, CAT_ATE_PLANE, {22,18,19,21},
+   {{9,7},{0,5},{9,0},{10,7}}};
+static F_SSHAPE_C cat_ate19_2 = {CAT_LINK, CAT_ATE_PLANE1, {44,255,255,255},
+   {{22,2},{2,0},{5,1},{0,0}}};
+static F_SSHAPE_C cat_ate19 = {&cat_ate19_2, CAT_ATE_PLANE, {22,18,19,21},
+   {{10,7},{0,5},{9,0},{10,7}}};
+static F_SSHAPE_C cat_ate20_2 = {CAT_LINK, CAT_ATE_PLANE1, {44,255,255,255},
+   {{22,2},{2,0},{5,1},{0,0}}};
+static F_SSHAPE_C cat_ate20 = {&cat_ate20_2, CAT_ATE_PLANE, {22,18,19,21},
+   {{12,7},{0,5},{9,0},{10,7}}};
+static F_SSHAPE_C cat_ate21_2 = {CAT_LINK, CAT_ATE_PLANE1, {44,255,255,255},
+   {{22,2},{2,0},{5,1},{0,0}}};
+static F_SSHAPE_C cat_ate21 = {&cat_ate21_2, CAT_ATE_PLANE, {22,18,19,21},
+   {{14,7},{0,5},{9,0},{10,7}}};
+static F_SSHAPE_C cat_ate22_2 = {CAT_LINK, CAT_ATE_PLANE1, {44,255,255,255},
+   {{22,2},{2,0},{5,1},{0,0}}};
+static F_SSHAPE_C cat_ate22 = {&cat_ate22_2, CAT_ATE_PLANE, {22,18,19,21},
+   {{15,7},{0,5},{9,0},{10,7}}};
+static F_SSHAPE_C cat_ate23_2 = {CAT_LINK, CAT_ATE_PLANE1, {44,255,255,255},
+   {{22,2},{2,0},{5,1},{0,0}}};
+static F_SSHAPE_C cat_ate23 = {&cat_ate23_2, CAT_ATE_PLANE, {22,18,19,21},
+   {{17,7},{0,5},{9,0},{10,7}}};
+static F_SSHAPE_C cat_ate24 = {CAT_LINK, CAT_ATE_PLANE, {18,23,24,25},
+   {{0,5},{7,-1},{5,13},{19,0}}};
+static F_SSHAPE_C cat_ate25 = {CAT_LINK, CAT_ATE_PLANE, {18,23,24,27},
+   {{0,5},{7,-1},{5,13},{20,1}}};
+static F_SSHAPE_C cat_ate26 = {CAT_LINK, CAT_ATE_PLANE, {18,23,24,26},
+   {{0,5},{7,-1},{5,13},{20,1}}};
+static F_SSHAPE_C cat_ate27 = {CAT_LINK, CAT_ATE_PLANE, {18,23,9,28},
+   {{0,5},{7,-1},{5,13},{7,2}}};
+static F_SSHAPE_C cat_ate28 = {CAT_LINK, CAT_ATE_PLANE, {18,23,9,29},
+   {{0,5},{7,-1},{5,13},{7,1}}};
+static F_SSHAPE_C cat_ate29 = {CAT_LINK, CAT_ATE_PLANE, {18,23,24,30},
+   {{0,5},{7,-1},{5,13},{19,2}}};
+static F_SSHAPE_C cat_ate30 = {CAT_LINK, CAT_ATE_PLANE, {18,23,24,31},
+   {{0,5},{7,-1},{5,13},{20,7}}};
+static F_SSHAPE_C cat_ate31 = {CAT_LINK, CAT_ATE_PLANE, {33,32,34,255},
+   {{-5,0},{20,-6},{20,3},{2,1}}};
+static F_SSHAPE_C cat_ate32 = {CAT_LINK, CAT_ATE_PLANE, {33,32,255,255},
+   {{-5,0},{14,-20},{5,2},{0,0}}};
+static F_SSHAPE_C cat_ate33 = {CAT_LINK, CAT_ATE_PLANE, {33,32,255,255},
+   {{-5,0},{9,-27},{5,2},{0,0}}};
+static F_SSHAPE_C cat_ate34 = {CAT_LINK, CAT_ATE_PLANE, {33,32,255,255},
+   {{-5,0},{6,-29},{5,2},{0,0}}};
+static F_SSHAPE_C cat_ate35 = {CAT_LINK, CAT_ATE_PLANE, {33,32,255,255},
+   {{-5,0},{4,-24},{5,2},{0,0}}};
+static F_SSHAPE_C cat_ate36 = {CAT_LINK, CAT_ATE_PLANE, {33,32,255,255},
+   {{-5,0},{5,-14},{5,2},{0,0}}};
+static F_SSHAPE_C cat_ate37 = {CAT_LINK, CAT_ATE_PLANE, {33,32,255,255},
+   {{-5,0},{6,2},{5,2},{0,0}}};
+static F_SSHAPE_C cat_ate38 = {CAT_LINK, CAT_ATE_PLANE, {18,35,37,255},
+   {{0,5},{3,-1},{5,12},{2,0}}};
+static F_SSHAPE_C cat_ate39 = {CAT_LINK, CAT_ATE_PLANE, {18,37,36,255},
+   {{0,5},{6,14},{5,-1},{2,0}}};
+static F_SSHAPE_C cat_ate40 = {CAT_LINK, CAT_ATE_PLANE, {38,255,255,255},
+   {{-5,0},{2,0},{5,1},{0,0}}};
+static F_SSHAPE_C cat_ate41 = {CAT_LINK, CAT_ATE_PLANE, {18,39,19,20},
+   {{0,5},{15,9},{9,0},{10,8}}};
+static F_SSHAPE_C cat_ate42 = {CAT_LINK, CAT_ATE_PLANE, {18,19,20,255},
+   {{0,5},{9,0},{10,8},{0,0}}};
+static F_SSHAPE_C cat_ate43 = {CAT_LINK, CAT_ATE_PLANE, {18,19,20,40},
+   {{0,5},{9,0},{10,8},{9,9}}};
+static F_SSHAPE_C cat_ate44 = {CAT_LINK, CAT_ATE_PLANE, {18,19,20,41},
+   {{0,5},{9,0},{10,8},{8,7}}};
+static F_SSHAPE_C cat_ate45 = {CAT_LINK, CAT_ATE_PLANE, {18,19,20,42},
+   {{0,5},{9,0},{10,8},{11,5}}};
+static F_SSHAPE_C cat_ate46 = {CAT_LINK, CAT_ATE_PLANE, {18,19,20,43},
+   {{0,5},{9,0},{10,8},{13,6}}};
+static F_SSHAPE_C cat_ate47 = {CAT_LINK, CAT_ATE_PLANE, {18,19,21,255},
+   {{0,5},{9,0},{10,7},{0,0}}};
+
+
+static CHARACTER_SEQ cat_ate_character =
+   {
+      CAT_ATE_NUM_STATES,
+      CAT_ATE_INDEX,
+      {-32,-60,117,120},
+   };
+
+/* * * * *
+*
+*  CAT_RUNAW_SEQUENCE--Cat runs away.  There are four frames of animation.
+*  *
+* * * * */
+static F_SSHAPE_C cat_runaw1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{-5,-6},{-5,-6},{-5,-6},{-5,-6}}};
+static F_SSHAPE_C cat_runaw2 = {CAT_LINK, CAT_PLANE, {1,255,255,255},{{-5,-6},{-5,-6},{-5,-6},{-5,-6}}};
+static F_SSHAPE_C cat_runaw3 = {CAT_LINK, CAT_PLANE, {2,255,255,255},{{-5,-6},{-5,-6},{-5,-6},{-5,-6}}};
+static F_SSHAPE_C cat_runaw4 = {CAT_LINK, CAT_PLANE, {3,255,255,255},{{-5,-6},{-5,-6},{-5,-6},{-5,-6}}};
+
+
+
+static CHARACTER_SEQ cat_runaw_character = 
+   {
+      CAT_RUNAW_NUM_STATES,
+      CAT_RUNAW_INDEX
+   };
+
+
+/* * * * *
+*
+*  CAT_SPINAW_SEQUENCE--This is catspin.  There are four frames. 
+*  They process as such 0, 1, 2 ,3, 0, 1, ....
+*
+* * * * */
+static CHARACTER_SEQ cat_spinaw_character = 
+{
+CAT_SPINAW_NUM_STATES,
+CAT_SPINAW_INDEX};
+
+
+
+/* * * * *
+*
+*  CAT_TAKE_SEQUENCE--The cat sees something that scares him,
+*  He jumps back and his eyballs bug out.  This sequence is 
+*  titled CATTAKE.TXT.  The sequence goes in the following order of offsets
+*  1,1,1,1,2,3,4,5,4,6,4,7,4,5,4,6,4,7,4,5,4,6,4,7,4,3,2,1,1,1,1,1,1
+*
+* * * * */
+static F_SSHAPE_C cat_take1 = {CAT_LINK, CAT_PLANE, {0,1,255,255},{{-11,-4},{3,-2},{-11,-4},{-11,-4}}};
+static F_SSHAPE_C cat_take2 = {CAT_LINK, CAT_PLANE, {2,0,1,2},{{10,-3},{-11,-4},{3,-2},{7,-3}}};
+static F_SSHAPE_C cat_take3_2 = {CAT_LINK, CAT_PLANE1, {2,0,1,2},{{10,-3},{-11,-4},{3,-2},{7,-3}}};
+static F_SSHAPE_C cat_take3 = {&cat_take3_2, CAT_PLANE, {3,3,255,255},{{16,-5},{13,-5},{-11,-5},{-11,-5}}};
+static F_SSHAPE_C cat_take4_2 = {CAT_LINK, CAT_PLANE1, {2,0,1,2},{{10,-3},{-11,-4},{3,-2},{7,-3}}};
+static F_SSHAPE_C cat_take4 = {&cat_take4_2, CAT_PLANE, {3,3,4,4},{{16,-5},{13,-5},{28,-7},{23,-7}}};
+
+
+static CHARACTER_SEQ cat_take_character = 
+   {
+      CAT_TAKE_NUM_STATES,
+      CAT_TAKE_INDEX
+   };
+
+
+
+/* * * * *
+*
+*  CAT_CLIMB_SEQUENCE--Cat climbs.  There are 3 frames of the cat climbing
+*  There are actually 4 offsets like in the sidclimb sequence.
+*
+* * * * */
+static F_SSHAPE_C cat_climb1 = {CAT_LINK, CAT_PLANE, {0,255,255,255},{{3,1},{3,1},{6,2},{0,0}}};
+static F_SSHAPE_C cat_climb2 = {CAT_LINK, CAT_PLANE, {1,255,255,255},{{3,1},{3,1},{6,2},{0,0}}};
+static F_SSHAPE_C cat_climb3 = {CAT_LINK, CAT_PLANE, {2,255,255,255},{{3,1},{3,1},{6,2},{0,0}}};
+
+
+
+static CHARACTER_SEQ cat_climb_character = 
+{
+   CAT_CLIMB_NUM_STATES,
+   CAT_CLIMB_INDEX
+};
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   CAT_CUT                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+#define CAT_CUT_PLANE       CAT_PLANE
+#define CAT_CUT_PLANE1      CAT_PLANE1
+#define CAT_CUT_BORDERS     CAT_BORDERS
+
+
+/*
+*  The cat is approaching from the left and the open face of the 
+*  scissors is facing the right.  The sequence is 1,1,1,1,2,2,2,2,2,2,
+*  3,3,3,4,4 then back to whatever was going on before.  If the cat
+*  is approaching from the right and the scissors face is to the right
+*  then the order of the sequence is the same with all shapes flipped.
+*  The cat can't use the scissors if the face is towards the cat.
+*/
+
+static F_SSHAPE_C cat_cut1 = {CAT_LINK, CAT_CUT_PLANE, {0,255,255,255},
+   {{2,-1},{1,-1},{1,-1},{1,-1}}};
+static F_SSHAPE_C cat_cut2 = {CAT_LINK, CAT_CUT_PLANE, {1,255,255,255},
+   {{-7,-4},{-1,0},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_cut3 = {CAT_LINK, CAT_CUT_PLANE, {2,255,255,255},
+   {{5,-19},{-1,0},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_cut4 = {CAT_LINK, CAT_CUT_PLANE, {2,255,255,255},
+   {{2,-14},{-1,0},{-1,0},{-1,0}}};
+
+
+
+static CHARACTER_SEQ cat_cut_character =
+   {
+      CAT_CUT_NUM_STATES,
+      CAT_CUT_INDEX,
+   };
+
+                                                                                                                                               
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_STOP                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        Al comes to a stop and wiggles like Jell-o. The sequence is as
+   follows: 1,2,3,4,5,6.
+*/
+
+#define CAT_STOP_PLANE       CAT_PLANE
+#define CAT_STOP_PLANE1      CAT_PLANE1
+#define CAT_STOP_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_stop1 = {CAT_LINK, CAT_STOP_PLANE, {0,255,255,255},
+   {{-12,5},{2,0},{2,0},{2,0}}};
+static F_SSHAPE_C cat_stop2 = {CAT_LINK, CAT_STOP_PLANE, {1,255,255,255},
+   {{-16,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_stop3 = {CAT_LINK, CAT_STOP_PLANE, {2,255,255,255},
+   {{-8,-1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_stop4 = {CAT_LINK, CAT_STOP_PLANE, {3,255,255,255},
+   {{-8,-1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_stop5 = {CAT_LINK, CAT_STOP_PLANE, {4,255,255,255},
+   {{-8,-1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_stop6 = {CAT_LINK, CAT_STOP_PLANE, {5,255,255,255},
+   {{-2,0},{0,0},{0,0},{0,0}}};
+
+
+static CHARACTER_SEQ cat_stop_character =
+   {
+      CAT_STOP_NUM_STATES,
+      CAT_STOP_INDEX,
+      {-31,-3,97,43},
+   };
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_SMASH                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        There are four sequences in CAT_SMASH. Al is flying through the air
+   and hits a wall. The sequences are:
+
+   Hit bottom: 1,2,2,3,3. Al falls to the ground, smashes, and returns to
+               catroot.
+   Hit top: 4,4,5,6. Al hits the ceiling and falls back down.
+   Hit right: 7,7,7,7. Al hits a wall on the right and slides down the wall
+              in shape 7. The offset between the first four frames and the
+              next frame is (0,3)
+   Hit left: 8,8,8,8. Al hits a wall on the left and slides down the wall in
+             shape 8. THe offset between the first four frames and the next
+             frame is (0,3)
+*/
+
+#define CAT_SMASH_PLANE       CAT_PLANE
+#define CAT_SMASH_PLANE1      CAT_PLANE1
+#define CAT_SMASH_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_smash1 = {CAT_LINK, CAT_SMASH_PLANE, {1,255,255,255},
+   {{-1,10},{8,5},{8,5},{8,5}}};
+static F_SSHAPE_C cat_smash2 = {CAT_LINK, CAT_SMASH_PLANE, {0,255,255,255},
+   {{-5,6},{4,1},{9,3},{0,0}}};
+static F_SSHAPE_C cat_smash3 = {CAT_LINK, CAT_SMASH_PLANE, {2,255,255,255},
+   {{4,-11},{1,12},{1,12},{1,12}}};
+static F_SSHAPE_C cat_smash4 = {CAT_LINK, CAT_SMASH_PLANE, {3,4,255,255},
+   {{-3,6},{9,22},{0,5},{0,5}}};
+static F_SSHAPE_C cat_smash5 = {CAT_LINK, CAT_SMASH_PLANE, {1,255,255,255},
+   {{-8,6},{1,1},{3,2},{0,0}}};
+static F_SSHAPE_C cat_smash6 = {CAT_LINK, CAT_SMASH_PLANE, {6,255,255,255},
+   {{5,0},{6,-5},{6,-5},{6,-5}}};
+static F_SSHAPE_C cat_smash7 = {CAT_LINK, CAT_SMASH_PLANE, {6,255,255,255},
+   {{6,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_smash8 = {CAT_LINK, CAT_SMASH_PLANE, {5,255,255,255},
+   {{4,-4},{2,0},{5,0},{0,0}}};
+
+
+
+/* * * * *
+*
+*  cat_hit_floor
+*
+* * * * */
+static CHARACTER_SEQ cat_hit_floor_character =
+   {
+      CAT_HIT_FLOOR_NUM_STATES,
+      CAT_HIT_FLOOR_INDEX,
+      {-19,-47,100,112},
+   };
+
+/* * * * *
+*
+*  cat_hit_ceiling
+*
+* * * * */
+static CHARACTER_SEQ cat_hit_ceiling_character =
+   {
+      CAT_HIT_CEILING_NUM_STATES,
+      CAT_HIT_CEILING_INDEX,
+      {-19,-47,100,112},
+   };
+
+/* * * * *
+*
+*  cat_hit_left_wall
+*
+* * * * */
+static CHARACTER_SEQ cat_hit_left_wall_character =
+   {
+      CAT_HIT_LEFT_WALL_NUM_STATES,
+      CAT_HIT_LEFT_WALL_INDEX,
+      {-19,-47,100,112},
+   };
+
+/* * * * *
+*
+*  cat_hit_right_wall
+*
+* * * * */
+static CHARACTER_SEQ cat_hit_right_wall_character =
+   {
+      CAT_HIT_RIGHT_WALL_NUM_STATES,
+      CAT_HIT_RIGHT_WALL_INDEX,
+      {-19,-47,100,112},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_SLIDE1                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        Al slides down a small incline. The sequence cycles through 1,2,3.
+*/
+
+#define CAT_SLIDE1_PLANE       CAT_PLANE
+#define CAT_SLIDE1_PLANE1      CAT_PLANE1
+#define CAT_SLIDE1_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_slide11 = {CAT_LINK, CAT_SLIDE1_PLANE, {1,0,255,255},
+   {{-7,8},{-1,-1},{-1,2},{-1,2}}};
+static F_SSHAPE_C cat_slide12 = {CAT_LINK, CAT_SLIDE1_PLANE, {2,0,255,255},
+   {{-8,12},{-1,-1},{-1,2},{-1,2}}};
+static F_SSHAPE_C cat_slide13 = {CAT_LINK, CAT_SLIDE1_PLANE, {3,0,255,255},
+   {{-5,8},{-1,-1},{-1,2},{-1,2}}};
+
+
+static CHARACTER_SEQ cat_slide1_character =
+   {
+      CAT_SLIDE1_NUM_STATES,
+      CAT_SLIDE1_INDEX,
+      {-13,-7,69,50},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_SLIDE2                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        Al slides down a slope. Sequence cycles through 1,2,3.
+*/
+
+#define CAT_SLIDE2_PLANE       CAT_PLANE
+#define CAT_SLIDE2_PLANE1      CAT_PLANE1
+#define CAT_SLIDE2_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_slide21 = {CAT_LINK, CAT_SLIDE2_PLANE, {5,4,255,255},
+   {{-8,7},{-1,-1},{-3,1},{-3,1}}};
+static F_SSHAPE_C cat_slide22 = {CAT_LINK, CAT_SLIDE2_PLANE, {6,4,255,255},
+   {{-7,8},{-1,-1},{-3,1},{-3,1}}};
+static F_SSHAPE_C cat_slide23 = {CAT_LINK, CAT_SLIDE2_PLANE, {7,4,255,255},
+   {{-5,4},{-1,-1},{-3,1},{-3,1}}};
+
+
+static CHARACTER_SEQ cat_slide2_character =
+   {
+      CAT_SLIDE2_NUM_STATES,
+      CAT_SLIDE2_INDEX,
+      {-9,-5,68,48},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_SLIDE3                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_SLIDE3_PLANE       CAT_PLANE
+#define CAT_SLIDE3_PLANE1      CAT_PLANE1
+#define CAT_SLIDE3_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_slide31 = {CAT_LINK, CAT_SLIDE3_PLANE, {9,8,255,255},
+   {{-8,6},{0,-4},{-3,1},{-3,1}}};
+static F_SSHAPE_C cat_slide32 = {CAT_LINK, CAT_SLIDE3_PLANE, {10,8,255,255},
+   {{-6,7},{0,-4},{-3,1},{-3,1}}};
+static F_SSHAPE_C cat_slide33 = {CAT_LINK, CAT_SLIDE3_PLANE, {11,8,255,255},
+   {{-5,4},{0,-4},{-3,1},{-3,1}}};
+
+
+static CHARACTER_SEQ cat_slide3_character =
+   {
+      CAT_SLIDE3_NUM_STATES,
+      CAT_SLIDE3_INDEX,
+      {-9,-10,66,55},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_SLIDE4                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_SLIDE4_PLANE       CAT_PLANE
+#define CAT_SLIDE4_PLANE1      CAT_PLANE1
+#define CAT_SLIDE4_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_slide41 = {CAT_LINK, CAT_SLIDE4_PLANE, {13,12,255,255},
+   {{-5,4},{2,-7},{0,0},{0,0}}};
+static F_SSHAPE_C cat_slide42 = {CAT_LINK, CAT_SLIDE4_PLANE, {14,12,255,255},
+   {{-3,2},{2,-7},{0,0},{0,0}}};
+static F_SSHAPE_C cat_slide43 = {CAT_LINK, CAT_SLIDE4_PLANE, {15,12,255,255},
+   {{-1,0},{2,-7},{0,0},{0,0}}};
+
+
+static CHARACTER_SEQ cat_slide4_character =
+   {
+      CAT_SLIDE4_NUM_STATES,
+      CAT_SLIDE4_INDEX,
+      {-10,-15,59,64},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_PIN1                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        Al falls on a pin and flys up screaming. The sequence is as follows:
+   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2...
+   With Al flying up in frame 2. The offset from the first 2 to the second 2
+   is (0,-27).
+*/
+
+#define CAT_PIN1_PLANE       CAT_PLANE
+#define CAT_PIN1_PLANE1      CAT_PLANE1
+#define CAT_PIN1_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_pin11 = {CAT_LINK, CAT_PIN1_PLANE, {0,255,255,255},
+   {{-4,0},{-1,0},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_pin12 = {CAT_LINK, CAT_PIN1_PLANE, {1,255,255,255},
+   {{3,5},{0,15},{0,15},{0,15}}};
+
+
+static CHARACTER_SEQ cat_pin1_character =
+   {
+      CAT_PIN1_NUM_STATES,
+      CAT_PIN1_INDEX,
+      {-6,-20,55,74},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_PIN2                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        Al gets poked in the head by a pin and rubs his head falling. The
+   sequence is: 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,3... with 2 & 3 alternating 
+   as Al falls.
+*/
+
+#define CAT_PIN2_PLANE       CAT_PLANE
+#define CAT_PIN2_PLANE1      CAT_PLANE1
+#define CAT_PIN2_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_pin21 = {CAT_LINK, CAT_PIN2_PLANE, {0,1,255,255},
+   {{-4,5},{9,20},{-1,4},{-1,4}}};
+static F_SSHAPE_C cat_pin22 = {CAT_LINK, CAT_PIN2_PLANE, {3,2,5,255},
+   {{-1,4},{4,-8},{1,-7},{-3,-8}}};
+static F_SSHAPE_C cat_pin23 = {CAT_LINK, CAT_PIN2_PLANE, {4,2,6,255},
+   {{3,4},{4,-8},{1,-7},{-3,-8}}};
+
+
+static CHARACTER_SEQ cat_pin2_character =
+   {
+      CAT_PIN2_NUM_STATES,
+      CAT_PIN2_INDEX,
+      {-6,-1,62,61},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_PIN3                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        Al gets poked in the butt by a pin from the left side, screams, and
+   flys across the screen. The sequence is as follows:
+   1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,3,4....
+   
+   As Al flys across the screen he alternates between 3 & 4. The offset from
+   3 to 4 is (5,-3). The offset from 4 to 3 is (6,-3). He is pulled down by
+   gravity.
+*/
+
+#define CAT_PIN3_PLANE       CAT_PLANE
+#define CAT_PIN3_PLANE1      CAT_PLANE1
+#define CAT_PIN3_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_pin31 = {CAT_LINK, CAT_PIN3_PLANE, {0,255,255,255},
+   {{-1,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_pin32 = {CAT_LINK, CAT_PIN3_PLANE, {1,255,255,255},
+   {{-5,3},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_pin33_2 = {CAT_LINK, CAT_PIN3_PLANE1, {9,11,255,255},
+   {{-5,0},{-3,18},{-5,6},{-5,6}}};
+static F_SSHAPE_C cat_pin33 = {&cat_pin33_2, CAT_PIN3_PLANE, {2,3,5,7},
+   {{-1,-3},{12,13},{19,11},{8,6}}};
+static F_SSHAPE_C cat_pin34_2 = {CAT_LINK, CAT_PIN3_PLANE1, {10,12,255,255},
+   {{-5,-1},{-11,20},{-8,8},{-8,8}}};
+static F_SSHAPE_C cat_pin34 = {&cat_pin34_2, CAT_PIN3_PLANE, {2,4,6,8},
+   {{-1,-3},{12,14},{21,13},{7,4}}};
+
+
+static CHARACTER_SEQ cat_pin3_character =
+   {
+      CAT_PIN3_NUM_STATES,
+      CAT_PIN3_INDEX,
+      {-9,-22,77,62},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_VAC1                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_VAC1_PLANE       CAT_PLANE
+#define CAT_VAC1_PLANE1      CAT_PLANE1
+#define CAT_VAC1_BORDERS     CAT_BORDERS
+
+
+/*  This sequence is onle the two frames of the cat getting sucked
+*  on but not sucked into the vacuum.  This is what happens if the
+*  vacuum is too far away to suck the cat up but it still sucks on him.
+*  1,1,2,2,1,1,2,2,1,1,2,2... for duration of the vacuum.
+*/
+
+
+static F_SSHAPE_C cat_vac11 = {CAT_LINK, CAT_VAC1_PLANE, {0,255,255,255},
+   {{4,-6},{4,-6},{4,-6},{4,-6}}};
+static F_SSHAPE_C cat_vac12 = {CAT_LINK, CAT_VAC1_PLANE, {1,255,255,255},
+   {{4,-8},{4,-5},{4,-5},{4,-5}}};
+
+
+static CHARACTER_SEQ cat_vac1_character =
+   {
+      CAT_VAC1_NUM_STATES,
+      CAT_VAC1_INDEX,
+   };
+                                                                                                                                               
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_VAC2                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_VAC2_PLANE       CAT_PLANE
+#define CAT_VAC2_PLANE1      CAT_PLANE1
+#define CAT_VAC2_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_vac21 = {CAT_LINK, CAT_VAC2_PLANE, {4,9,255,255},
+   {{6,-15},{4,9},{4,-15},{4,-15}}};
+static F_SSHAPE_C cat_vac22 = {CAT_LINK, CAT_VAC2_PLANE, {3,9,255,255},
+   {{7,-14},{4,9},{4,-14},{4,-14}}};
+static F_SSHAPE_C cat_vac23 = {CAT_LINK, CAT_VAC2_PLANE, {3,6,255,255},
+   {{7,-15},{9,6},{7,-15},{7,-15}}};
+static F_SSHAPE_C cat_vac24 = {CAT_LINK, CAT_VAC2_PLANE, {4,6,255,255},
+   {{6,-15},{9,6},{6,-15},{6,-15}}};
+static F_SSHAPE_C cat_vac25 = {CAT_LINK, CAT_VAC2_PLANE, {4,7,255,255},
+   {{6,-15},{6,8},{6,-15},{6,-15}}};
+static F_SSHAPE_C cat_vac26 = {CAT_LINK, CAT_VAC2_PLANE, {3,7,255,255},
+   {{7,-14},{6,8},{6,-14},{6,-14}}};
+static F_SSHAPE_C cat_vac27 = {CAT_LINK, CAT_VAC2_PLANE, {3,8,255,255},
+   {{7,-15},{7,8},{7,-15},{7,-15}}};
+static F_SSHAPE_C cat_vac28 = {CAT_LINK, CAT_VAC2_PLANE, {4,8,255,255},
+   {{7,-15},{7,8},{7,-15},{7,-15}}};
+
+
+static CHARACTER_SEQ cat_vac2_character =
+   {
+      CAT_VAC2_NUM_STATES,
+      CAT_VAC2_INDEX,
+      {0,0,36,70},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_VAC3                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_VAC3_PLANE       CAT_PLANE
+#define CAT_VAC3_PLANE1      CAT_PLANE1
+#define CAT_VAC3_BORDERS     CAT_BORDERS
+
+
+/*  this is the sequence where the cat gets sucked up into the vacuum.
+*   If the cat is close enough to the vacuum to get sucked up, play 
+*  the catvac1 sequence of 2 frames 12 times.  at the end of this sequence
+*  play the sshape from this sequence at an offset of {-3,-18}, for the 
+*  first frame.  {0,-28} is the offset for the rest of the frames needed
+*  get the cat to the vacuum.
+*/
+
+static F_SSHAPE_C cat_vac31 = {CAT_LINK, CAT_VAC3_PLANE, {10,255,255,255},
+   {{3,-8},{3,-8},{3,-8},{3,-8}}};
+
+
+static CHARACTER_SEQ cat_vac3_character =
+   {
+      CAT_VAC3_NUM_STATES,
+      CAT_VAC3_INDEX,
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_PIANO                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_PIANO_PLANE       CAT_PLANE
+#define CAT_PIANO_PLANE1      CAT_PLANE1
+#define CAT_PIANO_BORDERS     CAT_BORDERS
+#define CAT_PIANO_NUM_OFFSETS  1
+
+/*
+*  this is the new catpiano with the new offsets from the piano
+*  position rather than relative to eachother.  the number of
+*  offsets in the old sequence was wrong so there are more in this one than
+*  in the last one... alot more.
+*  The entire offset sequence should be doubled.
+*/
+
+
+static F_SSHAPE_C cat_piano1 = {CAT_LINK, CAT_PIANO_PLANE, {4,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_piano2 = {CAT_LINK, CAT_PIANO_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_piano3 = {CAT_LINK, CAT_PIANO_PLANE, {1,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_piano4 = {CAT_LINK, CAT_PIANO_PLANE, {2,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_piano5 = {CAT_LINK, CAT_PIANO_PLANE, {3,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+
+
+/*
+signed char cat_piano_os[CAT_PIANO_NUM_OFFSETS][3] =
+   {{25,10,1},{25,10,1},{28,-12,2},{33,-14,2},{28,-12,3},{35,-13,3},
+   {42,-14,3},{56,-19,4},{55,-21,4},{39,-26,4},{28,-21,5},{10,-22,5},
+   {4,-18,5},{3,-30,2},{13,-30,2},{28,-22,3},{40,-20,3},{68,-23,4},
+   {64,-26,4},{43,-23,5},{33,-28,2},{33,-28,2},{33,-28,2},{33,-28,2},
+   {33,-28,2},{33,-28,2},{33,-28,2},{33,-28,2},{33,-28,2},{33,-28,2},
+   {33,-28,2},{33,-28,2},{29,-23,5},{12,-28,2},{3,-30,2},{13,-30,2},
+   {28,-22,3},{40,-20,3},{68,-23,4},{64,-26,4},{43,-23,5},{29,-23,5},
+   {12,-28,2},{19,-26,2},{27,-21,3},{38,-13,3},{41,-8,3}};
+*/
+
+static CHARACTER_SEQ cat_piano_character =
+   {
+      CAT_PIANO_NUM_STATES,
+      CAT_PIANO_INDEX,
+      {0,-31,76,50},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   CAT_GUM                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_GUM_PLANE       CAT_PLANE
+#define CAT_GUM_PLANE1      CAT_PLANE1
+#define CAT_GUM_BORDERS     CAT_BORDERS
+
+/*
+*  Cat sees the gum, picks it up and chews it.  The following sequence
+*  will work for any orientation.
+*  1,1,1,1,1,1,1,1,1,1,1,2,2,3,3,3,3,3,4,5,6,7,8,9,10,11,12,13,13,13,13,13,
+*  14,13,14,13,14,13,14,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28...
+*  At shape #28 the cat has a full bubble and should float around like 
+*  a balloon.
+*
+*
+*  If the Gum is facing            And the cat approaches from
+*  Then offset the cat {-54,-19} from the gum.
+*
+*
+*  If the Gum is facing            And the cat approaches from
+*  Then offset the cat {-52,-19} from the gum.
+*
+*
+*  If the Gum is facing            And the cat approaches from
+*  Then offset the cat {38,-19} from the gum.
+*  
+*
+*  If the Gum is facing            And the cat approaches from
+*  Then offset the cat {34,-19} from the gum.
+*/
+
+
+
+static F_SSHAPE_C cat_gum1 = {CAT_LINK, CAT_GUM_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum2 = {CAT_LINK, CAT_GUM_PLANE, {1,255,255,255},
+   {{0,-1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum3 = {CAT_LINK, CAT_GUM_PLANE, {2,255,255,255},
+   {{-3,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum4 = {CAT_LINK, CAT_GUM_PLANE, {4,5,3,255},
+   {{-5,0},{20,3},{20,-4},{0,0}}};
+static F_SSHAPE_C cat_gum5 = {CAT_LINK, CAT_GUM_PLANE, {3,5,4,255},
+   {{18,-8},{13,2},{-5,0},{0,0}}};
+static F_SSHAPE_C cat_gum6 = {CAT_LINK, CAT_GUM_PLANE, {3,4,255,255},
+   {{15,-11},{-5,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum7 = {CAT_LINK, CAT_GUM_PLANE, {3,4,255,255},
+   {{13,-13},{-5,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum8 = {CAT_LINK, CAT_GUM_PLANE, {3,4,255,255},
+   {{11,-12},{-5,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum9 = {CAT_LINK, CAT_GUM_PLANE, {3,4,255,255},
+   {{10,-11},{-5,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum10 = {CAT_LINK, CAT_GUM_PLANE, {3,4,255,255},
+   {{9,-8},{-5,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum11 = {CAT_LINK, CAT_GUM_PLANE, {4,3,255,255},
+   {{-5,0},{7,-3},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum12 = {CAT_LINK, CAT_GUM_PLANE, {4,3,255,255},
+   {{-5,0},{6,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum13 = {CAT_LINK, CAT_GUM_PLANE, {6,7,255,255},
+   {{-1,5},{1,-1},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum14 = {CAT_LINK, CAT_GUM_PLANE, {6,8,255,255},
+   {{-1,5},{3,-4},{0,0},{0,0}}};
+static F_SSHAPE_C cat_gum15 = {CAT_LINK, CAT_GUM_PLANE, {6,8,9,255},
+   {{-1,5},{3,-4},{11,6},{0,0}}};
+static F_SSHAPE_C cat_gum16 = {CAT_LINK, CAT_GUM_PLANE, {6,8,10,255},
+   {{-1,5},{3,-4},{11,4},{0,0}}};
+static F_SSHAPE_C cat_gum17 = {CAT_LINK, CAT_GUM_PLANE, {6,8,11,255},
+   {{-1,5},{3,-4},{9,0},{0,0}}};
+static F_SSHAPE_C cat_gum18 = {CAT_LINK, CAT_GUM_PLANE, {6,8,11,255},
+   {{-1,5},{3,-4},{9,-1},{0,0}}};
+static F_SSHAPE_C cat_gum19 = {CAT_LINK, CAT_GUM_PLANE, {6,8,12,255},
+   {{-1,5},{3,-4},{9,-6},{0,0}}};
+static F_SSHAPE_C cat_gum20 = {CAT_LINK, CAT_GUM_PLANE, {6,8,12,255},
+   {{-1,5},{3,-4},{9,-8},{0,0}}};
+static F_SSHAPE_C cat_gum21 = {CAT_LINK, CAT_GUM_PLANE, {6,8,12,255},
+   {{-1,5},{3,-5},{8,-10},{0,0}}};
+static F_SSHAPE_C cat_gum22 = {CAT_LINK, CAT_GUM_PLANE, {6,8,12,255},
+   {{-1,5},{3,-5},{9,-12},{0,0}}};
+static F_SSHAPE_C cat_gum23 = {CAT_LINK, CAT_GUM_PLANE, {13,12,255,255},
+   {{2,10},{5,6},{-4,21},{-4,21}}};
+static F_SSHAPE_C cat_gum24 = {CAT_LINK, CAT_GUM_PLANE, {15,12,255,255},
+   {{4,11},{5,6},{-4,24},{-4,24}}};
+static F_SSHAPE_C cat_gum25 = {CAT_LINK, CAT_GUM_PLANE, {13,12,255,255},
+   {{2,12},{5,6},{-3,27},{-3,27}}};
+static F_SSHAPE_C cat_gum26 = {CAT_LINK, CAT_GUM_PLANE, {14,12,255,255},
+   {{2,17},{5,6},{-3,33},{-3,33}}};
+static F_SSHAPE_C cat_gum27 = {CAT_LINK, CAT_GUM_PLANE, {15,12,255,255},
+   {{6,20},{5,6},{-3,37},{-3,37}}};
+static F_SSHAPE_C cat_gum28 = {CAT_LINK, CAT_GUM_PLANE, {13,12,255,255},
+   {{3,20},{5,6},{-3,39},{-3,39}}};
+
+
+static CHARACTER_SEQ cat_gum_character =
+   {
+      CAT_GUM_NUM_STATES,
+      CAT_GUM_INDEX,
+      {-10,-65,82,117},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_BUTT                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        Al rubs his butt. The sequence is as follows: 
+   1,2,1,1,2,2,1,1,2,2,1,1,2,2,1,1,2,2,1,1,2,2.
+*/
+
+#define CAT_BUTT_PLANE       CAT_PLANE
+#define CAT_BUTT_PLANE1      CAT_PLANE1
+#define CAT_BUTT_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_butt1 = {CAT_LINK, CAT_BUTT_PLANE, {0,1,3,255},
+   {{5,0},{-3,2},{16,0},{0,0}}};
+static F_SSHAPE_C cat_butt2 = {CAT_LINK, CAT_BUTT_PLANE, {0,4,2,255},
+   {{5,0},{12,-2},{-2,6},{0,0}}};
+
+
+static CHARACTER_SEQ cat_butt_character =
+   {
+      CAT_BUTT_NUM_STATES,
+      CAT_BUTT_INDEX,
+      {-6,-5,54,45},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_LUNCH                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_LUNCH_PLANE       CAT_PLANE
+#define CAT_LUNCH_PLANE1      CAT_PLANE1
+#define CAT_LUNCH_BORDERS     CAT_BORDERS
+
+/*
+*  catlunch sequence is what happens to Al when the noonwhistle blows.
+*  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,3,4,5,6,7,7,7,7,7,
+*  8,8,8,8,8,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,11,11,
+*  12,12,13,13,14,14,15,15,16,16,17,17,18,18,19,19,20,20,21,21,22,22,23,23,
+*  24,24,25,25,25,25,25,26,26,26,26,26,26,,27,28,29,30,31,31,31,31,31,31,31,
+*  31,31,31,31,31,31,31,31,32,32,32,32,32,33,33,33,33,33,33,33,33,33,33,33
+*  33,33,33,33,33,33,33,33,33,34,34,34,34,34,34,35,35,36,37,38,38,38,38,38
+*  38,39,39,39,39,39,39,40,41,42,42,42,42,42,43,43,43,44,44,45,45,47,46,47,
+*  46,47,46,47,46,47,46,47,48,46,48,47,46,47,46,47,8,46,48,47,46,48,49,49,
+*  50,50,51,51,56,56,56,56,56,56,52,52,52,52,52,52,53,53,53,54,54,54,55,
+*  55,55,9,9,10,10,6,6,5,5,4,4,3,3,2,2,1,1.
+*/
+
+static F_SSHAPE_C cat_lunch1 = {CAT_LINK, CAT_LUNCH_PLANE, {0,1,2,2},
+   {{0,0},{6,11},{11,8},{11,8}}};
+static F_SSHAPE_C cat_lunch2 = {CAT_LINK, CAT_LUNCH_PLANE, {3,0,1,2},
+   {{9,6},{0,0},{6,11},{11,8}}};
+static F_SSHAPE_C cat_lunch3 = {CAT_LINK, CAT_LUNCH_PLANE, {3,0,1,19},
+   {{11,5},{0,0},{6,11},{10,8}}};
+static F_SSHAPE_C cat_lunch4 = {CAT_LINK, CAT_LUNCH_PLANE, {3,0,1,19},
+   {{12,5},{0,0},{6,11},{10,8}}};
+static F_SSHAPE_C cat_lunch5 = {CAT_LINK, CAT_LUNCH_PLANE, {3,0,1,19},
+   {{14,4},{0,0},{6,11},{10,8}}};
+static F_SSHAPE_C cat_lunch6 = {CAT_LINK, CAT_LUNCH_PLANE, {3,0,1,19},
+   {{16,4},{0,0},{6,11},{10,8}}};
+static F_SSHAPE_C cat_lunch7 = {CAT_LINK, CAT_LUNCH_PLANE, {3,0,1,22},
+   {{18,2},{0,0},{6,11},{11,7}}};
+static F_SSHAPE_C cat_lunch8 = {CAT_LINK, CAT_LUNCH_PLANE, {4,0,1,22},
+   {{19,9},{0,0},{6,11},{11,7}}};
+static F_SSHAPE_C cat_lunch9 = {CAT_LINK, CAT_LUNCH_PLANE, {6,7,255,255},
+   {{-3,0},{17,2},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch10 = {CAT_LINK, CAT_LUNCH_PLANE, {6,255,255,255},
+   {{-3,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch11 = {CAT_LINK, CAT_LUNCH_PLANE, {8,9,10,8},
+   {{-1,-2},{22,10},{21,-18},{-1,-2}}};
+static F_SSHAPE_C cat_lunch12 = {CAT_LINK, CAT_LUNCH_PLANE, {10,8,9,255},
+   {{21,-19},{-1,-2},{22,8},{0,0}}};
+static F_SSHAPE_C cat_lunch13 = {CAT_LINK, CAT_LUNCH_PLANE, {10,8,9,255},
+   {{21,-21},{-1,-2},{22,9},{0,0}}};
+static F_SSHAPE_C cat_lunch14 = {CAT_LINK, CAT_LUNCH_PLANE, {10,8,9,255},
+   {{21,-24},{-1,-2},{22,11},{0,0}}};
+static F_SSHAPE_C cat_lunch15 = {CAT_LINK, CAT_LUNCH_PLANE, {10,8,9,255},
+   {{21,-27},{-1,-2},{22,12},{0,0}}};
+static F_SSHAPE_C cat_lunch16 = {CAT_LINK, CAT_LUNCH_PLANE, {10,8,9,255},
+   {{21,-28},{-1,-2},{22,12},{0,0}}};
+static F_SSHAPE_C cat_lunch17 = {CAT_LINK, CAT_LUNCH_PLANE, {12,8,9,255},
+   {{20,-29},{-1,-2},{22,12},{0,0}}};
+static F_SSHAPE_C cat_lunch18 = {CAT_LINK, CAT_LUNCH_PLANE, {13,8,9,255},
+   {{22,-29},{-1,-2},{22,12},{0,0}}};
+static F_SSHAPE_C cat_lunch19 = {CAT_LINK, CAT_LUNCH_PLANE, {13,8,9,255},
+   {{22,-28},{-1,-2},{22,12},{0,0}}};
+static F_SSHAPE_C cat_lunch20 = {CAT_LINK, CAT_LUNCH_PLANE, {11,8,9,255},
+   {{18,-26},{-1,-2},{22,12},{0,0}}};
+static F_SSHAPE_C cat_lunch21 = {CAT_LINK, CAT_LUNCH_PLANE, {8,11,9,255},
+   {{-1,-2},{19,-18},{22,12},{0,0}}};
+static F_SSHAPE_C cat_lunch22 = {CAT_LINK, CAT_LUNCH_PLANE, {11,14,255,255},
+   {{19,-7},{0,-1},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch23 = {CAT_LINK, CAT_LUNCH_PLANE, {11,14,255,255},
+   {{19,-6},{0,-1},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch24 = {CAT_LINK, CAT_LUNCH_PLANE, {14,12,255,255},
+   {{0,-1},{25,-5},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch25 = {CAT_LINK, CAT_LUNCH_PLANE, {13,14,255,255},
+   {{27,2},{0,-1},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch26_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {20,255,255,255},
+   {{6,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch26 = {&cat_lunch26_2, CAT_LUNCH_PLANE, {16,13,0,15},
+   {{13,5},{27,2},{0,0},{9,3}}};
+static F_SSHAPE_C cat_lunch27_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {20,255,255,255},
+   {{6,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch27 = {&cat_lunch27_2, CAT_LUNCH_PLANE, {16,13,0,15},
+   {{14,4},{27,2},{0,0},{9,3}}};
+static F_SSHAPE_C cat_lunch28_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {20,255,255,255},
+   {{6,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch28 = {&cat_lunch28_2, CAT_LUNCH_PLANE, {16,13,0,15},
+   {{15,3},{27,2},{0,0},{9,3}}};
+static F_SSHAPE_C cat_lunch29_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {13,255,255,255},
+   {{27,2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch29 = {&cat_lunch29_2, CAT_LUNCH_PLANE, {0,16,15,20},
+   {{0,0},{16,2},{9,3},{6,9}}};
+static F_SSHAPE_C cat_lunch30_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {20,255,255,255},
+   {{6,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch30 = {&cat_lunch30_2, CAT_LUNCH_PLANE, {0,16,15,13},
+   {{0,0},{17,2},{9,3},{27,2}}};
+static F_SSHAPE_C cat_lunch31_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {20,255,255,255},
+   {{6,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch31 = {&cat_lunch31_2, CAT_LUNCH_PLANE, {0,16,15,13},
+   {{0,0},{18,1},{9,3},{27,2}}};
+static F_SSHAPE_C cat_lunch32_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {20,255,255,255},
+   {{6,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch32 = {&cat_lunch32_2, CAT_LUNCH_PLANE, {0,16,15,13},
+   {{0,0},{16,2},{9,3},{27,2}}};
+static F_SSHAPE_C cat_lunch33 = {CAT_LINK, CAT_LUNCH_PLANE, {17,13,255,255},
+   {{-1,-1},{27,2},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch34 = {CAT_LINK, CAT_LUNCH_PLANE, {13,0,18,255},
+   {{27,2},{0,0},{8,7},{0,0}}};
+static F_SSHAPE_C cat_lunch35_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {20,255,255,255},
+   {{7,10},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch35 = {&cat_lunch35_2, CAT_LUNCH_PLANE, {13,21,0,19},
+   {{27,2},{12,6},{0,0},{9,7}}};
+static F_SSHAPE_C cat_lunch36_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {29,255,255,255},
+   {{7,11},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch36 = {&cat_lunch36_2, CAT_LUNCH_PLANE, {13,21,0,19},
+   {{27,2},{15,5},{0,0},{9,7}}};
+static F_SSHAPE_C cat_lunch37_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {30,255,255,255},
+   {{-3,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch37 = {&cat_lunch37_2, CAT_LUNCH_PLANE, {13,0,21,19},
+   {{27,2},{0,0},{18,4},{9,7}}};
+static F_SSHAPE_C cat_lunch38_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {30,255,255,255},
+   {{-5,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch38 = {&cat_lunch38_2, CAT_LUNCH_PLANE, {13,31,0,19},
+   {{27,2},{18,3},{0,0},{9,7}}};
+static F_SSHAPE_C cat_lunch39_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {30,255,255,255},
+   {{-5,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch39 = {&cat_lunch39_2, CAT_LUNCH_PLANE, {13,0,23,19},
+   {{27,2},{0,0},{19,1},{9,7}}};
+static F_SSHAPE_C cat_lunch40_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {22,255,255,255},
+   {{11,7},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch40 = {&cat_lunch40_2, CAT_LUNCH_PLANE, {13,23,0,30},
+   {{27,2},{17,2},{0,0},{-5,9}}};
+static F_SSHAPE_C cat_lunch41_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {22,255,255,255},
+   {{11,7},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch41 = {&cat_lunch41_2, CAT_LUNCH_PLANE, {13,23,0,30},
+   {{27,2},{15,3},{0,0},{-5,9}}};
+static F_SSHAPE_C cat_lunch42_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {25,255,255,255},
+   {{17,7},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch42 = {&cat_lunch42_2, CAT_LUNCH_PLANE, {13,0,30,22},
+   {{27,2},{0,0},{-5,9},{11,7}}};
+static F_SSHAPE_C cat_lunch43_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {30,255,255,255},
+   {{-5,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch43 = {&cat_lunch43_2, CAT_LUNCH_PLANE, {13,0,24,25},
+   {{27,2},{0,0},{11,7},{17,7}}};
+static F_SSHAPE_C cat_lunch44_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {30,255,255,255},
+   {{-5,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch44 = {&cat_lunch44_2, CAT_LUNCH_PLANE, {13,0,28,26},
+   {{27,2},{0,0},{19,2},{12,8}}};
+static F_SSHAPE_C cat_lunch45_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {30,255,255,255},
+   {{-5,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch45 = {&cat_lunch45_2, CAT_LUNCH_PLANE, {13,28,0,27},
+   {{27,2},{16,4},{0,0},{9,7}}};
+static F_SSHAPE_C cat_lunch46 = {CAT_LINK, CAT_LUNCH_PLANE, {13,0,27,30},
+   {{27,2},{0,0},{9,7},{-5,9}}};
+static F_SSHAPE_C cat_lunch47 = {CAT_LINK, CAT_LUNCH_PLANE, {13,0,26,30},
+   {{27,2},{0,0},{12,8},{-5,9}}};
+static F_SSHAPE_C cat_lunch48 = {CAT_LINK, CAT_LUNCH_PLANE, {13,0,22,30},
+   {{27,2},{0,0},{11,7},{-5,9}}};
+static F_SSHAPE_C cat_lunch49_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {29,255,255,255},
+   {{3,11},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch49 = {&cat_lunch49_2, CAT_LUNCH_PLANE, {13,0,19,19},
+   {{27,2},{0,0},{10,8},{10,8}}};
+static F_SSHAPE_C cat_lunch50_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {20,255,255,255},
+   {{6,10},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch50 = {&cat_lunch50_2, CAT_LUNCH_PLANE, {13,0,19,19},
+   {{27,2},{0,0},{10,8},{10,8}}};
+static F_SSHAPE_C cat_lunch51_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {20,255,255,255},
+   {{8,9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch51 = {&cat_lunch51_2, CAT_LUNCH_PLANE, {13,0,19,19},
+   {{27,2},{0,0},{10,8},{10,8}}};
+static F_SSHAPE_C cat_lunch52 = {CAT_LINK, CAT_LUNCH_PLANE, {9,10,33,255},
+   {{29,12},{28,-13},{-5,-4},{0,0}}};
+static F_SSHAPE_C cat_lunch53_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {19,255,255,255},
+   {{10,8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch53 = {&cat_lunch53_2, CAT_LUNCH_PLANE, {10,9,0,1},
+   {{28,-18},{29,12},{0,0},{6,11}}};
+static F_SSHAPE_C cat_lunch54_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {19,255,255,255},
+   {{10,8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch54 = {&cat_lunch54_2, CAT_LUNCH_PLANE, {0,12,9,1},
+   {{0,0},{27,-10},{29,12},{6,11}}};
+static F_SSHAPE_C cat_lunch55_2 = {CAT_LINK, CAT_LUNCH_PLANE1, {19,255,255,255},
+   {{10,8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_lunch55 = {&cat_lunch55_2, CAT_LUNCH_PLANE, {0,12,9,1},
+   {{0,0},{27,-6},{29,12},{6,11}}};
+static F_SSHAPE_C cat_lunch56 = {CAT_LINK, CAT_LUNCH_PLANE, {13,32,255,255},
+   {{27,2},{-2,-1},{0,0},{0,0}}};
+
+
+static CHARACTER_SEQ cat_lunch_character =
+   {
+      CAT_LUNCH_NUM_STATES,
+      CAT_LUNCH_INDEX,
+      {-10,-59,110,99},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_TUNNEL                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_TUNNEL_PLANE       CAT_PLANE
+#define CAT_TUNNEL_PLANE1      CAT_PLANE1
+#define CAT_TUNNEL_BORDERS     CAT_BORDERS
+
+/*
+*  anim sequence for the cat going into the tunnel is
+*  1,2,3,4,5,4,5,4,5,4,5,4,5,4,5,4,5,4,5,6,6,6,6,6,6,7,8,9,
+*  10,9,10,9,10,9,10,9,10,9,10,9,11,12,13,14,15,16,17,17,17,
+*  17,17,17,17,17,18,1,9,20,21,22,22,22,22,22,23,24,23,24,23,24,23.
+*  The anim sequence for the cat coming out of the tunnel is...
+*  25,26,27,28,27,28,27,28,27,28,27,28,27,28,29,30,31,32,33,34,35,36.
+*  The cat is at an offset of {-15,12} from the tunnel in normal
+*  position.  The flipped version is at an offset of {28,12} from the
+* tunnel.
+*/
+
+
+static F_SSHAPE_C cat_tunnel1 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,1,255,255},
+   {{0,0},{-5,2},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_tunnel2 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,1,255,255},
+   {{0,0},{-5,0},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_tunnel3 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,1,255,255},
+   {{0,0},{-5,4},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_tunnel4 = {CAT_LINK, CAT_TUNNEL_PLANE, {2,4,3,255},
+   {{-6,-1},{7,-8},{4,11},{-1,0}}};
+static F_SSHAPE_C cat_tunnel5 = {CAT_LINK, CAT_TUNNEL_PLANE, {2,6,5,255},
+   {{-6,-1},{10,-5},{2,10},{-1,0}}};
+static F_SSHAPE_C cat_tunnel6 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,7,255,255},
+   {{0,0},{1,3},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_tunnel7 = {CAT_LINK, CAT_TUNNEL_PLANE, {8,255,255,255},
+   {{0,1},{-1,0},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_tunnel8 = {CAT_LINK, CAT_TUNNEL_PLANE, {9,10,255,255},
+   {{-2,-2},{10,-17},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_tunnel9 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,11,12,255},
+   {{0,0},{7,8},{-1,2},{0,0}}};
+static F_SSHAPE_C cat_tunnel10 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,11,13,255},
+   {{0,0},{7,8},{-1,1},{0,0}}};
+static F_SSHAPE_C cat_tunnel11 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,11,14,255},
+   {{0,0},{7,8},{12,3},{-1,0}}};
+static F_SSHAPE_C cat_tunnel12 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,11,14,255},
+   {{0,0},{7,8},{12,1},{-1,0}}};
+static F_SSHAPE_C cat_tunnel13 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,11,14,255},
+   {{0,0},{7,8},{12,0},{-1,0}}};
+static F_SSHAPE_C cat_tunnel14 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,11,14,255},
+   {{0,0},{7,8},{12,-2},{-1,0}}};
+static F_SSHAPE_C cat_tunnel15 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,11,14,255},
+   {{0,0},{7,8},{12,-4},{-1,0}}};
+static F_SSHAPE_C cat_tunnel16 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,11,14,255},
+   {{0,0},{7,8},{12,-7},{-1,0}}};
+static F_SSHAPE_C cat_tunnel17 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,11,255,255},
+   {{0,0},{7,8},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_tunnel18 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,15,16,255},
+   {{0,0},{-2,3},{-7,5},{-1,0}}};
+static F_SSHAPE_C cat_tunnel19 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,15,16,255},
+   {{0,0},{-2,3},{-9,7},{-1,0}}};
+static F_SSHAPE_C cat_tunnel20 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,17,16,255},
+   {{0,0},{4,11},{-12,9},{-1,0}}};
+static F_SSHAPE_C cat_tunnel21 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,17,16,255},
+   {{0,0},{4,11},{-15,11},{-1,0}}};
+static F_SSHAPE_C cat_tunnel22 = {CAT_LINK, CAT_TUNNEL_PLANE, {0,17,255,255},
+   {{0,0},{4,11},{-1,0},{-1,0}}};
+static F_SSHAPE_C cat_tunnel23 = {CAT_LINK, CAT_TUNNEL_PLANE, {18,255,255,255},
+   {{-4,-6},{-8,0},{-8,0},{-8,0}}};
+static F_SSHAPE_C cat_tunnel24 = {CAT_LINK, CAT_TUNNEL_PLANE, {19,255,255,255},
+   {{-3,-5},{-8,0},{-8,0},{-8,0}}};
+static F_SSHAPE_C cat_tunnel25 = {CAT_LINK, CAT_TUNNEL_PLANE, {20,255,255,255},
+   {{-5,-5},{-13,-1},{-13,-1},{-13,-1}}};
+static F_SSHAPE_C cat_tunnel26 = {CAT_LINK, CAT_TUNNEL_PLANE, {20,255,255,255},
+   {{-5,-5},{-13,0},{-13,0},{-13,0}}};
+static F_SSHAPE_C cat_tunnel27 = {CAT_LINK, CAT_TUNNEL_PLANE, {21,255,255,255},
+   {{-6,-6},{-13,0},{-13,0},{-13,0}}};
+static F_SSHAPE_C cat_tunnel28 = {CAT_LINK, CAT_TUNNEL_PLANE, {22,255,255,255},
+   {{-7,-6},{-12,0},{-12,0},{-12,0}}};
+static F_SSHAPE_C cat_tunnel29 = {CAT_LINK, CAT_TUNNEL_PLANE, {23,255,255,255},
+   {{-1,-5},{-11,3},{-11,3},{-11,3}}};
+static F_SSHAPE_C cat_tunnel30 = {CAT_LINK, CAT_TUNNEL_PLANE, {23,255,255,255},
+   {{-1,-4},{-12,4},{-12,4},{-12,4}}};
+static F_SSHAPE_C cat_tunnel31 = {CAT_LINK, CAT_TUNNEL_PLANE, {23,255,255,255},
+   {{-1,-3},{-14,2},{-14,2},{-14,2}}};
+static F_SSHAPE_C cat_tunnel32 = {CAT_LINK, CAT_TUNNEL_PLANE, {24,255,255,255},
+   {{0,3},{-13,2},{-13,2},{-13,2}}};
+static F_SSHAPE_C cat_tunnel33 = {CAT_LINK, CAT_TUNNEL_PLANE, {24,255,255,255},
+   {{0,3},{-14,1},{-14,1},{-14,1}}};
+static F_SSHAPE_C cat_tunnel34 = {CAT_LINK, CAT_TUNNEL_PLANE, {24,255,255,255},
+   {{0,3},{-14,2},{-14,2},{-14,2}}};
+static F_SSHAPE_C cat_tunnel35 = {CAT_LINK, CAT_TUNNEL_PLANE, {25,255,255,255},
+   {{2,1},{-16,-1},{-16,-1},{-16,-1}}};
+static F_SSHAPE_C cat_tunnel36 = {CAT_LINK, CAT_TUNNEL_PLANE, {25,255,255,255},
+   {{2,0},{-16,0},{-16,0},{-16,0}}};
+
+
+static CHARACTER_SEQ cat_tunnel_character =
+   {
+      CAT_TUNNEL_NUM_STATES,
+      CAT_TUNNEL_INDEX,
+      {-29,-35,127,84},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_PENCIL1                                *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_PENCIL1_PLANE       CAT_PLANE
+#define CAT_PENCIL1_PLANE1      CAT_PLANE1
+#define CAT_PENCIL1_BORDERS     CAT_BORDERS
+
+/*
+*  This is the first part of the whole cat_pencil sequence.  the cat picks
+*  up the pencil and holds it in this sequence.
+*  1,1,1,1,1,1,2,2,2,2,2,2,3...  sshape #3 is the cat holding the pencil
+*  and waiting for sid to come within range of his pencil.  this shape
+*  should hold until sid gets to {83,8} offset from the cat.
+*  This leads into catpen2.
+*/
+
+static F_SSHAPE_C cat_pencil11_2 = {CAT_LINK, CAT_PENCIL1_PLANE1, {1,255,255,255},
+   {{6,11},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_pencil11 = {&cat_pencil11_2, CAT_PENCIL1_PLANE, {0,7,2,3},
+   {{0,0},{23,13},{10,2},{11,8}}};
+static F_SSHAPE_C cat_pencil12_2 = {CAT_LINK, CAT_PENCIL1_PLANE1, {3,255,255,255},
+   {{11,8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_pencil12 = {&cat_pencil12_2, CAT_PENCIL1_PLANE, {7,0,6,2},
+   {{23,13},{0,0},{11,9},{10,2}}};
+static F_SSHAPE_C cat_pencil13_2 = {CAT_LINK, CAT_PENCIL1_PLANE1, {8,4,255,255},
+   {{12,3},{10,6},{0,0},{0,0}}};
+static F_SSHAPE_C cat_pencil13 = {&cat_pencil13_2, CAT_PENCIL1_PLANE, {0,2,3,5},
+   {{0,0},{10,2},{11,8},{21,10}}};
+
+
+static CHARACTER_SEQ cat_pencil1_character =
+   {
+      CAT_PENCIL1_NUM_STATES,
+      CAT_PENCIL1_INDEX,
+      {0,1,105,39},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_PENCIL2                                *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_PENCIL2_PLANE       CAT_PLANE
+#define CAT_PENCIL2_PLANE1      CAT_PLANE1
+#define CAT_PENCIL2_BORDERS     CAT_BORDERS
+
+/*
+*  This is the 2nd part of the cat_pencil sequence.  The cat is
+*  actually using the eraser on Sid.  during this whole sequence,
+*  Sidroot is placed at an offset of {83,8} from the cat when he is holding
+*  the pencil (frame #3 of cat_pen1).
+*  1,2,3,4,5,6,7,8,9,10,11,12,10,4,5,6,7,8,9,10,11,12,10,4,5,6,7,8,
+*  9,10,11,12.  This end of this sequence starts both catpen3
+*  and catpen4.
+*/
+
+static F_SSHAPE_C cat_pencil21_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {8,3,4,13},
+   {{24,0},{17,5},{21,3},{9,13}}};
+static F_SSHAPE_C cat_pencil21 = {&cat_pencil21_2, CAT_PENCIL2_PLANE, {20,11,10,5},
+   {{41,5},{10,-2},{-3,5},{32,7}}};
+static F_SSHAPE_C cat_pencil22_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {12,7,16,17},
+   {{13,13},{20,8},{18,11},{38,14}}};
+static F_SSHAPE_C cat_pencil22 = {&cat_pencil22_2, CAT_PENCIL2_PLANE, {20,11,10,3},
+   {{41,5},{11,0},{-2,6},{18,7}}};
+static F_SSHAPE_C cat_pencil23_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {12,7,16,17},
+   {{15,15},{20,10},{20,12},{38,15}}};
+static F_SSHAPE_C cat_pencil23 = {&cat_pencil23_2, CAT_PENCIL2_PLANE, {20,11,10,3},
+   {{41,5},{13,1},{0,8},{20,8}}};
+static F_SSHAPE_C cat_pencil24_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {3,9,18,19},
+   {{21,5},{28,7},{19,8},{33,6}}};
+static F_SSHAPE_C cat_pencil24 = {&cat_pencil24_2, CAT_PENCIL2_PLANE, {20,11,10,13},
+   {{41,5},{13,-2},{0,5},{14,12}}};
+static F_SSHAPE_C cat_pencil25_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {13,7,16,17},
+   {{14,9},{24,3},{20,5},{40,8}}};
+static F_SSHAPE_C cat_pencil25 = {&cat_pencil25_2, CAT_PENCIL2_PLANE, {20,11,10,3},
+   {{41,5},{13,-6},{0,1},{20,2}}};
+static F_SSHAPE_C cat_pencil26_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {12,8,4,17},
+   {{15,7},{23,-4},{18,-1},{38,2}}};
+static F_SSHAPE_C cat_pencil26 = {&cat_pencil26_2, CAT_PENCIL2_PLANE, {20,11,10,3},
+   {{41,5},{13,-7},{0,0},{20,1}}};
+static F_SSHAPE_C cat_pencil27_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {12,7,16,17},
+   {{15,8},{24,3},{20,6},{40,9}}};
+static F_SSHAPE_C cat_pencil27 = {&cat_pencil27_2, CAT_PENCIL2_PLANE, {20,11,10,3},
+   {{41,5},{13,-5},{0,2},{20,2}}};
+static F_SSHAPE_C cat_pencil28_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {3,12,9,18},
+   {{21,5},{15,11},{25,8},{16,8}}};
+static F_SSHAPE_C cat_pencil28 = {&cat_pencil28_2, CAT_PENCIL2_PLANE, {20,19,11,10},
+   {{41,5},{31,6},{13,-3},{0,4}}};
+static F_SSHAPE_C cat_pencil29_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {12,5,8,4},
+   {{15,14},{35,7},{22,1},{19,4}}};
+static F_SSHAPE_C cat_pencil29 = {&cat_pencil29_2, CAT_PENCIL2_PLANE, {20,11,10,3},
+   {{41,5},{13,0},{0,7},{20,8}}};
+static F_SSHAPE_C cat_pencil210_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {12,7,16,17},
+   {{15,15},{20,10},{20,12},{37,15}}};
+static F_SSHAPE_C cat_pencil210 = {&cat_pencil210_2, CAT_PENCIL2_PLANE, {20,11,10,3},
+   {{41,5},{13,1},{0,8},{20,9}}};
+static F_SSHAPE_C cat_pencil211_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {3,19,9,18},
+   {{21,9},{33,10},{28,11},{19,12}}};
+static F_SSHAPE_C cat_pencil211 = {&cat_pencil211_2, CAT_PENCIL2_PLANE, {20,11,10,12},
+   {{41,5},{13,1},{0,8},{15,15}}};
+static F_SSHAPE_C cat_pencil212_2 = {CAT_LINK, CAT_PENCIL2_PLANE1, {3,8,4,17},
+   {{21,9},{22,3},{19,6},{39,9}}};
+static F_SSHAPE_C cat_pencil212 = {&cat_pencil212_2, CAT_PENCIL2_PLANE, {20,11,10,12},
+   {{41,5},{13,1},{0,8},{15,15}}};
+
+
+static CHARACTER_SEQ cat_pencil2_character =
+   {
+      CAT_PENCIL2_NUM_STATES,
+      CAT_PENCIL2_INDEX,
+      {-6,-15,116,61},
+   };
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_PENCIL4                                *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_PENCIL4_PLANE       CAT_PLANE
+#define CAT_PENCIL4_PLANE1      CAT_PLANE1
+#define CAT_PENCIL4_BORDERS     CAT_BORDERS
+
+/*
+*  This is the cat throwing away the pencil.  this sequence is played
+*  simultaneously with catpen3 or as a stand alone if the mouse doesn't
+*  come into range for the whole sequence to play.
+*  1,2,3,4,5,6,7..  sshape #7 should hold until catpen3 sequence
+*  is over.  or if used as a stand alone sequence it will then return
+*  to catroot.
+*/
+
+static F_SSHAPE_C cat_pencil41 = {CAT_LINK, CAT_PENCIL4_PLANE, {14,255,255,255},
+   {{2,-2},{-58,-43},{-58,-43},{-58,-43}}};
+static F_SSHAPE_C cat_pencil42_2 = {CAT_LINK, CAT_PENCIL4_PLANE1, {9,255,255,255},
+   {{-27,-5},{-29,-37},{-29,-37},{-29,-37}}};
+static F_SSHAPE_C cat_pencil42 = {&cat_pencil42_2, CAT_PENCIL4_PLANE, {0,2,3,15},
+   {{0,0},{10,3},{10,8},{-3,3}}};
+static F_SSHAPE_C cat_pencil43_2 = {CAT_LINK, CAT_PENCIL4_PLANE1, {7,255,255,255},
+   {{-40,-5},{-16,-37},{-16,-37},{-16,-37}}};
+static F_SSHAPE_C cat_pencil43 = {&cat_pencil43_2, CAT_PENCIL4_PLANE, {0,2,3,1},
+   {{0,0},{10,3},{10,8},{5,12}}};
+static F_SSHAPE_C cat_pencil44_2 = {CAT_LINK, CAT_PENCIL4_PLANE1, {7,255,255,255},
+   {{-46,-3},{-10,-39},{-10,-39},{-10,-39}}};
+static F_SSHAPE_C cat_pencil44 = {&cat_pencil44_2, CAT_PENCIL4_PLANE, {0,2,3,1},
+   {{0,0},{10,3},{10,8},{5,12}}};
+static F_SSHAPE_C cat_pencil45_2 = {CAT_LINK, CAT_PENCIL4_PLANE1, {8,255,255,255},
+   {{-51,0},{-5,-42},{-5,-42},{-5,-42}}};
+static F_SSHAPE_C cat_pencil45 = {&cat_pencil45_2, CAT_PENCIL4_PLANE, {0,2,3,1},
+   {{0,0},{10,3},{10,8},{5,12}}};
+static F_SSHAPE_C cat_pencil46_2 = {CAT_LINK, CAT_PENCIL4_PLANE1, {8,255,255,255},
+   {{-60,5},{4,-42},{4,-42},{4,-42}}};
+static F_SSHAPE_C cat_pencil46 = {&cat_pencil46_2, CAT_PENCIL4_PLANE, {0,2,3,1},
+   {{0,0},{10,3},{10,8},{5,12}}};
+static F_SSHAPE_C cat_pencil47_2 = {CAT_LINK, CAT_PENCIL4_PLANE1, {8,255,255,255},
+   {{-64,10},{8,-42},{8,-42},{8,-42}}};
+static F_SSHAPE_C cat_pencil47 = {&cat_pencil47_2, CAT_PENCIL4_PLANE, {0,2,3,1},
+   {{0,0},{10,3},{10,8},{5,12}}};
+
+
+static CHARACTER_SEQ cat_pencil4_character =
+   {
+      CAT_PENCIL4_NUM_STATES,
+      CAT_PENCIL4_INDEX,
+      {-137,-10,221,54},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_FISH                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+*  Cat sees the fish and walks up to it.  the anim sequence is
+*  1,1,1,1,1,1,1,1,1,1,2,2,3,3,3,4,4,4,5,5,5,6,6,6,6,6,7,7,7,7,7,
+*  8,8,8,8,8,9,9,9,9,9,10,10,10,10,10,10,11,11,12,12,13,13,14,14,15,15,16,16.
+*  If the cat is approaching from the left and head of fish is at left
+*  Then the cat will go into the above sequence starting at an offset 
+*  of {-40,-19} from the fish.  If the fish is facing the same way and
+*  the cat approaches from the right,  the cat must first walk past the
+*  fish then turn around and start the sequence with the same offset.
+*  If the fish is flipped and the cat approaches from the right then
+*  Play the above sequence in its flipped form and using an offset of
+*  {80,-19} from the fish.  If the cat approaches from the left with
+*  the fish flipped, then the cat must walk past the fish, turn around
+*  and then play the flipped sequence using the same offset.
+*
+*  Offset from fish...
+*  Normal = {-40,-19}
+*  Flipped = {80,-19}
+*/
+
+#define CAT_FISH_PLANE       CAT_PLANE
+#define CAT_FISH_PLANE1      CAT_PLANE1
+#define CAT_FISH_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_fish1 = {CAT_LINK, CAT_FISH_PLANE, {0,255,255,255},
+   {{-6,-1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish2 = {CAT_LINK, CAT_FISH_PLANE, {2,1,255,255},
+   {{33,7},{-4,3},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish3 = {CAT_LINK, CAT_FISH_PLANE, {4,3,255,255},
+   {{1,3},{2,-3},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish4 = {CAT_LINK, CAT_FISH_PLANE, {6,5,7,255},
+   {{3,-10},{-5,4},{27,-10},{0,0}}};
+static F_SSHAPE_C cat_fish5 = {CAT_LINK, CAT_FISH_PLANE, {8,9,255,255},
+   {{-9,1},{4,-10},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish6 = {CAT_LINK, CAT_FISH_PLANE, {11,10,255,255},
+   {{-5,0},{-13,10},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish7 = {CAT_LINK, CAT_FISH_PLANE, {13,14,12,18},
+   {{0,7},{1,-4},{-12,7},{6,-7}}};
+static F_SSHAPE_C cat_fish8_2 = {CAT_LINK, CAT_FISH_PLANE1, {17,255,255,255},
+   {{7,-10},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish8 = {&cat_fish8_2, CAT_FISH_PLANE, {18,19,20,16},
+   {{8,-22},{18,-7},{10,-17},{-3,2}}};
+static F_SSHAPE_C cat_fish9_2 = {CAT_LINK, CAT_FISH_PLANE1, {18,19,16,255},
+   {{8,-31},{18,-15},{-3,2},{0,0}}};
+static F_SSHAPE_C cat_fish9 = {&cat_fish9_2, CAT_FISH_PLANE, {17,19,20,20},
+   {{7,-10},{18,-7},{10,-25},{10,-18}}};
+static F_SSHAPE_C cat_fish10_2 = {CAT_LINK, CAT_FISH_PLANE1, {18,19,16,15},
+   {{8,-38},{18,-23},{-3,2},{9,-18}}};
+static F_SSHAPE_C cat_fish10 = {&cat_fish10_2, CAT_FISH_PLANE, {17,19,20,20},
+   {{7,-10},{18,-10},{10,-33},{10,-25}}};
+static F_SSHAPE_C cat_fish11 = {CAT_LINK, CAT_FISH_PLANE, {16,17,21,24},
+   {{-3,2},{7,-10},{17,-14},{6,-26}}};
+static F_SSHAPE_C cat_fish12_2 = {CAT_LINK, CAT_FISH_PLANE1, {25,255,255,255},
+   {{34,-18},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish12 = {&cat_fish12_2, CAT_FISH_PLANE, {13,12,14,22},
+   {{0,7},{-12,7},{1,-4},{15,1}}};
+static F_SSHAPE_C cat_fish13_2 = {CAT_LINK, CAT_FISH_PLANE1, {25,255,255,255},
+   {{42,-14},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish13 = {&cat_fish13_2, CAT_FISH_PLANE, {12,23,13,14},
+   {{-12,7},{13,4},{0,7},{1,-4}}};
+static F_SSHAPE_C cat_fish14_2 = {CAT_LINK, CAT_FISH_PLANE1, {25,255,255,255},
+   {{49,-10},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish14 = {&cat_fish14_2, CAT_FISH_PLANE, {12,23,13,14},
+   {{-12,7},{13,4},{0,7},{1,-4}}};
+static F_SSHAPE_C cat_fish15_2 = {CAT_LINK, CAT_FISH_PLANE1, {25,255,255,255},
+   {{56,-5},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish15 = {&cat_fish15_2, CAT_FISH_PLANE, {12,23,13,14},
+   {{-12,7},{13,4},{0,7},{1,-4}}};
+static F_SSHAPE_C cat_fish16_2 = {CAT_LINK, CAT_FISH_PLANE1, {25,255,255,255},
+   {{63,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_fish16 = {&cat_fish16_2, CAT_FISH_PLANE, {12,23,13,14},
+   {{-12,7},{13,4},{0,7},{1,-4}}};
+
+
+static CHARACTER_SEQ cat_fish_character =
+   {
+      CAT_FISH_NUM_STATES,
+      CAT_FISH_INDEX,
+      {-26,-77,193,129},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                CAT_HAIRDRYER                               *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_HAIRDRYER_PLANE       CAT_PLANE
+#define CAT_HAIRDRYER_PLANE1      CAT_PLANE1
+#define CAT_HAIRDRYER_BORDERS     CAT_BORDERS
+
+/*
+*  This is what happens to the cat if the hairdryer blows on him.
+*  sequence  1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,3...
+*  At frame 3 he is puffed up and will float around like a balloon.
+*  I don't know where, if any, the points you need fror placement 
+*  would be.
+*/
+
+static F_SSHAPE_C cat_hairdryer1 = {CAT_LINK, CAT_HAIRDRYER_PLANE, {0,255,255,255},
+   {{-11,3},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hairdryer2 = {CAT_LINK, CAT_HAIRDRYER_PLANE, {1,255,255,255},
+   {{-11,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_hairdryer3 = {CAT_LINK, CAT_HAIRDRYER_PLANE, {2,255,255,255},
+   {{-4,1},{6,7},{6,7},{6,7}}};
+
+
+static CHARACTER_SEQ cat_hairdryer_character =
+   {
+      CAT_HAIRDRYER_NUM_STATES,
+      CAT_HAIRDRYER_INDEX,
+      {-22,-12,71,52},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_MIRROR1                                *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_MIRROR1_PLANE       CAT_PLANE
+#define CAT_MIRROR1_PLANE1      CAT_PLANE1
+#define CAT_MIRROR1_BORDERS     CAT_BORDERS
+
+/*
+*  This si the cat side of the catmirror sequence.  
+*  1,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,
+*  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,1,1,1,1,1,1,1,1,1,4,4,4,4,4,4,4,
+*  5,6,7,8,9,10,11,12,13.
+*  the cat is at an offset of {-68,24 from the mirror.
+*/
+
+static F_SSHAPE_C cat_mirror11 = {CAT_LINK, CAT_MIRROR1_PLANE, {1,255,255,255},
+   {{1,0},{0,-12},{0,-12},{0,-12}}};
+static F_SSHAPE_C cat_mirror12 = {CAT_LINK, CAT_MIRROR1_PLANE, {3,255,255,255},
+   {{-1,5},{0,-12},{0,-12},{0,-12}}};
+static F_SSHAPE_C cat_mirror13 = {CAT_LINK, CAT_MIRROR1_PLANE, {5,255,255,255},
+   {{1,-9},{0,-12},{0,-12},{0,-12}}};
+static F_SSHAPE_C cat_mirror14 = {CAT_LINK, CAT_MIRROR1_PLANE, {7,255,255,255},
+   {{0,7},{0,-12},{0,-12},{0,-12}}};
+static F_SSHAPE_C cat_mirror15 = {CAT_LINK, CAT_MIRROR1_PLANE, {9,10,12,11},
+   {{-5,-6},{32,9},{32,5},{30,11}}};
+static F_SSHAPE_C cat_mirror16 = {CAT_LINK, CAT_MIRROR1_PLANE, {9,10,11,11},
+   {{-4,-4},{35,6},{36,10},{32,14}}};
+static F_SSHAPE_C cat_mirror17 = {CAT_LINK, CAT_MIRROR1_PLANE, {9,11,11,11},
+   {{-7,-5},{34,18},{39,15},{39,8}}};
+static F_SSHAPE_C cat_mirror18 = {CAT_LINK, CAT_MIRROR1_PLANE, {9,10,12,11},
+   {{-4,-7},{32,9},{32,5},{30,11}}};
+static F_SSHAPE_C cat_mirror19 = {CAT_LINK, CAT_MIRROR1_PLANE, {9,10,11,11},
+   {{-8,-4},{35,6},{36,10},{32,14}}};
+static F_SSHAPE_C cat_mirror110 = {CAT_LINK, CAT_MIRROR1_PLANE, {9,11,11,11},
+   {{-4,-3},{34,18},{39,15},{39,8}}};
+static F_SSHAPE_C cat_mirror111 = {CAT_LINK, CAT_MIRROR1_PLANE, {9,10,12,11},
+   {{-3,-6},{32,9},{32,5},{30,11}}};
+static F_SSHAPE_C cat_mirror112 = {CAT_LINK, CAT_MIRROR1_PLANE, {9,10,11,11},
+   {{-7,-6},{35,6},{36,10},{32,14}}};
+static F_SSHAPE_C cat_mirror113 = {CAT_LINK, CAT_MIRROR1_PLANE, {9,11,11,11},
+   {{-5,-4},{34,18},{39,15},{39,8}}};
+
+
+static CHARACTER_SEQ cat_mirror1_character =
+   {
+      CAT_MIRROR1_NUM_STATES,
+      CAT_MIRROR1_INDEX,
+      {-17,5,102,63},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_MIRROR2                                *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_MIRROR2_PLANE       CAT_PLANE
+#define CAT_MIRROR2_PLANE1      CAT_PLANE1
+#define CAT_MIRROR2_BORDERS     CAT_BORDERS
+
+/*
+*  This is the mirror side of the cat mirror sequence.  
+*  1,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,
+*  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,1,1,1,1,1,1,1,1,1,4,4,4,4,4,4,4,
+*  5,6,7,8,9,10,11,12,13.  The cat is offset {-68,24} from the mirror.
+*/
+
+static F_SSHAPE_C cat_mirror21 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,2,255,255},
+   {{0,0},{2,1},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror22 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,4,255,255},
+   {{0,0},{5,14},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror23 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,6,255,255},
+   {{0,0},{1,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror24 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,8,255,255},
+   {{0,0},{5,16},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror25 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,13,255,255},
+   {{0,0},{0,1},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror26 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,13,255,255},
+   {{0,0},{0,2},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror27 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,13,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror28 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,13,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror29 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,13,255,255},
+   {{0,0},{0,2},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror210 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,13,255,255},
+   {{0,0},{0,2},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror211 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,13,255,255},
+   {{0,0},{0,2},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror212 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,13,255,255},
+   {{0,0},{0,2},{0,0},{0,0}}};
+static F_SSHAPE_C cat_mirror213 = {CAT_LINK, CAT_MIRROR2_PLANE, {0,13,255,255},
+   {{0,0},{0,2},{0,0},{0,0}}};
+
+
+static CHARACTER_SEQ cat_mirror2_character =
+   {
+      CAT_MIRROR2_NUM_STATES,
+      CAT_MIRROR2_INDEX,
+      {0,0,46,64},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_PEEL                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        Al slips on a banana peel. The sequence is:
+   1,2,3,4,5,6,7,8,9,9,10,10,11,11,12,12. The offset from sidroot to the
+   position after sid slips is (36,0)
+*/
+
+#define CAT_PEEL_PLANE       CAT_PLANE
+#define CAT_PEEL_PLANE1      CAT_PLANE1
+#define CAT_PEEL_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_peel1 = {CAT_LINK, CAT_PEEL_PLANE, {0,7,255,255},
+   {{-7,-5},{25,-4},{0,0},{0,0}}};
+static F_SSHAPE_C cat_peel2 = {CAT_LINK, CAT_PEEL_PLANE, {0,7,255,255},
+   {{-5,-12},{25,-11},{0,0},{0,0}}};
+static F_SSHAPE_C cat_peel3 = {CAT_LINK, CAT_PEEL_PLANE, {0,7,255,255},
+   {{-5,-21},{25,-28},{0,0},{0,0}}};
+static F_SSHAPE_C cat_peel4 = {CAT_LINK, CAT_PEEL_PLANE, {1,2,8,255},
+   {{-1,-23},{14,-4},{14,-29},{0,0}}};
+static F_SSHAPE_C cat_peel5 = {CAT_LINK, CAT_PEEL_PLANE, {1,3,8,255},
+   {{-1,-21},{22,-11},{14,-30},{0,0}}};
+static F_SSHAPE_C cat_peel6 = {CAT_LINK, CAT_PEEL_PLANE, {1,3,9,255},
+   {{0,-5},{22,5},{13,-27},{0,0}}};
+static F_SSHAPE_C cat_peel7 = {CAT_LINK, CAT_PEEL_PLANE, {4,5,11,255},
+   {{-10,9},{30,3},{9,-18},{0,0}}};
+static F_SSHAPE_C cat_peel8 = {CAT_LINK, CAT_PEEL_PLANE, {4,5,11,255},
+   {{-10,9},{30,4},{9,-3},{0,0}}};
+static F_SSHAPE_C cat_peel9 = {CAT_LINK, CAT_PEEL_PLANE, {4,3,255,255},
+   {{-10,10},{31,11},{0,0},{0,0}}};
+static F_SSHAPE_C cat_peel10 = {CAT_LINK, CAT_PEEL_PLANE, {6,255,255,255},
+   {{-3,-1},{-3,0},{-3,0},{-3,0}}};
+static F_SSHAPE_C cat_peel11 = {CAT_LINK, CAT_PEEL_PLANE, {6,255,255,255},
+   {{-3,-1},{-5,1},{-5,1},{-5,1}}};
+static F_SSHAPE_C cat_peel12 = {CAT_LINK, CAT_PEEL_PLANE, {6,255,255,255},
+   {{-3,-1},{-10,-1},{-10,-1},{-10,-1}}};
+
+
+static CHARACTER_SEQ cat_peel_character =
+   {
+      CAT_PEEL_NUM_STATES,
+      CAT_PEEL_INDEX,
+      {-19,-60,105,106},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_BANANA                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+*  This is the cat picking up the banana and eating it.
+*  The sequence is
+*  1,1,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,4,4,4,5,5,
+*  5,6,6,6,7,7,7,8,8,8,9,9,9,10,10,10,11,11,1,12,13,12,13,
+*  12,13,12,13,12,13,12,13.
+*  The banana should appear at supershape #9 at the offset (35,8) from the
+*  root to the banana peel.
+*  If the cat approaches from the left to the right he is 
+*  offset {-60,-22} from the banana.
+*  If the cat approaches from the right to the left he is
+*  offset {52,-22} from the banana.  The banana becomes part
+*  of the catbanana sequence at frame #2.  When frame #2 starts the
+*  screen banana should be gone.
+*/
+
+#define CAT_BANANA_PLANE       CAT_PLANE
+#define CAT_BANANA_PLANE1      CAT_PLANE1
+#define CAT_BANANA_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_banana1 = {CAT_LINK, CAT_BANANA_PLANE, {1,255,255,255},
+   {{-1,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_banana2 = {CAT_LINK, CAT_BANANA_PLANE, {2,3,6,4},
+   {{-3,0},{10,10},{22,0},{24,6}}};
+static F_SSHAPE_C cat_banana3 = {CAT_LINK, CAT_BANANA_PLANE, {2,6,5,3},
+   {{-3,0},{22,0},{23,7},{10,10}}};
+static F_SSHAPE_C cat_banana4 = {CAT_LINK, CAT_BANANA_PLANE, {2,3,7,8},
+   {{-3,0},{10,10},{17,4},{26,-12}}};
+static F_SSHAPE_C cat_banana5 = {CAT_LINK, CAT_BANANA_PLANE, {2,3,7,8},
+   {{-3,0},{10,10},{17,4},{26,-21}}};
+static F_SSHAPE_C cat_banana6 = {CAT_LINK, CAT_BANANA_PLANE, {2,3,7,8},
+   {{-3,0},{10,10},{17,4},{25,-25}}};
+static F_SSHAPE_C cat_banana7 = {CAT_LINK, CAT_BANANA_PLANE, {2,3,7,8},
+   {{-3,0},{10,10},{17,4},{26,-31}}};
+static F_SSHAPE_C cat_banana8 = {CAT_LINK, CAT_BANANA_PLANE, {2,3,7,10},
+   {{-3,0},{10,10},{17,4},{13,-33}}};
+static F_SSHAPE_C cat_banana9 = {CAT_LINK, CAT_BANANA_PLANE, {11,9,255,255},
+   {{12,-30},{-5,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_banana10 = {CAT_LINK, CAT_BANANA_PLANE, {11,9,255,255},
+   {{11,-25},{-5,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_banana11 = {CAT_LINK, CAT_BANANA_PLANE, {11,9,255,255},
+   {{10,-12},{-5,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_banana12 = {CAT_LINK, CAT_BANANA_PLANE, {12,13,255,255},
+   {{0,5},{2,-1},{0,0},{0,0}}};
+static F_SSHAPE_C cat_banana13 = {CAT_LINK, CAT_BANANA_PLANE, {12,14,255,255},
+   {{0,5},{4,-3},{0,0},{0,0}}};
+
+
+static CHARACTER_SEQ cat_banana_character =
+   {
+      CAT_BANANA_NUM_STATES,
+      CAT_BANANA_INDEX,
+      {-10,-66,83,106},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   CAT_RUG                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMAION
+        Al falls through the rug. One frame of animation: 1.
+*/
+
+#define CAT_RUG_PLANE       CAT_PLANE
+#define CAT_RUG_PLANE1      CAT_PLANE1
+#define CAT_RUG_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_rug1 = {CAT_LINK, CAT_RUG_PLANE, {0,255,255,255},
+   {{3,-8},{2,-13},{2,-13},{2,-13}}};
+
+
+static CHARACTER_SEQ cat_rug_character =
+   {
+      CAT_RUG_NUM_STATES,
+      CAT_RUG_INDEX,
+      {2,10,44,60},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_GUM2                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_GUM2_PLANE       CAT_PLANE
+#define CAT_GUM2_PLANE1      CAT_PLANE1
+#define CAT_GUM2_BORDERS     CAT_BORDERS
+
+/*
+This is the catgum 2 sequence.  This continues directly out of the catgum
+sequence.  Frame #1 is the popping bubble and frame #2 is Al falling
+down with physics.  The sequence is...
+1,1,2.
+Let physics take control at #2 until he hits a solid object then start 
+catgum3.
+*/
+
+
+static F_SSHAPE_C cat_gum_21 = {CAT_LINK, CAT_GUM2_PLANE, {13,16,255,255},
+   {{3,10},{-9,-3},{4,1},{0,0}}};
+static F_SSHAPE_C cat_gum_22 = {CAT_LINK, CAT_GUM2_PLANE, {17,255,255,255},
+   {{2,-8},{5,-14},{5,-14},{5,-14}}};
+
+
+static CHARACTER_SEQ cat_gum2_character =
+   {
+      CAT_GUM2_NUM_STATES,
+      CAT_GUM2_INDEX,
+      {-22,-7,93,100},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_GUM3                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_GUM3_PLANE       CAT_PLANE
+#define CAT_GUM3_PLANE1      CAT_PLANE1
+#define CAT_GUM3_BORDERS     CAT_BORDERS
+
+/*
+This is the third part of the catgum sequence.  This is Al on the ground
+after the bubble has popped.  the sequence is...
+1,1,1,1,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,5,5,5,6,6,
+6,7,7,7,8,8,8,8,8,8,8,8,8,8,9,9,8,8,9,9,8,8,9,9,8,8,9,9,10,10,10,10,10,
+11,11,11,11,12,12,12,12,12,12,13,13,13,14,14,15,15,16,16,17,17,12,12.
+Then into the next Cat sequence.
+*/
+
+
+static F_SSHAPE_C cat_gum31 = {CAT_LINK, CAT_GUM3_PLANE, {18,255,255,255},
+   {{-2,10},{0,0},{0,1},{0,0}}};
+static F_SSHAPE_C cat_gum32 = {CAT_LINK, CAT_GUM3_PLANE, {19,255,255,255},
+   {{3,-10},{0,0},{0,1},{0,0}}};
+static F_SSHAPE_C cat_gum33 = {CAT_LINK, CAT_GUM3_PLANE, {20,255,255,255},
+   {{0,0},{0,0},{0,1},{0,0}}};
+static F_SSHAPE_C cat_gum34 = {CAT_LINK, CAT_GUM3_PLANE, {21,255,255,255},
+   {{-3,1},{0,0},{0,1},{0,0}}};
+static F_SSHAPE_C cat_gum35 = {CAT_LINK, CAT_GUM3_PLANE, {22,255,255,255},
+   {{-1,1},{0,0},{0,1},{0,0}}};
+static F_SSHAPE_C cat_gum36 = {CAT_LINK, CAT_GUM3_PLANE, {23,255,255,255},
+   {{-1,0},{0,0},{0,1},{0,0}}};
+static F_SSHAPE_C cat_gum37 = {CAT_LINK, CAT_GUM3_PLANE, {6,24,255,255},
+   {{-1,6},{4,-1},{0,1},{0,0}}};
+static F_SSHAPE_C cat_gum38 = {CAT_LINK, CAT_GUM3_PLANE, {6,7,255,255},
+   {{-1,6},{1,0},{-6,1},{-6,1}}};
+static F_SSHAPE_C cat_gum39 = {CAT_LINK, CAT_GUM3_PLANE, {6,8,255,255},
+   {{-1,6},{3,-2},{-6,1},{-6,1}}};
+static F_SSHAPE_C cat_gum310 = {CAT_LINK, CAT_GUM3_PLANE, {26,255,255,255},
+   {{-6,1},{0,0},{0,1},{0,0}}};
+static F_SSHAPE_C cat_gum311 = {CAT_LINK, CAT_GUM3_PLANE, {6,27,28,255},
+   {{0,6},{15,9},{9,0},{0,0}}};
+static F_SSHAPE_C cat_gum312 = {CAT_LINK, CAT_GUM3_PLANE, {6,28,255,255},
+   {{0,6},{9,0},{-6,1},{-6,1}}};
+static F_SSHAPE_C cat_gum313 = {CAT_LINK, CAT_GUM3_PLANE, {6,28,29,255},
+   {{0,6},{9,0},{15,9},{0,0}}};
+static F_SSHAPE_C cat_gum314 = {CAT_LINK, CAT_GUM3_PLANE, {6,28,32,255},
+   {{0,6},{9,0},{13,7},{0,0}}};
+static F_SSHAPE_C cat_gum315 = {CAT_LINK, CAT_GUM3_PLANE, {6,28,31,255},
+   {{0,6},{9,0},{12,5},{0,0}}};
+static F_SSHAPE_C cat_gum316 = {CAT_LINK, CAT_GUM3_PLANE, {6,28,30,255},
+   {{0,6},{9,0},{10,7},{0,0}}};
+
+
+static CHARACTER_SEQ cat_gum3_character =
+   {
+      CAT_GUM3_NUM_STATES,
+      CAT_GUM3_INDEX,
+      {-11,-22,73,63},
+   };
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   CAT_EGG                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define CAT_EGG_PLANE       CAT_PLANE
+#define CAT_EGG_PLANE1      CAT_PLANE1
+#define CAT_EGG_BORDERS     CAT_BORDERS
+
+/*
+ The Categg sequence goes like this...
+ 1,1,2,2,3,3,4,4,5,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,
+ 6,6,6,6,7,7,7,7,7,7,7,7,7,7,6,6,6,6,6,6,7,7,7,7,7,7,6,6,
+ 6,6,6,7,7,7,7,7,6,6,6,6,7,7,7,7,8,8,8,89,9,8,9,8,10,11,12,13,
+ 14,15,16,17,14,17,14,17,14,17,14,17,14,17,14,17,14,17,18,19,18,
+ 19,18,19,18,20,21,22,21,22,21,22,23,24,25,26,27,26,27,26,27,28,
+ 28,29,29,28,28,29,29,28,28,29,29,28,28,29,29,28,28,29,29
+ */
+
+static F_SSHAPE_C cat_egg1 = {CAT_LINK, CAT_EGG_PLANE, {0,1,2,2},
+   {{-7,7},{1,-3},{3,6},{20,4}}};
+static F_SSHAPE_C cat_egg2 = {CAT_LINK, CAT_EGG_PLANE, {0,1,2,2},
+   {{-7,7},{1,-3},{-2,2},{27,4}}};
+static F_SSHAPE_C cat_egg3 = {CAT_LINK, CAT_EGG_PLANE, {15,5,2,2},
+   {{0,0},{7,-1},{-9,2},{32,10}}};
+static F_SSHAPE_C cat_egg4 = {CAT_LINK, CAT_EGG_PLANE, {15,5,2,2},
+   {{0,0},{7,-1},{34,17},{-16,11}}};
+static F_SSHAPE_C cat_egg5 = {CAT_LINK, CAT_EGG_PLANE, {15,5,255,255},
+   {{0,0},{7,-1},{0,0},{0,0}}};
+static F_SSHAPE_C cat_egg6 = {CAT_LINK, CAT_EGG_PLANE, {4,5,255,255},
+   {{-1,-2},{6,-4},{0,0},{0,0}}};
+static F_SSHAPE_C cat_egg7 = {CAT_LINK, CAT_EGG_PLANE, {3,5,255,255},
+   {{-1,0},{6,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_egg8 = {CAT_LINK, CAT_EGG_PLANE, {6,5,255,255},
+   {{0,5},{6,2},{0,0},{0,0}}};
+static F_SSHAPE_C cat_egg9 = {CAT_LINK, CAT_EGG_PLANE, {7,5,255,255},
+   {{0,5},{5,2},{0,0},{0,0}}};
+static F_SSHAPE_C cat_egg10 = {CAT_LINK, CAT_EGG_PLANE, {7,5,11,255},
+   {{0,5},{5,2},{11,-5},{0,0}}};
+static F_SSHAPE_C cat_egg11 = {CAT_LINK, CAT_EGG_PLANE, {6,5,11,255},
+   {{0,5},{6,2},{10,-5},{0,0}}};
+static F_SSHAPE_C cat_egg12 = {CAT_LINK, CAT_EGG_PLANE, {7,5,9,255},
+   {{0,5},{5,2},{9,-5},{0,0}}};
+static F_SSHAPE_C cat_egg13 = {CAT_LINK, CAT_EGG_PLANE, {6,8,11,255},
+   {{0,5},{5,4},{10,-4},{0,0}}};
+static F_SSHAPE_C cat_egg14 = {CAT_LINK, CAT_EGG_PLANE, {7,8,9,255},
+   {{0,5},{4,3},{7,-5},{0,0}}};
+static F_SSHAPE_C cat_egg15 = {CAT_LINK, CAT_EGG_PLANE, {6,8,11,255},
+   {{0,5},{5,4},{13,-4},{0,0}}};
+static F_SSHAPE_C cat_egg16 = {CAT_LINK, CAT_EGG_PLANE, {7,8,10,255},
+   {{0,5},{4,3},{12,-6},{0,0}}};
+static F_SSHAPE_C cat_egg17 = {CAT_LINK, CAT_EGG_PLANE, {6,8,10,255},
+   {{0,5},{5,4},{9,-5},{0,0}}};
+static F_SSHAPE_C cat_egg18_2 = {CAT_LINK, CAT_EGG_PLANE1, {9,255,255,255},
+   {{6,-5},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_egg18 = {&cat_egg18_2, CAT_EGG_PLANE, {7,12,11,9},
+   {{0,5},{5,3},{9,-3},{9,-7}}};
+static F_SSHAPE_C cat_egg19_2 = {CAT_LINK, CAT_EGG_PLANE1, {10,255,255,255},
+   {{6,-6},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_egg19 = {&cat_egg19_2, CAT_EGG_PLANE, {6,12,11,9},
+   {{0,5},{6,3},{10,-4},{12,-5}}};
+static F_SSHAPE_C cat_egg20 = {CAT_LINK, CAT_EGG_PLANE, {6,12,11,10},
+   {{0,5},{6,3},{13,-3},{8,-5}}};
+static F_SSHAPE_C cat_egg21 = {CAT_LINK, CAT_EGG_PLANE, {7,13,10,255},
+   {{0,5},{7,6},{8,-3},{0,0}}};
+static F_SSHAPE_C cat_egg22 = {CAT_LINK, CAT_EGG_PLANE, {6,13,11,255},
+   {{0,5},{8,5},{11,-4},{0,0}}};
+static F_SSHAPE_C cat_egg23 = {CAT_LINK, CAT_EGG_PLANE, {7,14,11,255},
+   {{0,5},{10,6},{10,-4},{0,0}}};
+static F_SSHAPE_C cat_egg24 = {CAT_LINK, CAT_EGG_PLANE, {6,11,14,255},
+   {{0,5},{11,-4},{11,6},{0,0}}};
+static F_SSHAPE_C cat_egg25 = {CAT_LINK, CAT_EGG_PLANE, {7,11,14,255},
+   {{0,5},{11,-4},{10,6},{0,0}}};
+static F_SSHAPE_C cat_egg26 = {CAT_LINK, CAT_EGG_PLANE, {6,255,255,255},
+   {{0,5},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_egg27 = {CAT_LINK, CAT_EGG_PLANE, {7,255,255,255},
+   {{0,5},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_egg28 = {CAT_LINK, CAT_EGG_PLANE, {3,255,255,255},
+   {{-2,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_egg29 = {CAT_LINK, CAT_EGG_PLANE, {4,255,255,255},
+   {{-2,-2},{0,0},{0,0},{0,0}}};
+
+
+static CHARACTER_SEQ cat_egg_character =
+   {
+      CAT_EGG_NUM_STATES,
+      CAT_EGG_INDEX,
+      {-31,-14,115,59},
+   };
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_SCRATCH                                *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* 
+   Al scratchs the yarn a bit. The sequence is: 1,2,3,4,5,6,1,1,1,1,1,2,3,4,
+   5,6. CAT_POUNCE should follow.
+*/
+
+#define CAT_SCRATCH_PLANE       CAT_PLANE
+#define CAT_SCRATCH_PLANE1      CAT_PLANE1
+#define CAT_SCRATCH_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_scratch1 = {CAT_LINK, CAT_SCRATCH_PLANE, {0,1,255,255},
+   {{0,0},{19,8},{0,0},{0,0}}};
+static F_SSHAPE_C cat_scratch2 = {CAT_LINK, CAT_SCRATCH_PLANE, {2,0,255,255},
+   {{16,4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_scratch3 = {CAT_LINK, CAT_SCRATCH_PLANE, {2,0,255,255},
+   {{19,4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_scratch4 = {CAT_LINK, CAT_SCRATCH_PLANE, {3,0,255,255},
+   {{20,8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_scratch5 = {CAT_LINK, CAT_SCRATCH_PLANE, {3,0,255,255},
+   {{17,7},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_scratch6 = {CAT_LINK, CAT_SCRATCH_PLANE, {0,4,255,255},
+   {{0,0},{19,8},{0,0},{0,0}}};
+
+
+static CHARACTER_SEQ cat_scratch_character =
+   {
+      CAT_SCRATCH_NUM_STATES,
+      CAT_SCRATCH_INDEX,
+      {0,0,64,40},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  CAT_YARN                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* 
+   Al fights/plays with the yarn. The sequence is: 1,2,3,1,2,3,1,2,3,1,2,3,
+   1,2,3,1,2,3,4,5,6,4,5,6,4,5,6,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5
+*/
+
+#define CAT_YARN_PLANE       CAT_PLANE
+#define CAT_YARN_PLANE1      CAT_PLANE1
+#define CAT_YARN_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_yarn1 = {CAT_LINK, CAT_YARN_PLANE, {0,255,255,255},
+   {{-12,-11},{1,0},{3,0},{0,0}}};
+static F_SSHAPE_C cat_yarn2 = {CAT_LINK, CAT_YARN_PLANE, {1,255,255,255},
+   {{-11,-9},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C cat_yarn3 = {CAT_LINK, CAT_YARN_PLANE, {2,255,255,255},
+   {{-13,-10},{1,-1},{1,-1},{1,-1}}};
+static F_SSHAPE_C cat_yarn4 = {CAT_LINK, CAT_YARN_PLANE, {3,4,255,255},
+   {{-5,-1},{10,4},{0,0},{0,0}}};
+static F_SSHAPE_C cat_yarn5 = {CAT_LINK, CAT_YARN_PLANE, {3,4,255,255},
+   {{-5,-1},{11,4},{0,0},{0,0}}};
+static F_SSHAPE_C cat_yarn6 = {CAT_LINK, CAT_YARN_PLANE, {3,4,255,255},
+   {{-5,-1},{11,4},{0,0},{0,0}}};
+
+
+static CHARACTER_SEQ cat_yarn_character =
+   {
+      CAT_YARN_NUM_STATES,
+      CAT_YARN_INDEX,
+      {-28,-23,111,77},
+   };
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 CAT_POUNCE                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* 
+   Al jumps on the yarn. The sequence is: 1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2
+   Supershape #3 Al flying through the air, which the game controls.
+   CAT_YARN should follow.
+*/
+
+#define CAT_POUNCE_PLANE       CAT_PLANE
+#define CAT_POUNCE_PLANE1      CAT_PLANE1
+#define CAT_POUNCE_BORDERS     CAT_BORDERS
+
+static F_SSHAPE_C cat_pounce1 = {CAT_LINK, CAT_POUNCE_PLANE, {0,255,255,255},
+   {{0,1},{0,0},{0,1},{0,0}}};
+static F_SSHAPE_C cat_pounce2 = {CAT_LINK, CAT_POUNCE_PLANE, {1,255,255,255},
+   {{-1,-1},{0,1},{0,2},{0,0}}};
+static F_SSHAPE_C cat_pounce3 = {CAT_LINK, CAT_POUNCE_PLANE, {2,255,255,255},
+   {{-7,-7},{0,0},{0,0},{0,0}}};
+
+
+static CHARACTER_SEQ cat_pounce_character =
+   {
+      CAT_POUNCE_NUM_STATES,
+      CAT_POUNCE_INDEX,
+      {-13,-15,94,76},
+   };
+
+/* * * * *
+*
+*  GLOBAL TABLES--This need to go at the very end of the file.
+*
+* * * * */
+CHARACTER_SEQ * const far cat_sequences[CAT_NUM_SEQUENCES] =
+{
+   &cat_root_character,
+   &cat_sleep_character,
+   &cat_bomb_character,
+   &cat_walk_character,
+   &cat_crack_character,
+   &cat_shake_character,
+   &cat_run_character,
+   &cat_hair_character,
+   &cat_birds_character,
+   &cat_flail_character,
+   0,
+   0,
+   0,
+   0,
+   &cat_pounce_character,
+   &cat_yarn_character,
+   &cat_shot_character,
+   &cat_angel_character,
+   &cat_spin_character,
+   &cat_skid_character,
+   &cat_ate_character,
+   &cat_runaw_character,
+   &cat_spinaw_character,
+   &cat_take_character,
+   &cat_climb_character,
+   &cat_cut_character,
+   &cat_stop_character,
+   &cat_hit_floor_character,
+   &cat_hit_ceiling_character,
+   &cat_hit_left_wall_character,
+   &cat_hit_right_wall_character,
+   &cat_slide1_character,
+   &cat_slide2_character,
+   &cat_slide3_character,
+   &cat_slide4_character,
+   &cat_pin1_character,
+   &cat_pin2_character,
+   &cat_pin3_character,
+   &cat_vac1_character,
+   &cat_vac2_character,
+   &cat_vac3_character,
+   &cat_piano_character,
+   &cat_gum_character,
+   &cat_butt_character,
+   &cat_lunch_character,
+   &cat_tunnel_character,
+   &cat_pencil1_character,
+   &cat_pencil2_character,
+   &cat_scratch_character,
+   &cat_pencil4_character,
+   &cat_fish_character,
+   &cat_hairdryer_character,
+   &cat_mirror1_character,
+   &cat_mirror2_character,
+   &cat_peel_character,
+   &cat_banana_character,
+   &cat_rug_character,
+   &cat_gum2_character,
+   &cat_gum3_character,
+   &cat_egg_character,
+};
+/* #if sizeof(cat_sequences)/sizeof(CHARACTER_SEQ *) != CAT_NUM_SEQUENCES 
+   compiler error -- cat_sequences is the wrong size!							  
+#endif */
+
+PC_SSHAPE_C far cat_ss_table[] =
+{
+   /* cat root */
+   &cat_root1,
+
+   /* cat sleep */
+   &cat_sleep1,&cat_sleep2,&cat_sleep3,
+
+   /* cat bomb */
+   &cat_bomb1,&cat_bomb2,&cat_bomb3,&cat_bomb4,&cat_bomb5,&cat_bomb6,
+   &cat_bomb7,&cat_bomb8,&cat_bomb9,&cat_bomb10,
+
+   /* cat_walk */
+   &cat_walk1,&cat_walk2,&cat_walk3,&cat_walk4,&cat_walk5,&cat_walk6,
+   &cat_walk7,&cat_walk8,&cat_walk9,&cat_walk10,&cat_walk11,
+
+   /* cat crack */
+   &cat_crack1,&cat_crack2,&cat_crack3,&cat_crack4,&cat_crack5,&cat_crack6,
+   &cat_crack7,&cat_crack8,&cat_crack9,&cat_crack10,
+
+   /* cat shake */
+   &cat_shake1,&cat_shake2,&cat_shake3,&cat_shake4,
+
+   /* cat run */
+   &cat_run1,&cat_run2,&cat_run3,&cat_run4,
+
+   /* cat hair */
+   &cat_hair1,&cat_hair2,&cat_hair3,&cat_hair4,&cat_hair5,&cat_hair6,
+   &cat_hair7,&cat_hair8,&cat_hair9,&cat_hair10,&cat_hair11,&cat_hair12,
+   &cat_hair13,
+
+   /* cat bird */
+   &cat_birds1,&cat_birds2,&cat_birds3,&cat_birds4,&cat_birds5,&cat_birds6,
+   &cat_birds7,&cat_birds8,&cat_birds9,&cat_birds10,&cat_birds11,
+
+   /* cat flail */
+   &cat_flail1,&cat_flail2,&cat_flail3,&cat_flail4,&cat_flail5,&cat_flail6,
+   &cat_flail7,&cat_flail8,&cat_flail9,&cat_flail10,&cat_flail11,&cat_flail12,
+
+   /* cat unused1 */
+   /* cat unused2 */
+   /* cat unused3 */
+   /* cat unused4 */
+   0,0,0,0,0,0,0,0,0,0,
+   0,0,0,0,0,0,0,0,0,0,
+   0,0,0,0,
+
+   /* cat pounce */
+   &cat_pounce1,&cat_pounce2,&cat_pounce3,
+
+   /* cat yarn */
+   &cat_yarn1,&cat_yarn2,&cat_yarn3,&cat_yarn4,&cat_yarn5,&cat_yarn6,
+
+   /* cat shot */
+   &cat_shot1,&cat_shot2,&cat_shot3,&cat_shot4,&cat_shot5,
+   &cat_shot6,&cat_shot7,&cat_shot8,&cat_shot9,&cat_shot10,
+   &cat_shot11,&cat_shot12,
+
+   /* cat angle */
+   &cat_angel1,&cat_angel2,&cat_angel3,
+
+   /* cat spin */
+   &cat_run1,&cat_run2,&cat_run3,&cat_run4,
+
+   /* cat skid */
+   &cat_run1,&cat_run2,&cat_run3,&cat_run4,
+
+   /* cat ate */
+   &cat_ate1,&cat_ate2,&cat_ate3,&cat_ate4,&cat_ate5,&cat_ate6,
+   &cat_ate7,&cat_ate8,&cat_ate9,&cat_ate10,&cat_ate11,&cat_ate12,
+   &cat_ate13,&cat_ate14,&cat_ate15,&cat_ate16,&cat_ate17,&cat_ate18,
+   &cat_ate19,&cat_ate20,&cat_ate21,&cat_ate22,&cat_ate23,&cat_ate24,
+   &cat_ate25,&cat_ate26,&cat_ate27,&cat_ate28,&cat_ate29,&cat_ate30,
+   &cat_ate31,&cat_ate32,&cat_ate33,&cat_ate34,&cat_ate35,&cat_ate36,
+   &cat_ate37,&cat_ate38,&cat_ate39,&cat_ate40,&cat_ate41,&cat_ate42,
+   &cat_ate43,&cat_ate44,&cat_ate45,&cat_ate46,&cat_ate47,
+
+   /* cat run away */
+   &cat_runaw1,&cat_runaw2,&cat_runaw3,&cat_runaw4,
+
+   /* cat spin away */
+   &cat_runaw1,&cat_runaw2,&cat_runaw3,&cat_runaw4,
+
+   /* cat take */
+   &cat_take1,&cat_take2,&cat_take3,&cat_take4,
+
+   /* cat climb */
+   &cat_climb1,&cat_climb2,&cat_climb3,
+
+   /* cat cut */
+   &cat_cut1,&cat_cut2,&cat_cut3,&cat_cut4,
+
+   /* cat stop */
+   &cat_stop1,&cat_stop2,&cat_stop3,&cat_stop4,&cat_stop5,&cat_stop6,
+
+   /* cat hit floor */
+   &cat_smash1,&cat_smash2,&cat_smash3,
+
+   /* cat hit ceiling */
+   &cat_smash4,&cat_smash5,&cat_smash6,
+
+   /* cat hit left wall */
+   &cat_smash8,
+
+   /* cat hit right wall */
+   &cat_smash7,
+
+   /* cat slide1 */
+   &cat_slide11,&cat_slide12,&cat_slide13,
+
+   /* cat slide2 */
+   &cat_slide21,&cat_slide22,&cat_slide23,
+
+   /* cat slide3 */
+   &cat_slide31,&cat_slide32,&cat_slide33,
+
+   /* cat slide4 */
+   &cat_slide41,&cat_slide42,&cat_slide43,
+
+   /* cat pin1 */
+   &cat_pin11,&cat_pin12,
+
+   /* cat pin2 */
+   &cat_pin21,&cat_pin22,&cat_pin23,
+
+   /* cat pin3 */
+   &cat_pin31,&cat_pin32,&cat_pin33,&cat_pin34,
+
+   /* cat vac1 */
+   &cat_vac11,&cat_vac12,
+
+   /* cat vac2 */
+   &cat_vac21,&cat_vac22,&cat_vac23,&cat_vac24,&cat_vac25,&cat_vac26,
+   &cat_vac27,&cat_vac28,
+
+   /* cat vac3 */
+   &cat_vac31,
+
+   /* cat piano */
+   &cat_piano1,&cat_piano2,&cat_piano3,&cat_piano4,&cat_piano5,
+
+   /* cat gum */
+   &cat_gum1,&cat_gum2,&cat_gum3,&cat_gum4,&cat_gum5,&cat_gum6,
+   &cat_gum7,&cat_gum8,&cat_gum9,&cat_gum10,&cat_gum11,&cat_gum12,
+   &cat_gum13,&cat_gum14,&cat_gum15,&cat_gum16,&cat_gum17,&cat_gum18,
+   &cat_gum19,&cat_gum20,&cat_gum21,&cat_gum22,&cat_gum23,&cat_gum24,
+   &cat_gum25,&cat_gum26,&cat_gum27,&cat_gum28,
+
+   /* cat butt */
+   &cat_butt1,&cat_butt2,
+
+   /* cat lunch */
+   &cat_lunch1,&cat_lunch2,&cat_lunch3,&cat_lunch4,&cat_lunch5,&cat_lunch6,
+   &cat_lunch7,&cat_lunch8,&cat_lunch9,&cat_lunch10,&cat_lunch11,&cat_lunch12,
+   &cat_lunch13,&cat_lunch14,&cat_lunch15,&cat_lunch16,&cat_lunch17,&cat_lunch18,
+   &cat_lunch19,&cat_lunch20,&cat_lunch21,&cat_lunch22,&cat_lunch23,&cat_lunch24,
+   &cat_lunch25,&cat_lunch26,&cat_lunch27,&cat_lunch28,&cat_lunch29,&cat_lunch30,
+   &cat_lunch31,&cat_lunch32,&cat_lunch33,&cat_lunch34,&cat_lunch35,&cat_lunch36,
+   &cat_lunch37,&cat_lunch38,&cat_lunch39,&cat_lunch40,&cat_lunch41,&cat_lunch42,
+   &cat_lunch43,&cat_lunch44,&cat_lunch45,&cat_lunch46,&cat_lunch47,&cat_lunch48,
+   &cat_lunch49,&cat_lunch50,&cat_lunch51,&cat_lunch52,&cat_lunch53,&cat_lunch54,
+   &cat_lunch55,&cat_lunch56,
+
+   /* cat tunnel */
+   &cat_tunnel1,&cat_tunnel2,&cat_tunnel3,&cat_tunnel4,&cat_tunnel5,&cat_tunnel6,
+   &cat_tunnel7,&cat_tunnel8,&cat_tunnel9,&cat_tunnel10,&cat_tunnel11,&cat_tunnel12,
+   &cat_tunnel13,&cat_tunnel14,&cat_tunnel15,&cat_tunnel16,&cat_tunnel17,&cat_tunnel18,
+   &cat_tunnel19,&cat_tunnel20,&cat_tunnel21,&cat_tunnel22,&cat_tunnel23,&cat_tunnel24,
+   &cat_tunnel25,&cat_tunnel26,&cat_tunnel27,&cat_tunnel28,&cat_tunnel29,&cat_tunnel30,
+   &cat_tunnel31,&cat_tunnel32,&cat_tunnel33,&cat_tunnel34,&cat_tunnel35,&cat_tunnel36,
+
+   /* cat pencil1 */
+   &cat_pencil11,&cat_pencil12,&cat_pencil13,
+
+   /* cat pencil2 */
+   &cat_pencil21,&cat_pencil22,&cat_pencil23,&cat_pencil24,&cat_pencil25,&cat_pencil26,
+   &cat_pencil27,&cat_pencil28,&cat_pencil29,&cat_pencil210,&cat_pencil211,&cat_pencil212,
+
+   /* cat scratch */
+   &cat_scratch1,&cat_scratch2,&cat_scratch3,&cat_scratch4,&cat_scratch5,&cat_scratch6,
+
+   /* cat pencil4 */
+   &cat_pencil41,&cat_pencil42,&cat_pencil43,&cat_pencil44,&cat_pencil45,&cat_pencil46,
+   &cat_pencil47,
+
+   /* cat fish */
+   &cat_fish1,&cat_fish2,&cat_fish3,&cat_fish4,&cat_fish5,&cat_fish6,
+   &cat_fish7,&cat_fish8,&cat_fish9,&cat_fish10,&cat_fish11,&cat_fish12,
+   &cat_fish13,&cat_fish14,&cat_fish15,&cat_fish16,
+
+   /* cat hair dryer */
+   &cat_hairdryer1,&cat_hairdryer2,&cat_hairdryer3,
+
+   /* cat mirror1 */
+   &cat_mirror11,&cat_mirror12,&cat_mirror13,&cat_mirror14,&cat_mirror15,&cat_mirror16,
+   &cat_mirror17,&cat_mirror18,&cat_mirror19,&cat_mirror110,&cat_mirror111,&cat_mirror112,
+   &cat_mirror113,
+
+   /* cat mirror2 */
+   &cat_mirror21,&cat_mirror22,&cat_mirror23,&cat_mirror24,&cat_mirror25,&cat_mirror26,
+   &cat_mirror27,&cat_mirror28,&cat_mirror29,&cat_mirror210,&cat_mirror211,&cat_mirror212,
+   &cat_mirror213,
+
+   /* cat peel */
+   &cat_peel1,&cat_peel2,&cat_peel3,&cat_peel4,&cat_peel5,&cat_peel6,
+   &cat_peel7,&cat_peel8,&cat_peel9,&cat_peel10,&cat_peel11,&cat_peel12,
+
+   /* cat banana */
+   &cat_banana1,&cat_banana2,&cat_banana3,&cat_banana4,&cat_banana5,&cat_banana6,
+   &cat_banana7,&cat_banana8,&cat_banana9,&cat_banana10,&cat_banana11,&cat_banana12,
+   &cat_banana13,
+
+   /* cat rug */
+   &cat_rug1,
+
+   /* cat gum2 */
+   &cat_gum_21,&cat_gum_22,
+
+   /* cat gum3 */
+   &cat_gum31,&cat_gum32,&cat_gum33,&cat_gum34,&cat_gum35,&cat_gum36,
+   &cat_gum37,&cat_gum38,&cat_gum39,&cat_gum310,&cat_gum311,&cat_gum312,
+   &cat_gum313,&cat_gum314,&cat_gum315,&cat_gum316,
+
+   /* cat egg */
+   &cat_egg1,&cat_egg2,&cat_egg3,&cat_egg4,&cat_egg5,&cat_egg6,
+   &cat_egg7,&cat_egg8,&cat_egg9,&cat_egg10,&cat_egg11,&cat_egg12,
+   &cat_egg13,&cat_egg14,&cat_egg15,&cat_egg16,&cat_egg17,&cat_egg18,
+   &cat_egg19,&cat_egg20,&cat_egg21,&cat_egg22,&cat_egg23,&cat_egg24,
+   &cat_egg25,&cat_egg26,&cat_egg27,&cat_egg28,&cat_egg29,
+
+};
+/* #if sizeof(cat_ss_table)/sizeof(P_SSHAPE) != CAT_NUM_STATES
+   compiler error -- cat_ss_table is the wrong size!
+#endif */
+
+TIM_VEC_C far cat_size[] =
+{
+   /* cat root */
+   {25,20},
+
+   /* cat sleep */
+   {25,21},{26,21},{27,20},
+
+   /* cat bomb */
+   {23,20},{23,20},{23,18},{21,18},{21,18},{21,16},{21,14},{21,14},{21,14},
+   {21,14},
+
+   /* cat walk */
+   {22,19},{23,22},{24,22},{28,18},{25,19},{22,22},{24,21},{28,19},{28,22},
+   {25,19},{25,21},
+
+   /* cat crack */
+   {28,20},{28,20},{28,20},{28,20},{28,20},{28,20},{28,20},{25,18},{25,15},
+   {32,15},
+
+   /* cat shake */
+   {23,21},{23,20},{23,21},{25,21},
+
+   /* cat run */
+   {31,22},{31,23},{31,23},{31,22},
+
+   /* cat hair */
+   {28,21},{30,18},{32,18},{40,19},{23,21},{29,21},{29,22},{35,19},{31,18},
+   {25,20},{22,21},{21,25},{49,25},
+
+   /* cat bird */
+   {26,32},{34,31},{41,30},{51,30},{54,29},{52,28},{50,28},{43,29},
+   {37,30},{31,31},{27,31},
+
+   /* cat flail */
+   {30,28},{27,33},{26,32},{31,28},{30,28},{26,33},{25,32},{31,28},{30,28},
+   {25,33},{27,32},{31,28},
+
+   /* cat unused1 */
+   /* cat unused2 */
+   /* cat unused3 */
+   /* cat unused4 */
+   {17,13},{17,13},{17,13},{17,13},{17,13},{17,13},{17,13},{17,13},{17,13},{17,13},
+   {17,13},{17,13},{17,13},{17,13},{17,13},{17,13},{17,13},{17,13},{17,13},{17,13},
+   {17,13},{17,13},{17,13},{17,13},
+
+   /* cat pounce */
+   {23,19},{25,22},{48,39},
+
+   /* cat yarn */
+   {54,36},{52,31},{54,36},{30,23},{30,23},{30,23},
+
+   /* cat shot */
+   {29,19},{25,19},{33,30},{28,19},{26,21},{30,16},{30,14},{28,21},
+   {30,19},{30,20},{30,24},{30,29},
+
+   /* cat angle */
+   {29,33},{29,33},{29,34},
+
+   /* cat spin */
+   {31,22},{31,23},{31,23},{31,22},
+
+   /* cat skid */
+   {31,22},{31,23},{31,23},{31,22},
+
+   /* cat ate */
+   {55,37},{51,38},{40,36},{40,34},{54,39},{47,35},
+   {41,38},{45,40},{56,35},{42,36},{42,42},{48,36},
+   {48,37},{51,37},{38,20},{38,20},{38,20},{38,20},
+   {38,20},{38,20},{38,20},{38,20},{38,20},{41,21},
+   {39,21},{39,21},{41,21},{40,21},{39,21},{42,21},
+   {41,27},{33,40},{29,48},{29,49},{29,45},{29,35},
+   {29,20},{27,21},{25,22},{31,20},{26,20},{24,20},
+   {24,20},{24,20},{24,20},{24,20},{24,20},
+
+   /* cat run away */
+   {33,26},{32,26},{33,26},{32,26},
+
+   /* cat spin away */
+   {33,26},{32,26},{33,26},{32,26},
+
+   /* cat take */
+   {36,24},{36,24},{36,25},{47,27},
+
+   /* cat climb */
+   {19,22},{19,21},{19,22},
+
+   /* cat cut */
+   {24,21},{39,25},{28,39},{28,34},
+
+   /* cat stop */
+   {47,15},{37,20},{40,22},{31,22},{34,21},{26,21},
+
+   /* cat hit floor */
+   {29,14},{26,13},{17,32},
+
+   /* cat hit ceiling */
+   {31,23},{35,14},{17,28},
+
+   /* cat hit left wall */
+   {17,27},
+
+   /* cat hit right wall */
+   {17,28},
+
+   /* cat slide1 */
+   {34,25},{35,25},{32,25},
+
+   /* cat slide2 */
+   {34,24},{33,24},{32,24},
+
+   /* cat slide3 */
+   {33,28},{32,28},{31,28},
+
+   /* cat slide4 */
+   {30,32},{27,32},{25,32},
+
+   /* cat pin1 */
+   {28,23},{18,37},
+
+   /* cat pin2 */
+   {31,23},{26,31},{24,31},
+
+   /* cat pin3 */
+   {23,20},{30,17},{34,28},{36,29},
+
+   /* cat vac1 */
+   {17,26},{17,29},
+
+   /* cat vac2 */
+   {18,35},{18,34},{18,35},{18,35},{18,35},{18,34},
+   {18,35},{19,35},
+
+   /* cat vac3 */
+   {22,28},
+
+   /* cat piano */
+   {29,20},{23,21},{25,20},{23,21},{25,20},
+
+   /* cat gum */
+   {23,21},{35,22},{36,22},{41,25},{38,29},{36,32},
+   {33,33},{32,33},{30,31},{29,28},{29,24},{29,20},
+   {26,22},{24,24},{24,24},{24,24},{25,24},{25,24},
+   {25,27},{25,29},{25,30},{25,32},{19,41},{19,42},
+   {19,43},{19,48},{20,50},{18,51},
+
+   /* cat butt */
+   {27,21},{26,23},
+
+   /* cat lunch */
+   {24,20},{25,20},{26,20},{28,20},{30,20},{31,20},
+   {33,20},{33,20},{38,19},{38,19},{42,38},{42,39},
+   {42,41},{42,44},{42,47},{42,48},{41,49},{41,49},
+   {41,48},{49,46},{50,38},{50,27},{50,27},{46,26},
+   {46,22},{46,20},{46,20},{46,20},{46,20},{46,20},
+   {46,20},{46,20},{46,21},{46,20},{46,20},{46,20},
+   {49,20},{51,20},{51,20},{51,20},{51,20},{51,20},
+   {51,20},{51,20},{51,20},{51,20},{51,20},{51,20},
+   {46,20},{46,20},{46,20},{53,33},{49,38},{48,30},
+   {48,26},{47,21},
+
+   /* cat tunnel */
+   {28,21},{28,21},{28,21},{33,29},{33,26},{23,21},
+   {23,19},{30,38},{23,21},{23,21},{23,21},{23,21},
+   {23,21},{23,23},{23,25},{23,27},{23,21},{30,21},
+   {32,21},{35,21},{38,21},{23,21},{33,26},{34,25},
+   {28,25},{28,25},{31,26},{30,26},{35,25},{35,24},
+   {35,23},{35,23},{35,23},{35,23},{25,19},{25,20},
+
+   /* cat pencil1 */
+   {52,20},{52,20},{39,20},
+
+   /* cat pencil2 */
+   {58,25},{57,21},{55,20},{55,25},{55,27},{55,28},
+   {55,26},{55,24},{55,21},{55,20},{55,20},{55,20},
+
+   /* cat scratch */
+   {27,20},{29,20},{32,20},{32,20},{29,20},{27,20},
+
+   /* cat pencil4 */
+   {32,23},{51,25},{64,25},{70,23},{75,20},{84,20},
+   {88,20},
+
+   /* cat fish */
+   {33,21},{52,17},{54,24},{40,30},{34,30},{40,20},
+   {39,27},{32,42},{32,51},{32,59},{36,46},{64,39},
+   {72,34},{79,30},{86,26},{93,31},
+
+   /* cat hair dryer */
+   {36,17},{35,19},{33,24},
+
+   /* cat mirror1 */
+   {25,20},{28,15},{25,30},{28,15},{42,26},{44,24},
+   {50,28},{41,27},{48,24},{47,26},{40,26},{47,26},
+   {48,27},
+
+   /* cat mirror2 */
+   {23,32},{23,32},{23,32},{23,32},{23,32},{23,32},
+   {23,32},{23,32},{23,32},{23,32},{23,32},{23,32},
+   {23,32},
+
+   /* cat peel */
+   {39,25},{38,32},{38,48},{28,49},{35,50},{34,47},
+   {46,39},{47,24},{53,15},{32,24},{32,24},{32,24},
+
+   /* cat banana */
+   {35,22},{35,21},{37,21},{40,32},{40,42},{40,46},
+   {40,51},{40,53},{29,50},{29,46},{29,32},{26,22},
+   {24,23},
+
+   /* cat rug */
+   {22,28},
+
+   /* cat gum2 */
+   {47,50},{22,30},
+
+   /* cat gum3 */
+   {29,14},{18,31},{25,20},{28,20},{25,19},{29,21},
+   {32,22},{26,21},{24,23},{31,19},{26,21},{24,21},
+   {24,21},{24,21},{24,21},{24,21},
+
+   /* cat egg */
+   {35,24},{42,24},{49,22},{58,24},{24,22},{27,25},
+   {26,21},{26,18},{25,18},{25,25},{26,26},{25,26},
+   {26,25},{25,25},{26,25},{25,27},{26,25},{25,27},
+   {26,27},{26,26},{25,24},{26,25},{25,25},{26,25},
+   {25,24},{26,15},{25,15},{26,20},{27,23},
+
+};
+/* #if sizeof(cat_size)/sizeof(TIM_VEC) != CAT_NUM_STATES
+   compiler error -- cat_size is the wrong size!
+#endif */
+
+TIM_SCVEC_C far cat_os[] =
+{
+   /* cat root */
+   {0,0},
+
+   /* cat sleep */
+   {0,0},{-1,0},{2,0},
+
+   /* cat bomb */
+   {0,0},{0,0},{2,2},{3,2},{3,2},{3,4},{3,6},{3,6},{3,6},{3,6},
+
+   /* cat walk */
+   {2,1},{0,-1},{2,-2},{0,2},{-1,1},{0,-1},{0,-1},{-3,1},{0,-1},{1,1},{1,0},
+
+   /* cat crack */
+   {-3,0},{-3,0},{-3,0},{-3,0},{-3,0},{-3,0},{-3,0},{-1,3},{-1,6},{-5,6},
+
+   /* cat shake */
+   {0,0},{0,1},{1,0},{-1,0},
+
+   /* cat run */
+   {-2,-2},{-2,-2},{-2,-2},{-2,-2},
+
+   /* cat hair */
+   {-3,0},{-5,3},{-7,2},{-14,2},{2,0},{-4,0},{-4,-1},{-5,1},{-1,2},{0,0},
+   {3,0},{1,-4},{-6,-2} ,
+
+   /* cat bird */
+   {-4,-11},{-6,-11},{-8,-10},{-14,-9},{-16,-9},{-16,-7},{-14,-7},
+   {-9,-9},{-7,-10},{-5,-10},{-3,-10},
+
+   /* cat flail */
+   {-2,-4},{-2,-4},{-2,-4},{-2,-4},{-2,-4},{-2,-4},{-2,-4},{-2,-4},{-2,-4},{-2,-4},{-2,-4},{-2,-4},
+
+   /* cat unused1 */
+   /* cat unused2 */
+   /* cat unused3 */
+   /* cat unused4 */
+   {4,6},{4,6},{4,6},{4,6},{4,6},{4,6},{4,6},{4,6},{4,6},{4,6},
+   {4,6},{4,6},{4,6},{4,6},{4,6},{4,6},{4,6},{4,6},{4,6},{4,6},
+   {4,6},{4,6},{4,6},{4,6},
+
+   /* cat pounce */
+   {0,1},{-1,-1},{-7,-7},
+
+   /* cat yarn */
+   {-12,-11},{-11,-9},{-13,-10},{-5,-1},{-5,-1},{-5,-1},
+
+   /* cat shot */
+   {-5,0},{-3,1},{-12,-10},{-4,0},{-4,-1},{-6,3},{-6,6},{-6,0},{-6,1},{-6,0},{-6,-3},{-6,-8},
+
+   /* cat angle */
+   {0,0},{0,0},{0,0},
+
+   /* cat spin */
+   {-2,-2},{-2,-2},{-2,-2},{-2,-2},
+
+   /* cat skid */
+   {-2,-2},{-2,-2},{-2,-2},{-2,-2},
+
+   /* cat ate */
+   {-14,-10},{-12,-11},{-5,-5},{-7,-11},{-10,-10},{-8,-10},{-8,-9},{-11,-18},
+   {-12,-11},{-3,-13},{-4,-14},{-3,-10},{-10,-10},{-10,-12},{0,0},{0,0},
+   {0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,-1},
+   {0,-1},{0,-1},{0,-1},{0,-1},{0,-1},{0,-1},{-5,-6},{-5,-20},
+   {-5,-27},{-5,-29},{-5,-24},{-5,-14},{-5,0},{0,-1},{0,-1},{-5,0},
+   {0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},
+   /* cat run away */
+   {-5,-6},{-5,-6},{-5,-6},{-5,-6},
+
+   /* cat spin away */
+   {-5,-6},{-5,-6},{-5,-6},{-5,-6},
+
+   /* cat take */
+   {-11,-4},{-11,-4},{-11,-5},{-11,-7},
+
+   /* cat climb */
+   {3,1},{3,1},{3,1},
+
+   /* cat cut */
+   {2,-1},{-7,-4},{4,-19},{2,-14},
+
+   /* cat stop */
+   {-12,5},{-16,0},{-8,-1},{-8,-1},{-8,-1},{-2,0},
+
+   /* cat hit floor */
+   {-1,6},{-5,6},{4,-11},
+
+   /* cat hit ceiling */
+   {-3,6},{-8,6},{4,0},
+
+   /* cat hit left wall */
+   {4,-4},
+
+   /* cat hit right wall */
+   {4,-2},
+
+   /* cat slide1 */
+   {-7,-1},{-8,-1},{-5,-1},
+
+   /* cat slide2 */
+   {-8,-1},{-7,-1},{-5,-1},
+
+   /* cat slide3 */
+   {-8,-4},{-6,-4},{-5,-4},
+
+   /* cat slide4 */
+   {-5,-7},{-3,-7},{-1,-7},
+
+   /* cat pin1 */
+   {-4,0},{3,5},
+
+   /* cat pin2 */
+   {-4,5},{-1,-8},{1,-8},
+
+   /* cat pin3 */
+   {-1,0},{-5,3},{-5,-3},{-11,-3},
+
+   /* cat vac1 */
+   {4,-6},{4,-8},
+
+   /* cat vac2 */
+   {4,-15},{4,-14},{4,-15},{4,-15},{4,-15},{4,-14},{4,-15},{4,-15},
+
+   /* cat vac3 */
+   {3,-8},
+
+   /* cat piano */
+   {0,0},{0,0},{0,0},{0,0},{0,0},
+
+   /* cat gum */
+   {0,0},{0,-1},{-3,0},{-5,-4},{-5,-8},{-5,-11},{-5,-13},{-5,-12},
+   {-5,-11},{-5,-8},{-5,-3},{-5,0},{-1,-1},{-1,-4},{-1,-4},{-1,-4},
+   {-1,-4},{-1,-4},{-1,-6},{-1,-8},{-1,-10},{-1,-12},{2,6},{4,6},
+   {2,6},{2,6},{4,6},{3,6},
+
+   /* cat butt */
+   {-3,0},{-2,-2},
+
+   /* cat lunch */
+   {0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},
+   {-3,0},{-3,0},{-1,-18},{-1,-19},{-1,-21},{-1,-24},{-1,-27},{-1,-28},
+   {-1,-29},{-1,-29},{-1,-28},{-1,-26},{-1,-18},{0,-7},{0,-6},{0,-5},
+   {0,-1},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},
+   {-1,-1},{0,0},{0,0},{0,0},{-3,0},{-5,0},{-5,0},{-5,0},
+   {-5,0},{-5,0},{-5,0},{-5,0},{-5,0},{-5,0},{-5,0},{-5,0},
+   {0,0},{0,0},{0,0},{-5,-13},{0,-18},{0,-10},{0,-6},{-2,-1},
+
+   /* cat tunnel */
+   {-5,0},{-5,0},{-5,0},{-6,-8},{-6,-5},{0,0},{0,1},{-2,-17},
+   {0,0},{0,0},{0,0},{0,0},{0,0},{0,-2},{0,-4},{0,-7},
+   {0,0},{-7,0},{-9,0},{-12,0},{-15,0},{0,0},{-4,-6},{-3,-5},
+   {-5,-5},{-5,-5},{-6,-6},{-7,-6},{-1,-5},{-1,-4},{-1,-3},{0,3},
+   {0,3},{0,3},{2,1},{2,0},
+
+   /* cat pencil1 */
+   {0,0},{0,0},{0,0},
+
+   /* cat pencil2 */
+   {-3,-2},{-2,0},{0,1},{0,-2},{0,-6},{0,-7},{0,-5},{0,-3},
+   {0,0},{0,1},{0,1},{0,1},
+
+   /* cat scratch */
+   {0,0},{0,0},{0,0},{0,0},{0,0},{0,0},
+
+   /* cat pencil4 */
+   {2,-2},{-27,-5},{-40,-5},{-46,-3},{-51,0},{-60,0},{-64,0},
+
+   /* cat fish */
+   {-6,-1},{-4,3},{1,-3},{-5,-10},{-9,-10},{-13,0},{-12,-7},{-3,-22},
+   {-3,-31},{-3,-38},{-3,-26},{-12,-18},{-12,-14},{-12,-10},{-12,-5},{-12,-4},
+
+   /* cat hair dryer */
+   {-11,3},{-11,1},{-4,1},
+
+   /* cat mirror1 */
+   {1,0},{-1,5},{1,-9},{0,6},{-5,-6},{-4,-4},{-7,-5},{-4,-7},
+   {-8,-4},{-4,-3},{-3,-6},{-7,-6},{-5,-4},
+
+   /* cat mirror2 */
+   {0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},
+   {0,0},{0,0},{0,0},{0,0},{0,0},
+
+   /* cat peel */
+   {-7,-5},{-5,-12},{-5,-28},{-1,-29},{-1,-30},{0,-27},{-10,-18},{-10,-3},
+   {-10,6},{-3,-1},{-3,-1},{-3,-1},
+
+   /* cat banana */
+   {-1,-2},{-3,0},{-3,0},{-3,-12},{-3,-21},{-3,-25},{-3,-31},{-3,-33},
+   {-5,-30},{-5,-25},{-5,-12},{0,-1},{0,-3},
+
+   /* cat rug */
+   {3,-8},
+
+   /* cat gum2 */
+   {-9,-3},{2,-8},
+
+   /* cat gum3 */
+   {-2,6},{3,-10},{0,0},{-3,1},{-1,1},{-1,0},{-1,-1},{-1,0},
+   {-1,-2},{-6,1},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},
+
+   /* cat egg */
+   {-7,-3},{-7,-3},{-9,-1},{-16,-1},{0,-1},{-1,-4},{-1,0},{0,2},
+   {0,2},{0,-5},{0,-5},{0,-5},{0,-4},{0,-5},{0,-4},{0,-6},
+   {0,-5},{0,-7},{0,-6},{0,-5},{0,-3},{0,-4},{0,-4},{0,-4},
+   {0,-4},{0,5},{0,5},{-2,0},{-2,-2},
+
+};
+/* #if sizeof(cat_os)/sizeof(TIM_SCVEC) != CAT_NUM_STATES
+   compiler error -- cat_os is the wrong size!
+#endif */
+
+#if 0
+P_PART_BORDER far cat_border_table[CAT_NUM_STATES] =
+{
+   /* cat root */
+   cat_root1_bord,
+
+   /* cat sleep */
+   cat_sleep1_bord,cat_sleep2_bord,cat_sleep3_bord,
+
+   /* cat bomb */
+   cat_bomb1_bord,cat_bomb2_bord,cat_bomb3_bord,cat_bomb4_bord,cat_bomb5_bord,
+   cat_bomb6_bord,cat_bomb7_bord,cat_bomb8_bord,cat_bomb9_bord,
+   cat_bomb10_bord,
+   
+   /* cat walk */
+   cat_walk1_bord,cat_walk2_bord,cat_walk3_bord,cat_walk4_bord,cat_walk5_bord,
+   cat_walk6_bord,cat_walk7_bord,cat_walk8_bord,cat_walk9_bord,cat_walk10_bord,
+   cat_walk11_bord,
+
+   /* cat crack */
+   cat_crack1_bord,cat_crack2_bord,cat_crack3_bord,cat_crack4_bord,
+   cat_crack5_bord,cat_crack6_bord,cat_crack7_bord,cat_crack8_bord,
+   cat_crack9_bord,cat_crack10_bord,
+
+   /* cat shake */
+   cat_shake1_bord,cat_shake2_bord,cat_shake3_bord,cat_shake4_bord,
+
+   /* cat run */
+   cat_run1_bord,cat_run2_bord,cat_run3_bord,cat_run4_bord,
+
+   /* cat hair */
+   cat_hair1_bord,cat_hair2_bord,cat_hair3_bord,cat_hair4_bord,cat_hair5_bord,
+   cat_hair6_bord,cat_hair7_bord,cat_hair8_bord,cat_hair9_bord,
+   cat_hair10_bord,cat_hair11_bord,cat_hair12_bord,cat_hair13_bord,
+
+   /* cat bird */
+   cat_birds1_bord,cat_birds1_bord,cat_birds1_bord,cat_birds1_bord,
+   cat_birds1_bord,cat_birds1_bord,cat_birds1_bord,cat_birds1_bord,
+   cat_birds1_bord,cat_birds1_bord,cat_birds1_bord,
+
+   /* cat flail */
+   cat_flail1_bord,cat_flail1_bord,cat_flail1_bord,cat_flail1_bord,
+   cat_flail1_bord,cat_flail1_bord,cat_flail1_bord,cat_flail1_bord,
+   cat_flail1_bord,cat_flail1_bord,cat_flail1_bord,cat_flail1_bord,
+
+   /* cat unused1 */
+   /* cat unused2 */
+   /* cat unused3 */
+   /* cat unused4 */
+   0,0,0,0,0,0,0,0,0,0,
+   0,0,0,0,0,0,0,0,0,0,
+   0,0,0,0,
+
+   /* cat pounce */
+   cat_pounce1_bord,cat_pounce1_bord,cat_pounce1_bord,
+
+   /* cat yarn */
+   cat_yarn1_bord,cat_yarn1_bord,cat_yarn1_bord,cat_yarn1_bord,
+   cat_yarn1_bord,cat_yarn1_bord,
+
+   /* cat shot */
+   cat_shot1_bord,cat_shot1_bord,cat_shot2_bord,cat_shot3_bord,cat_shot4_bord,
+   cat_shot5_bord,cat_shot6_bord,cat_shot7_bord,cat_shot8_bord,cat_shot9_bord,
+   cat_shot10_bord,cat_shot11_bord,
+
+   /* cat angle */
+   cat_angel1_bord,cat_angel1_bord,cat_angel1_bord,
+
+   /* cat spin */
+   cat_spin1_bord,cat_spin2_bord,cat_spin3_bord,cat_spin4_bord,
+
+   /* cat skid */
+   cat_skid1_bord,cat_skid2_bord,cat_skid3_bord,cat_skid4_bord,
+
+   /* cat ate */
+   cat_ate1_bord,cat_ate1_bord,cat_ate1_bord,cat_ate1_bord,
+   cat_ate1_bord,cat_ate1_bord,cat_ate1_bord,cat_ate1_bord,
+   cat_ate1_bord,cat_ate1_bord,cat_ate1_bord,cat_ate1_bord,
+   cat_ate1_bord,cat_ate1_bord,cat_ate15_bord,cat_ate15_bord,
+   cat_ate15_bord,cat_ate15_bord,cat_ate15_bord,cat_ate15_bord,
+   cat_ate15_bord,cat_ate15_bord,cat_ate15_bord,cat_ate15_bord,
+   cat_ate15_bord,cat_ate15_bord,cat_ate15_bord,cat_ate15_bord,
+   cat_ate15_bord,cat_ate15_bord,cat_ate31_bord,cat_ate31_bord,
+   cat_ate31_bord,cat_ate31_bord,cat_ate31_bord,cat_ate31_bord,
+   cat_ate31_bord,cat_ate38_bord,cat_ate38_bord,cat_ate38_bord,
+   cat_ate41_bord,cat_ate41_bord,cat_ate41_bord,cat_ate41_bord,
+   cat_ate41_bord,cat_ate41_bord,cat_ate41_bord,
+
+   /* cat run away */
+   cat_runaw1_bord,cat_runaw1_bord,cat_runaw1_bord,cat_runaw1_bord,
+
+   /* cat spin away */
+   cat_runaw1_bord,cat_runaw1_bord,cat_runaw1_bord,cat_runaw1_bord,
+
+   /* cat take */
+   cat_take1_bord,cat_take1_bord,cat_take1_bord,cat_take1_bord,
+
+   /* cat climb */
+   cat_climb1_bord,cat_climb2_bord,cat_climb3_bord,
+
+   /* cat cut */
+   cat_cut1_bord,cat_cut2_bord,cat_cut3_bord,cat_cut4_bord,
+
+   /* cat stop */
+   cat_stop1_bord,cat_stop2_bord,cat_stop3_bord,cat_stop4_bord,
+   cat_stop5_bord,cat_stop6_bord,
+
+   /* cat hit floor */
+   cat_smash1_bord,cat_smash2_bord,cat_smash3_bord,
+
+   /* cat hit ceiling */
+   cat_smash4_bord,cat_smash5_bord,cat_smash6_bord,
+
+   /* cat hit left wall */
+   cat_smash8_bord,
+
+   /* cat hit right wall */
+   cat_smash7_bord,
+
+   /* cat slide1 */
+   cat_slide11_bord,cat_slide11_bord,cat_slide11_bord,
+
+   /* cat slide2 */
+   cat_slide21_bord,cat_slide21_bord,cat_slide21_bord,
+
+   /* cat slide3 */
+   cat_slide31_bord,cat_slide31_bord,cat_slide31_bord,
+
+   /* cat slide4 */
+   cat_slide41_bord,cat_slide41_bord,cat_slide41_bord,
+
+   /* cat pin1 */
+   cat_pin11_bord,cat_pin12_bord,
+
+   /* cat pin2 */
+   cat_pin21_bord,cat_pin22_bord,cat_pin22_bord,
+
+   /* cat pin3 */
+   cat_pin31_bord,cat_pin32_bord,cat_pin33_bord,cat_pin34_bord,
+
+   /* cat vac1 */
+   cat_vac11_bord,cat_vac12_bord,
+
+   /* cat vac2 */
+   cat_vac21_bord,cat_vac21_bord,cat_vac23_bord,cat_vac23_bord,
+   cat_vac25_bord,cat_vac25_bord,cat_vac25_bord,cat_vac25_bord,
+
+   /* cat vac3 */
+   cat_vac31_bord,
+
+   /* cat piano */
+   cat_piano1_bord,cat_piano2_bord,cat_piano3_bord,cat_piano4_bord,
+   cat_piano5_bord,
+
+   /* cat gum */
+   cat_gum1_bord,cat_gum2_bord,cat_gum3_bord,cat_gum4_bord,
+   cat_gum5_bord,cat_gum6_bord,cat_gum7_bord,cat_gum8_bord,
+   cat_gum9_bord,cat_gum10_bord,cat_gum11_bord,cat_gum12_bord,
+   cat_gum13_bord,cat_gum14_bord,cat_gum14_bord,cat_gum14_bord,
+   cat_gum14_bord,cat_gum14_bord,cat_gum14_bord,cat_gum14_bord,
+   cat_gum21_bord,cat_gum22_bord,cat_gum23_bord,cat_gum24_bord,
+   cat_gum25_bord,cat_gum26_bord,cat_gum27_bord,cat_gum28_bord,
+
+   /* cat butt */
+   cat_butt1_bord,cat_butt2_bord,
+
+   /* cat lunch */
+   cat_lunch1_bord,cat_lunch2_bord,cat_lunch3_bord,cat_lunch4_bord,
+   cat_lunch5_bord,cat_lunch6_bord,cat_lunch7_bord,cat_lunch8_bord,
+   cat_lunch9_bord,cat_lunch9_bord,cat_lunch11_bord,cat_lunch11_bord,
+   cat_lunch11_bord,cat_lunch11_bord,cat_lunch11_bord,cat_lunch11_bord,
+   cat_lunch11_bord,cat_lunch11_bord,cat_lunch11_bord,cat_lunch11_bord,
+   cat_lunch11_bord,cat_lunch22_bord,cat_lunch22_bord,cat_lunch22_bord,
+   cat_lunch22_bord,cat_lunch26_bord,cat_lunch26_bord,cat_lunch26_bord,
+   cat_lunch26_bord,cat_lunch26_bord,cat_lunch26_bord,cat_lunch26_bord,
+   cat_lunch33_bord,cat_lunch34_bord,cat_lunch34_bord,cat_lunch34_bord,
+   cat_lunch34_bord,cat_lunch34_bord,cat_lunch34_bord,cat_lunch34_bord,
+   cat_lunch34_bord,cat_lunch34_bord,cat_lunch34_bord,cat_lunch34_bord,
+   cat_lunch34_bord,cat_lunch34_bord,cat_lunch34_bord,cat_lunch34_bord,
+   cat_lunch34_bord,cat_lunch34_bord,cat_lunch34_bord,cat_lunch52_bord,
+   cat_lunch53_bord,cat_lunch53_bord,cat_lunch53_bord,cat_lunch56_bord,
+
+   /* cat tunnel */
+   cat_tunnel1_bord,cat_tunnel2_bord,cat_tunnel3_bord,cat_tunnel4_bord,
+   cat_tunnel5_bord,cat_tunnel6_bord,cat_tunnel7_bord,cat_tunnel8_bord,
+   cat_tunnel9_bord,cat_tunnel9_bord,cat_tunnel9_bord,cat_tunnel9_bord,
+   cat_tunnel9_bord,cat_tunnel9_bord,cat_tunnel9_bord,cat_tunnel9_bord,
+   cat_tunnel9_bord,cat_tunnel9_bord,cat_tunnel9_bord,cat_tunnel9_bord,
+   cat_tunnel9_bord,cat_tunnel9_bord,cat_tunnel23_bord,cat_tunnel24_bord,
+   cat_tunnel25_bord,cat_tunnel26_bord,cat_tunnel27_bord,cat_tunnel28_bord,
+   cat_tunnel29_bord,cat_tunnel30_bord,cat_tunnel31_bord,cat_tunnel32_bord,
+   cat_tunnel33_bord,cat_tunnel34_bord,cat_tunnel35_bord,cat_tunnel36_bord,
+
+   /* cat pencil1 */
+   cat_pencil11_bord,cat_pencil11_bord,cat_pencil13_bord,
+
+   /* cat pencil2 */
+   cat_pencil21_bord,cat_pencil22_bord,cat_pencil23_bord,cat_pencil24_bord,
+   cat_pencil25_bord,cat_pencil26_bord,cat_pencil27_bord,cat_pencil28_bord,
+   cat_pencil29_bord,cat_pencil210_bord,cat_pencil211_bord,cat_pencil212_bord,
+
+   /* cat scratch */
+   cat_scratch1_bord,cat_scratch1_bord,cat_scratch1_bord,cat_scratch1_bord,
+   cat_scratch1_bord,cat_scratch1_bord,
+
+   /* cat pencil4 */
+   cat_pencil41_bord,cat_pencil42_bord,cat_pencil43_bord,cat_pencil43_bord,
+   cat_pencil43_bord,cat_pencil43_bord,cat_pencil43_bord,
+
+   /* cat fish */
+   cat_fish1_bord,cat_fish2_bord,cat_fish3_bord,cat_fish4_bord,
+   cat_fish5_bord,cat_fish6_bord,cat_fish7_bord,cat_fish8_bord,
+   cat_fish9_bord,cat_fish10_bord,cat_fish11_bord,cat_fish12_bord,
+   cat_fish13_bord,cat_fish13_bord,cat_fish13_bord,cat_fish13_bord,
+
+   /* cat hair dryer */
+   cat_hairdryer1_bord,cat_hairdryer2_bord,cat_hairdryer3_bord,
+
+   /* cat mirror1 */
+   cat_mirror11_bord,cat_mirror12_bord,cat_mirror13_bord,cat_mirror14_bord,
+   cat_mirror15_bord,cat_mirror16_bord,cat_mirror17_bord,cat_mirror18_bord,
+   cat_mirror19_bord,cat_mirror110_bord,cat_mirror111_bord,cat_mirror112_bord,
+   cat_mirror113_bord,
+
+   /* cat mirror2 */
+   cat_mirror21_bord,cat_mirror22_bord,cat_mirror22_bord,cat_mirror22_bord,
+   cat_mirror22_bord,cat_mirror22_bord,cat_mirror22_bord,cat_mirror22_bord,
+   cat_mirror22_bord,cat_mirror22_bord,cat_mirror22_bord,cat_mirror22_bord,
+   cat_mirror22_bord,
+
+   /* cat peel */
+   cat_peel1_bord,cat_peel2_bord,cat_peel3_bord,cat_peel4_bord,
+   cat_peel5_bord,cat_peel6_bord,cat_peel7_bord,cat_peel8_bord,
+   cat_peel9_bord,cat_peel10_bord,cat_peel11_bord,cat_peel12_bord,
+
+   /* cat banana */
+   cat_banana1_bord,cat_banana2_bord,cat_banana2_bord,cat_banana2_bord,
+   cat_banana5_bord,cat_banana5_bord,cat_banana5_bord,cat_banana5_bord,
+   cat_banana9_bord,cat_banana9_bord,cat_banana9_bord,cat_banana12_bord,
+   cat_banana13_bord,
+
+   /* cat rug */
+   cat_rug1_bord,
+
+   /* cat gum2 */
+   cat_gum_21_bord,cat_gum_22_bord,
+
+   /* cat gum3 */
+   cat_gum31_bord,cat_gum32_bord,cat_gum33_bord,cat_gum33_bord,
+   cat_gum33_bord,cat_gum33_bord,cat_gum33_bord,cat_gum33_bord,
+   cat_gum33_bord,cat_gum33_bord,cat_gum33_bord,cat_gum33_bord,
+   cat_gum33_bord,cat_gum33_bord,cat_gum33_bord,cat_gum33_bord,
+
+   /* cat egg */
+   cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,
+   cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,
+   cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,
+   cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,
+   cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,
+   cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,
+   cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,cat_egg1_bord,
+   cat_egg1_bord,
+
+};
+/* #if sizeof(cat_border_table)/sizeof(P_PART_BORDER) != CAT_NUM_STATES
+   compiler error -- cat_border_table is the wrong size!
+#endif */
+#endif
+
+void *cat_shape_tables[CAT_NUM_SEQUENCES];
+P_PART_BORDER far cat_fborder_table[CAT_NUM_STATES];
+
+
+
+

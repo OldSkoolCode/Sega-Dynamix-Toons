@@ -1,0 +1,638 @@
+/* $Header */
+/************************************************************************/
+/* Module:			segartns.c68														*/
+/* Description:	This module is for all routines that are sega 			*/
+/*						specific.															*/
+/* Component of:	TOONS.BIN															*/
+/* Original:		Kevin McGrath														*/
+/* Date Started:	02/18/94																*/
+/************************************************************************/
+/*					*** Copyright 1994 Futurescape Productions ***				*/
+/************************************************************************/
+
+/*
+ *
+ * $Log: SEGARTNS.C68_v $
+ * Revision 1.1  1994/06/15  23:29:24  KENH
+ * Initial revision
+ *
+ *
+ */
+
+#include <string.h>
+#include "vm.h"
+#include "tim.h"
+#include "gems.h"
+#define MEMF_CLEAR  (1L<<16)
+
+char *curtopheap;
+UWORD saveSYS_FirstSpr;
+
+int puznum = -1;
+UWORD globalErase;
+
+const char * const puznames[] = {
+
+/*	"home1.lev", 
+	"cake1.lev", */
+	"cake2.lev",
+	"cake3.lev",
+	"cake4.lev",
+	"cake5.lev",
+	"cake6.lev",
+	"cake7.lev",
+	"cake8.lev",
+	"cake9.lev",
+	"cake10.lev",
+	"cake11.lev",
+	"cake12.lev",
+	"cake13.lev",
+	"cake14.lev",
+	"cake15.lev",
+	"cake16.lev",
+	"cake17.lev",
+	"cake18.lev",
+	"cake19.lev",
+	"cake20.lev",
+	"cake21.lev",
+	"cake22.lev",
+	"cake23.lev",
+	"cake24.lev",
+	"cake25.lev",
+	"cake26.lev",
+	"cake27.lev",
+	"cake28.lev",
+	"cake29.lev",
+	"cake30.lev",
+
+	"bran1.lev",
+	"bran2.lev",
+	"bran3.lev",
+	"bran4.lev",
+	"bran5.lev",
+	"bran6.lev",
+	"bran7.lev",
+	"bran8.lev",
+	"bran9.lev",
+	"bran10.lev",
+	"bran11.lev",
+	"bran12.lev",
+	"bran13.lev",
+	"bran14.lev",
+	"bran15.lev",
+	"bran16.lev",
+	"bran17.lev",
+	"bran18.lev",
+	"bran19.lev",
+	"bran20.lev",
+
+	"hard1.lev",
+	"hard2.lev",
+/*	"hard3.lev",	*/
+	"hard4.lev",
+	"hard5.lev",
+/*	"hard6.lev",	*/
+	"hard7.lev",
+	"hard8.lev",
+	"hard9.lev",
+	"hard10.lev",
+	"hard11.lev",
+/*	"hard12.lev",	*/
+	"hard13.lev",
+	"hard14.lev",
+/*	"hard15.lev",	*/
+	"hard16.lev",
+	"hard17.lev",
+	"hard18.lev",
+	"hard19.lev",
+	"hard20.lev",
+	"hard21.lev",
+	"hard22.lev",
+	"hard23.lev",
+/*	"hard24.lev",	*/
+	"hard25.lev",
+
+/*	"loon1.lev",	*/
+	"loon2.lev",
+/*	"loon3.lev",	*/
+/*	"loon4.lev",	*/
+/*	"loon5.lev",	*/
+/*	"loon6.lev",	*/
+/*	"loon7.lev",	*/
+/*	"loon8.lev",	*/
+	"loon9.lev",
+	"loon10.lev",
+/*	"loon11.lev",	*/
+	"loon12.lev",
+/*	"loon13.lev",	*/
+	"loon14.lev",
+	"loon15.lev",
+	"loon16.lev",
+/*	"loon17.lev",	*/
+	"loon18.lev",
+/*	"loon19.lev",	*/
+/*	"loon20.lev",	*/
+/*	"loon21.lev",	*/
+	"loon22.lev",
+	"loon23.lev",
+	"loon24.lev",
+	"loon25.lev",
+};
+
+
+
+char filename[13];
+
+static const char	sfx_remap[] = {
+	-1,
+	0,
+	1,
+	2,
+	3,
+	4,
+	5,
+	6,
+	7,
+	8,
+	9,
+	10,
+	11,
+	12,
+	13,
+	14,
+	15,
+	16,
+	17,
+	18,
+	19,
+	20,
+	21,
+	22,
+	23,
+	24,
+	25,
+	26,
+	27,
+	28,
+	29,
+	30,
+	31,
+	32,
+	33,
+	34,
+	35,
+	36,
+	37,
+	38,
+	39,
+	40,
+	41,
+	42,
+	43,
+	44,
+	45,
+	46,
+	47,
+	48,
+	49,
+	50,
+	51,
+	52,
+	53,
+	54,
+	55,
+	56,
+	57,
+	58,
+	59,
+	60,
+	61,
+	62,
+	63,
+	64,
+	65,
+	66,
+	67,
+	68,
+	69,
+	70,
+	71,
+	72,
+	73,
+	74,
+	75,
+	76,
+	77,
+	78,
+	79,
+	80,
+	81,
+	82,
+	83,
+	84,
+	85,
+	86,
+	87,
+	88,
+	89,
+	90,
+	91,
+	92,
+	93,
+	94,
+	-1,
+	95,
+/* Bank change */
+	0,
+	1,
+	2,
+	3,
+	4,
+	5,
+	6,
+	7,
+	-1,
+	8,
+	9,
+	10,
+	11,
+	12,
+	13,
+	14,
+	15,
+	16,
+	17,
+	18,
+	19,
+	20,
+	21,
+	22,
+	23,
+	24,
+	25,
+	26,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	27,
+	28,
+	29,
+	30,
+	31,
+	-1,
+	-1,
+	32,
+	33,
+	-1,
+	-1,
+	-1,
+	34,
+	35
+};
+
+static short	jtp_sx_bank = 0;
+
+short
+jtp_sx_play(JTP_SX_ID id, short priority, short preempt)
+{
+	short	bank;
+	short	index;
+
+	if (id > 3000 && id < 3145) {
+		bank = (id > 3098 ? 1 : 0);
+		gemsstopall();
+		if (bank != jtp_sx_bank) {
+			if (bank)
+				gemsinit(&patchbank, &envbank, &seqbank, &sampbank2);
+			else
+				gemsinit(&patchbank, &envbank, &seqbank, &sampbank);
+		}
+		jtp_sx_bank = bank;
+		index = sfx_remap[id-3000];
+		if (index != -1)
+			gemsstartsong(index);
+	} 
+	return 0;
+}
+
+void
+jtp_sx_stop(JTP_SX_ID id)
+{
+}
+
+void
+jtp_sx_free(JTP_SX_ID id)
+{
+}
+
+short
+jtp_sx_load(JTP_SX_ID id)
+{
+	return 0;
+}
+
+short
+jtp_sx_master_volume(short volume)
+{
+	return 0;
+}
+
+long
+jtp_sx_playing(JTP_SX_ID id)
+{
+	return 0;
+}
+
+
+void *vm_hmalloc(long size, long flags)
+{
+
+	void *tempptr;
+	UWORD *ptr;
+	int i;
+
+	tempptr = malloc(size);			/* go through malloc possibly */
+	if (tempptr == NULL) {
+		SYS_VDPAccess = FALSE;
+		ptr = &CharSet;
+		ptr += 16;
+		SYS_SetVAddr(32);
+		for (i=0; i < (16 * 96); i++)
+			VDATA = *ptr++;
+		
+		SYS_SetPalette(&AsciiPalette);
+		ScreenRow = 5;
+		ScreenCol = 5;
+		printf("Unable to allocate\n     %ld bytes.\n",size);
+stop:
+		goto stop;
+	}
+	if (flags & MEMF_CLEAR)
+		memset(tempptr, 0, size);
+
+	if (((char *)(tempptr)+size) > curtopheap)
+		curtopheap = ((char *)(tempptr)+size);
+
+	return(tempptr);
+}
+
+void vm_hfree(void *memptr)
+{
+	free(memptr);
+
+}
+
+void *tn_calloc(short amount, short size)
+{
+	return(vm_hmalloc((long)amount*size, MEMF_CLEAR));
+
+}
+
+
+void HEAP_STRING(char *heapstr)
+{
+}
+
+void check_dongle(void)
+{
+}
+
+char *get_next_puzzle(short bin)
+{
+	long heapsize;
+	UWORD *ptr;
+	int i;
+
+	puznum++;
+   current_puzzle_number = puznum;
+	if (puznum >= (sizeof(puznames)/sizeof(char *)))
+		{
+		puznum = 0;
+#if 0
+		SYS_VDPAccess = FALSE;
+		ptr = &CharSet;
+		ptr += 16;
+		SYS_SetVAddr(32);
+		for (i=0; i < (16 * 96); i++)
+			VDATA = *ptr++;
+		
+		SYS_SetPalette(&AsciiPalette);
+		ScreenRow = 5;
+		ScreenCol = 5;
+		heapsize = (long)curtopheap-0x180000L;
+		printf("Total heap size used was %lx", heapsize);
+		SYS_VDPAccess = TRUE;
+		while(1);
+#endif
+		}
+
+	strcpy(filename, puznames[puznum]);
+	return(filename);
+}
+
+void mouse_clear_buttons()
+{
+
+}
+
+void vm_rect(short x, short y, short w, short h)
+{
+}
+
+void checkwritetorom(short dummy)
+{
+	UWORD *ptr;
+	int i;
+
+	if (writetorom())
+		{
+		SYS_VDPAccess = FALSE;
+		ptr = &CharSet;
+		ptr += 16;
+		SYS_SetVAddr(32);
+		for (i=0; i < (16 * 96); i++)
+			VDATA = *ptr++;
+		
+		SYS_SetPalette(&AsciiPalette);
+		ScreenRow = 5;
+		ScreenCol = 5;
+		printf("Write to ROM detected at %d\n", dummy);
+		SYS_VDPAccess = TRUE;
+		while(1);
+		}
+}
+
+/************************************************************************/
+/* Function:		void makeTempStatic(void)									  	*/
+/* Description:	makes all the current sprites static so adding			*/
+/*						sprites won't make them disapper when my_flip is 		*/
+/*						called. Saves current static sprites in variable.		*/
+/* Paramters:		.																		*/
+/*	Returns:			.																		*/
+/************************************************************************/
+void makeTempStatic(short drawActive)
+{
+
+	short redraw;
+	SSHAPE_C *ssptr;
+	UWORD temp1, temp2;
+	UCHAR plane;
+
+	if (spriteChar != startSprChar2)
+		{
+		waitDMAQueue();
+		SendSprList();
+		}
+
+	SYS_FirstSpr = SYS_SprAvail = saveSYS_FirstSpr;
+	/* now set the top of the character buffer to the max */
+	endSprChar2 = endSprChar1 = (Hscroll>>5);
+	/* and set the bottom to the current top of sprites */
+	startSprChar1 = startSprChar2 = spriteChar = FirstPageChar;
+	globPriority = 0xbf;
+	old_tim_mode = 0;
+	runfirsttime = TRUE;
+   draw_parts(1);
+
+   if ((active_part) && drawActive)
+	   {
+		plane = active_part->plane_num;
+		if (active_part->flags2 & F2_SUPERSHAPE)
+			{
+	      ssptr = *(prop[active_part->type].super_shapes);
+			plane = ssptr->plane_num;
+			}
+
+		temp1 = globPriority;
+		temp2 = is_partbin;
+		globPriority = 0xc0;
+		/* put characters in sprites for now */
+      is_partbin = TRUE;
+		redraw = active_part->redraw;
+        draw_part(active_part,0,0,plane);
+        active_part->redraw = ((redraw & 0x7f) - 1) | (redraw & 0x80);
+		globPriority = temp1;
+      is_partbin = temp2;
+     	}
+
+	runfirsttime = FALSE;
+	/* save off where we can start storeing characters */
+	startSprChar1 = startSprChar2 = SYS_LastChar = spriteChar;
+	/* save off top of sprites */
+	temp1 = SYS_SprAvail;
+	SendSprList();
+	/* now set all sprite currently in buffer to statics */
+	SYS_FirstSpr = SYS_SprAvail = temp1;
+}
+
+/************************************************************************/
+/* Function:		void resetPaging(void)											*/
+/* Description:	reset the sprite layout to a page-flipping system		*/
+/* Parameters:		.																		*/
+/* Returns:			.																		*/
+/************************************************************************/
+void resetPaging(void)
+{
+		spriteChar = startSprChar1 = SYS_LastChar = FirstPageChar;
+		startSprChar2 = (((Hscroll>>5)-spriteChar)/2)+spriteChar;
+		endSprChar1 = startSprChar2;
+		endSprChar2 = (Hscroll>>5);
+
+		SYS_FirstSpr = SYS_SprAvail = saveSYS_FirstSpr;
+}
+
+
+/* * * * *
+*
+*  check_free_memory(void);
+*
+*  This function check to see if there is enough memory for another part.
+*
+* * * * */
+short check_free_memory(void)
+{
+   short free_mem;
+
+#if 0
+   free_mem = coremax();
+   if (free_mem < 2048) /* was 4000 */
+   {
+      warning_message = 19;   /* Requester # */
+      return(0);
+   }
+   else
+   {
+   #if 0
+      free_mem = avail_near_memory();
+      if ((free_mem<5000) && (warned_low==0))
+         warned_low = 1;
+      else
+         if (free_mem > 6000)
+            warned_low = 0;
+   #endif
+   }
+#endif
+   return(1);
+}
+
+static unsigned long hp_org(void);
+static unsigned long hp_len(void);
+
+asm("	.text");
+asm("	.align	2");
+asm("hp_org:");
+asm("_hp_org:");
+asm("	move.l	#heap_org,d0");
+asm("	rts");
+
+asm("hp_len:");
+asm("_hp_len:");
+asm("	move.l	#heap_len,d0");
+asm("	rts");
+
+extern ULONG _heap_base;
+
+void freeall(void)
+{
+	ULONG tlong;
+	ULONG *tlptr;
+	ULONG hporg;
+
+	if (!_heap_base)
+		return;
+
+	tlong = hporg = hp_org();
+	do
+		{
+		tlptr = (ULONG *)tlong;
+		if (*tlptr & 1)
+			free((void *)(tlong+4));
+		tlong = ((*tlptr) & ~1);
+		}
+	while (tlong != hporg);
+		
+
+}
+
+
+/*
+*/
+void erase_part(PART *part)
+{
+	SSHAPE_C *ssptr;
+	UCHAR plane;
+
+	plane = part->plane_num;
+		if (part->flags2 & F2_SUPERSHAPE)
+			{
+	      ssptr = *(prop[part->type].super_shapes);
+			plane = ssptr->plane_num;
+			}
+
+	globalErase = TRUE;
+   draw_part(part,0,0,plane);
+	globalErase = FALSE;
+}
+

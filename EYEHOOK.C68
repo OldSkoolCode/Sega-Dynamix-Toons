@@ -1,0 +1,45 @@
+/* * * * *
+*
+*  EYEHOOK.C
+*
+*  This file contains the eyehook routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/05/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+
+void eyehook_reinit(PART *eh_part)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!eh_part)
+      return;
+
+   special_reinit(eh_part);
+   eh_part->rope_loc[0].x = 11;
+   if (eh_part->flags2 & F2_FLIP_V_DRAW)
+      eh_part->rope_loc[0].y = 13;
+   else
+      eh_part->rope_loc[0].y = 7;
+}
+
+
+
+#pragma argsused
+void eyehook_flip(PART *eh_part,short flip_mode)
+{
+   eh_part->flags2 ^= F2_FLIP_V_DRAW;
+   eyehook_reinit(eh_part);
+
+   sub_parts_to_er(eh_part,1|2);
+   part_to_er(eh_part,1|2);
+   set_redraw(eh_part,2);
+}

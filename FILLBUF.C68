@@ -1,0 +1,105 @@
+/*
+ *  fillbuf.c
+ *
+ *  Copyright 1987, 1992 by Sierra Systems.  All rights reserved.
+ */
+
+#include <stdio.h>
+
+/*================================ FILE_IO ==================================*/
+
+#include <stdlib.h>
+
+static void getbuf(FILE *);
+
+/*------------------------------ _fillbuf() ---------------------------------*/
+
+/*
+ * _fillbuf is a utility function used by the buffered read functions in
+ * the standard C library via reads through macro getc().  _fillbuf() is
+ * called to replenish the buffer belonging to a read or read/write stream,
+ * pointed to by fp, whenever the buffer is empty  It is the responsibility
+ * of the user to ensure that the buffer is empty, since its previous
+ * contents will be overwritten by _fillbuf().	If the stream is completely
+ * unbuffered (no buffering -- even character-at-a-time), then _fillbuf()
+ * attempts to allocate a buffer for the stream; if this fails, the stream is
+ * assigned a one-character buffer in the _iob struct and input is designated
+ * unbuffered.	If an I/O error exists on the stream, an I/O error occurs
+ * while replenishing the buffer, or _fillbuf() detects an invalid stream;
+ * EOF is returned.  If successful, the first character read is returned and
+ * the buffer pointer is set to point at the next character.
+ */
+
+int _fillbuf(register FILE *fp)
+{
+    /* If there was a previous call to ungetc(), clear the flag, */
+    /* reset ->cnt and return the ungotten character.		 */
+
+    if( fp->flags & _UNGCH ) {
+	fp->flags &= ~_UNGCH;
+	fp->cnt = fp->save_cnt;
+	return(fp->ungch);
+    }
+
+    if( fp->flags & _IORW )
+	fp->flags |= _IOREAD;
+
+    if( (fp->flags & (_IOEOF | _IOERR | _IOSTRING)) ||
+    !(fp->flags & _IOREAD) ) {
+	fp->cnt = 0;
+	return(EOF);
+    }
+
+    /* if writing to stdin and stdout or stderr is line buffered, flush */
+
+    if( fp == stdin ) {
+	if( stdout->flags & _IOLBF )
+	    fflush(stdout);
+	if( stderr->flags & _IOLBF )
+	    fflush(stderr);
+    }
+
+    /* if no buffer has been assigned, call getbuf() to get a buffer */
+
+    if( fp->base == NULL )
+	getbuf(fp);
+
+    fp->ptr = fp->base;
+    fp->cnt = read(fp->fd, fp->base, (fp->flags & _IONBF) ? 1: fp->bufsize);
+    if( fp->cnt-- <= 0 ) {
+	if( fp->cnt == -1 ) {
+	    fp->flags |= _IOEOF;
+	    if( fp->flags & _IORW )
+		fp->flags &= ~_IOREAD;
+	}
+	else
+	    fp->flags |= _IOERR;
+	fp->cnt = 0;
+	return(EOF);
+    }
+    return( (unsigned char)*fp->ptr++ );
+}
+
+/*------------------------------- getbuf() ----------------------------------*/
+
+static void getbuf(FILE *fp)
+{
+    if( (fp->flags & _IONBF) || 
+    (fp->base = malloc(BUFSIZ * sizeof(char))) == NULL ) {
+
+	/* no buffering or malloc() failed */
+
+	fp->base = &(fp->ungch);
+	if( !(fp->flags & _IONBF) ) {
+	    fp->flags &= ~(_IOFBF | _IOLBF);
+	    fp->flags |= _IONBF;
+	}
+    }
+    else {
+	if( !(fp->flags & _IOLBF) )
+	    fp->flags |= _IOFBF;
+	fp->flags |= _IOMYBUF;
+	fp->bufsize = BUFSIZ;
+    }
+}
+

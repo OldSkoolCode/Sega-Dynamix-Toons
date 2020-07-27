@@ -1,0 +1,371 @@
+/* * * * *
+*
+*  QUERY.C
+*
+*  This file contains query pointer list routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/11/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+
+
+/* * * * *
+*
+*  void query_dist
+*  This function will link together all the parts in the specified rectangle.
+*  It should order them by distance.
+*
+* * * * */
+void query_dist(PART *pptr1,short list_type,short mx,short px,short my,short py)
+{
+   short x1l,x1h,y1l,y1h;
+   short x2l,x2h,y2l,y2h;
+   short dx,dy,temp,exit;
+   long distance1,distance2;
+   short fixed_d,fixed_temp;
+   PART *pptr2,*temp_pptr;
+
+   pptr1->qptr = 0;
+   x1l = pptr1->scrn_loc.x + pptr1->offset.x;
+   x1h = x1l + pptr1->size.x;
+   y1l = pptr1->scrn_loc.y + pptr1->offset.y;
+   y1h = y1l + pptr1->size.y;
+
+   pptr2 = get_first_part(list_type);
+   while (pptr2)
+   {
+      if (pptr1 == pptr2 || (pptr2->flags2 & F2_INACTIVE))
+         goto skip_part;
+
+      x2l = pptr2->scrn_loc.x + pptr2->offset.x;
+      x2h = x2l + pptr2->size.x;
+      y2l = pptr2->scrn_loc.y + pptr2->offset.x;
+      y2h = y2l + pptr2->size.y;
+
+      dx = x2h - x1l;
+      if (dx < mx)
+         goto skip_part;
+      if (dx >= 0)
+         fixed_d = -1;
+      else
+         fixed_d = dx;
+      temp = x2l - x1h;
+      if (temp > px)
+         goto skip_part;
+      if (temp <= 0)
+         fixed_temp = 1;
+      else
+         fixed_temp = temp;
+      if (abs(temp) < abs(dx))
+         dx = fixed_temp;
+      else
+         dx = fixed_d;
+
+      dy = y2h - y1l;
+      if (dy < my)
+         goto skip_part;
+      if (dy >= 0)
+         fixed_d = -1;
+      else
+         fixed_d = dy;
+      temp = y2l - y1h;
+      if (temp > py)
+         goto skip_part;
+      if (temp <= 0)
+         fixed_temp = 1;
+      else
+         fixed_temp = temp;
+      if (abs(temp) < abs(dy))
+         dy = fixed_temp;
+      else
+         dy = fixed_d;
+
+      distance1 = dx*dx + dy*dy;
+      exit = 0;
+      temp_pptr = pptr1;
+      while (!exit && temp_pptr->qptr)
+      {
+         distance2 = temp_pptr->qptr->qdist.x * temp_pptr->qptr->qdist.x +
+            temp_pptr->qptr->qdist.y * temp_pptr->qptr->qdist.y;
+         if (distance1 < distance2)
+            exit = 1;
+         else
+            temp_pptr = temp_pptr->qptr;
+      }
+      pptr2->qptr = temp_pptr->qptr;
+      temp_pptr->qptr = pptr2;
+      pptr2->qdist.x = dx;
+      pptr2->qdist.y = dy;
+
+   skip_part:
+      pptr2 = get_next_part(pptr2,list_type&F1_MOVE_L);
+   }
+}
+
+
+
+/* * * * *
+*
+*  void tn_query_dist
+*  This function will link together all the parts in the specified rectangle.
+*  It orders them by distance.
+*
+* * * * */
+void tn_query_dist(PART *pptr1,short list_type,short x,short y,short w,short h)
+{
+   short new_x, new_y, new_w, new_h, exit;
+   short old_x, old_y;
+   long dx,dy,dx2,dy2,distance1,distance2;
+   PART *pptr2,*temp_pptr;
+
+   /* set up the variable for the rectangle compares and the distance  */
+   /* calculations */
+   x += pptr1->scrn_loc.x;
+   y += pptr1->scrn_loc.y;
+   /* NOTE: base_size is used here to prevent ambiguous jumping.  */
+   /* NOTE: offsets are not used to because base_size is used. */
+   old_x = pptr1->scrn_loc.x + (pptr1->base_size.x >> 1);
+   old_y = pptr1->scrn_loc.y + (pptr1->base_size.y >> 1);
+
+   pptr1->qptr = 0;
+   pptr2 = get_first_part(list_type);
+   while (pptr2)
+   {
+      if ((pptr1 != pptr2) && !(pptr2->flags2 & F2_INACTIVE))
+      {
+         new_x = pptr2->scrn_loc.x + pptr2->offset.x;
+         new_y = pptr2->scrn_loc.y + pptr2->offset.y;
+         new_w = pptr2->size.x;
+         new_h = pptr2->size.y;
+
+         if (  (x + w < new_x) || (new_x + new_w < x)
+            || (y + h < new_y) || (new_y + new_h < y))
+            goto skip_part;
+
+         /* calculate the distance vector between the two parts. */
+         /* first check which edge is closest to the midpoint of the original */
+         /* part. */
+         if (abs(old_x - new_x) < abs(old_x - (new_x + new_w)))
+            dx = new_x - old_x;
+         else
+            dx = (new_x + new_w) - old_x;
+
+         if (abs(old_y - new_y) < abs(old_y - (new_y + new_h)))
+            dy = new_y - old_y;
+         else
+            dy = (new_y + new_h) - old_y;
+
+         /* use only the sides that are relevant. In other words, do not  */
+         /* calculate the nearest point. Rather calculate the nearest side. */
+         if ((old_y > new_y) && (old_y < new_y + new_h))
+            dy = 0;
+         if ((old_x > new_x) && (old_x < new_x + new_w) && dy)
+            dx = 0;
+
+         /* insert new pptr into the qlist by distance */
+         distance1 = dx*dx + dy*dy;
+         exit = 0;
+         temp_pptr = pptr1;
+         while (!exit && temp_pptr->qptr)
+         {
+            dx2 = temp_pptr->qptr->qdist.x;
+            dy2 = temp_pptr->qptr->qdist.y;
+
+            distance2 = dx2*dx2 + dy2*dy2;
+            if (distance1 < distance2)
+               exit = 1;
+            else
+               temp_pptr = temp_pptr->qptr;
+         }
+         pptr2->qptr = temp_pptr->qptr;
+         temp_pptr->qptr = pptr2;
+         pptr2->qdist.x = dx;
+         pptr2->qdist.y = dy;
+      }
+
+   skip_part:
+      pptr2 = get_next_part(pptr2,list_type&F1_MOVE_L);
+   }
+}
+
+
+
+void query_rect(PART *pptr1,short list_type,short xl,short xh,short yl,short yh)
+{
+   short x2l,x2h,y2l,y2h;
+   PART *pptr2;
+   short active_check=0;
+
+   pptr1->qptr = 0;
+   xl += pptr1->scrn_loc.x;
+   xh += pptr1->scrn_loc.x;
+   yl += pptr1->scrn_loc.y;
+   yh += pptr1->scrn_loc.y;
+
+   if(active_part)
+   {
+      pptr2 = active_part;
+      active_check = 1;
+   }
+   else
+      pptr2 = get_first_part(list_type);
+
+   while (pptr2)
+   {
+      if ((pptr1 == pptr2) || (!active_check && (pptr2 == active_part)))
+         goto skip_part;
+
+      if (pptr2->flags2 & F2_INACTIVE)
+         goto skip_part;
+
+      x2l = pptr2->scrn_loc.x + pptr2->offset.x;
+      x2h = x2l + pptr2->size.x;
+      y2l = pptr2->scrn_loc.y + pptr2->offset.y;
+      y2h = y2l + pptr2->size.y;
+
+      if ((x2l<xh) && (x2h>xl) && (y2l<yh) && (y2h>yl))
+      {
+         pptr2->qptr = pptr1->qptr;
+         pptr1->qptr = pptr2;
+      }
+
+   skip_part:
+      if(active_check)
+      {
+         active_check = 0;
+         pptr2 = get_first_part(list_type);
+      }
+      else
+         pptr2 = get_next_part(pptr2,list_type&F1_MOVE_L);
+   }
+}
+
+
+
+void query_line(PART *pptr1,short list_type,LINE_SEG *ls)
+{
+   short bord_num2;
+   short x2,x3,first_x2,y2,y3,first_y2;
+   LINE_SEG bseg2;
+   TIM_VEC is;
+   P_PART_BORDER bptr2;
+   PART *pptr2;
+
+   pptr1->qptr = 0;
+
+   pptr2 = get_first_part(list_type);
+   while (pptr2)
+   {
+      if (pptr2 == pptr1)
+         goto skip_part;
+
+      bord_num2 = 1;
+      bptr2 = pptr2->border;
+      first_x2 = x2 = pptr2->scrn_loc.x + bptr2->x;
+      first_y2 = y2 = pptr2->scrn_loc.y + bptr2->y;
+      x3 = pptr2->scrn_loc.x + (bptr2+1)->x;
+      y3 = pptr2->scrn_loc.y + (bptr2+1)->y;
+      while (bptr2)
+      {
+         bseg2.x0 = x2 - pptr1->scrn_loc.x;
+         bseg2.y0 = y2 - pptr1->scrn_loc.y;
+         bseg2.x1 = x3 - pptr1->scrn_loc.x;
+         bseg2.y1 = y3 - pptr1->scrn_loc.y;
+
+         if (segment_intersect(ls,&bseg2,&is))
+         {
+            pptr2->qptr = pptr1->qptr;
+            pptr1->qptr = pptr2;
+            bord_num2 = pptr2->num_borders;
+         }
+
+         bord_num2++;
+         if (bord_num2 > pptr2->num_borders)
+            bptr2 = 0;
+         else
+         {
+            bptr2++;
+            x2 = x3;
+            y2 = y3;
+            if (bord_num2 == pptr2->num_borders)
+            {
+               x3 = first_x2;
+               y3 = first_y2;
+            }
+            else
+            {
+               x3 = pptr2->scrn_loc.x + (bptr2+1)->x;
+               y3 = pptr2->scrn_loc.y + (bptr2+1)->y;
+            }
+         }
+      }
+
+   skip_part:
+      pptr2 = get_next_part(pptr2,list_type&F1_MOVE_L);
+   }
+}
+
+
+#if 0
+void query_rect_fuse(PART *pptr1,short xl,short xh,short yl,short yh)
+{
+   short fx,fy;
+   PART *pptr2;
+
+   pptr1->qptr = 0;
+
+   xl += pptr1->scrn_loc.x;
+   xh += pptr1->scrn_loc.x;
+   yl += pptr1->scrn_loc.y;
+   yh += pptr1->scrn_loc.y;
+
+   pptr2 = get_first_part(F1_STATIC_L|F1_MOVE_L);
+   while (pptr2)
+   {
+      if (pptr1 == pptr2)
+         goto skip_part;
+
+      if (pptr2->flags2 & F2_INACTIVE)
+         goto skip_part;
+
+      if (pptr2->flags3 & F3_FUSE)
+      {
+         switch(pptr2->type)
+         {
+            case PT_BOMB:
+               if (pptr2->flags2 & F2_FLIP_H_DRAW)
+                  fx = 33;
+               else
+                  fx = 4;
+               fy = 1;
+               break;
+            default:
+               fx = fy = 0;
+               break;
+         }
+         fx += pptr2->scrn_loc.x;
+         fy += pptr2->scrn_loc.y;
+
+         if ((fx>=xl) && (fx<=xh) && (fy>=yl) & (fy<=yh))
+         {
+            pptr2->qptr = pptr1->qptr;
+            pptr1->qptr = pptr2;
+         }
+      }
+
+   skip_part:
+      pptr2 = get_next_part(pptr2,F1_MOVE_L);
+   }
+}
+#endif
+
+

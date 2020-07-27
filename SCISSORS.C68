@@ -1,0 +1,291 @@
+/* * * * *
+*
+*  SCISSORS.C
+*
+*  This file contains the scissors routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/05/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+
+/*local routines */
+static void cut_rope( PART *, LINE_SEG *);
+
+
+
+/* super shape - Scissors (part16) */
+F_SSHAPE_C p16_s0_0 = {0,4,{1,255,255,255},{{0,0},{0,0},{0,0},{0,0}}};
+F_SSHAPE_C p16_s0 = {&p16_s0_0,0,{0,255,255,255},{{0,0},{0,0},{0,0},{0,0}}};
+F_SSHAPE_C p16_s1 = {0,4,{2,255,255,255},{{-4,4},{0,0},{0,0},{0,0}}};
+PC_SSHAPE_C far p16_ss_tab[] = {&p16_s0, &p16_s1};
+TIM_VEC_C far p16_size[] = {{21,18},{28,10}};
+TIM_SCVEC_C far p16_os[] = {{0,0},{-4,4}};
+
+
+
+short scissors_bounce(PART *cur_part)
+{
+   short bord_num,cur_mid_x,scissors_mid_x;
+   PART *scissors;
+
+   scissors = cur_part->col_info.part;
+   bord_num = cur_part->col_info.border_num;
+   if((scissors->flags2 & F2_FLIP_H_DRAW) && (bord_num != scissors->num_borders-1))
+      bord_num = scissors->num_borders - bord_num - 2;
+
+   if (!scissors->state)
+   {
+      switch (cur_part->type)
+      {
+         case PT_AL_CAT:
+         case PT_SID_MOUSE:
+            if (  ((cur_part->type == PT_AL_CAT)
+               && (cur_part->toon_state == CAT_GUM2_INDEX))
+               || ((cur_part->type == PT_SID_MOUSE)
+               && (cur_part->toon_state == SID_GUM_INDEX)))
+               if (  (bord_num==0)
+                  || (bord_num==5)
+                  || (bord_num==6))
+               {
+                  scissors->sub_state = 1;
+                  return(1);
+               }
+
+            cur_mid_x = cur_part->scrn_loc.x + (cur_part->base_size.x>>1);
+            scissors_mid_x = scissors->scrn_loc.x + (scissors->base_size.x>>1);
+            if (  (cur_mid_x > scissors_mid_x - 8)
+               && (cur_mid_x < scissors_mid_x + 8))
+               scissors->sub_state = 1;
+            break;
+         case PT_BALLOON:
+            if (  (bord_num==6)
+               || (bord_num==7)
+               || (bord_num==8)
+               || (bord_num==9))
+               cur_part->sub_state = 1;
+         default:
+            if (  (bord_num==0)
+               || (bord_num==5)
+               || (bord_num==6))
+               scissors->sub_state = 1;
+            break;
+      }
+   }
+   return(1);
+}
+
+
+
+void scissors_reinit(PART *scissors)
+{
+   static PART_BORDER_C far bord0[10] = {{0,0,0},{20,0,0},{20,4,0},{14,8,0},{20,14,0},{20,17,0},
+      {5,18,0},{0,15,0},{8,9,0},{0,1,0}};
+   static PART_BORDER_C far bord1[10] = {{-4,4,0},{24,4,0},{23,14,0},{-4,14,0},{-4,4,0},{-4,4,0},{-4,4,0},
+      {-4,4,0},{-4,4,0},{-4,4,0}};
+   static PC_PART_BORDER_C far bord_tab[2] = {bord0,bord1};
+   static P_PART_BORDER far fbord_tab[2];
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!scissors)
+   {
+      set_border_table_slopes(PT_SCISSORS, 1, bord_tab, fbord_tab, 2);
+      return;
+   }
+
+   if (scissors->flags2 & F2_FLIP_H_DRAW)
+      scissors->border = fbord_tab[scissors->state];
+   else
+      scissors->border = bord_tab[scissors->state];
+}
+
+
+
+void scissors_internal(PART *scissors)
+{
+   static LINE_SEG fcut_line = {12,8,21,8};
+   static LINE_SEG cut_line = {0,8,9,8};
+
+   if (scissors->sub_state)
+   {
+      if (scissors->state == 0)
+      {
+         if (scissors->flags2 & F2_FLIP_H_DRAW)
+            cut_rope(scissors,&fcut_line);
+         else
+            cut_rope(scissors,&cut_line);
+         scissors->state++;
+         scissors_reinit(scissors);
+         set_adjusted_loc_size(scissors);
+         jtp_sx_play(SX_SCISSORS,0,0);
+      }
+      scissors->sub_state = 0;
+   }
+}
+
+
+#pragma argsused
+void scissors_flip(PART *scissors,short flip_mode)
+{
+   scissors->flags2 ^= F2_FLIP_H_DRAW;
+   scissors_reinit(scissors);
+
+   part_to_er(scissors,1|2);
+   set_redraw(scissors,2);
+}
+
+
+
+static void cut_rope(PART *scissors,LINE_SEG *ls)
+{
+   short i;
+   short tie_num1,tie_num2,org_tim_mode;
+   TIM_VEC is;
+   LINE_SEG rseg;
+   PART *pptr2,*part1,*part2,*phantom_ptr1,*phantom_ptr2,*new_rope;
+   PART *start_part,*end_part;
+   ROPE *rptr,*new_rptr;
+
+   pptr2 = static_list.next;
+   while (pptr2)
+   {
+      if (pptr2->type == PT_ROPE)
+      {
+         rptr = pptr2->rope_tie[0];
+         part1 = start_part = rptr->link1;
+         end_part = rptr->link2;
+         tie_num1 = rptr->l1_num;
+         tie_num2 = 0;
+         part2 = part1->wpptr[tie_num1];
+         while (part1 && part2)
+         {
+            if (part1 != start_part)
+               tie_num1 = 1;
+            rseg.x0 = part1->adj_loc.x + part1->rope_loc[tie_num1].x - scissors->scrn_loc.x;
+            rseg.y0 = part1->adj_loc.y + part1->rope_loc[tie_num1].y - scissors->scrn_loc.y;
+
+            if (part2 == end_part)
+               tie_num2 = rptr->l2_num;
+            rseg.x1 = part2->adj_loc.x + part2->rope_loc[tie_num2].x - scissors->scrn_loc.x;
+            rseg.y1 = part2->adj_loc.y + part2->rope_loc[tie_num2].y - scissors->scrn_loc.y;
+
+            if (segment_intersect(ls,&rseg,&is))
+            {
+               org_tim_mode = tim_mode;
+               tim_mode = TM_EDIT;    /*force complete erase */
+               rope_to_er(rptr->root_part,1|2);
+               tim_mode = org_tim_mode;
+
+               /*cut it here */
+               if ((phantom_ptr1 = make_a_part(PT_PHANTOM)) == 0)
+                  goto quick_exit;
+               if ((phantom_ptr2 = make_a_part(PT_PHANTOM)) == 0)
+               {
+                  free_a_part(phantom_ptr1);
+                  goto quick_exit;
+               }
+               if ((new_rope = make_a_part(PT_ROPE)) == 0)
+               {
+                  free_a_part(phantom_ptr2);
+                  free_a_part(phantom_ptr1);
+                  goto quick_exit;
+               }
+               insert_into_list(phantom_ptr1,&move_list);
+               phantom_ptr1->flags1 |= F1_CREATED;
+               phantom_ptr1->scrn_loc.x = is.x + scissors->scrn_loc.x;
+               phantom_ptr1->scrn_loc.y = is.y + scissors->scrn_loc.y;
+
+               insert_into_list(phantom_ptr2,&move_list);
+               phantom_ptr2->flags1 |= F1_CREATED;
+               phantom_ptr2->scrn_loc = phantom_ptr1->scrn_loc;
+
+               insert_into_list(new_rope,&static_list);
+               new_rope->flags1 |= F1_CREATED;
+               new_rptr = new_rope->rope_tie[0];
+               new_rptr->link1 = phantom_ptr2;
+               new_rptr->link2 = end_part;
+               new_rptr->l1_num = 0;
+               new_rptr->l2_num = rptr->l2_num;
+               phantom_ptr2->wpptr[0] = part2;
+               phantom_ptr2->rope_tie[0] = new_rptr;
+               if (part2->type == PT_PULLEY)
+               {
+                  part2->rope_tie[1] = new_rptr;
+                  part2->wpptr[1] = phantom_ptr2;
+               }
+               else
+               {
+                  part2->rope_tie[tie_num2] = new_rptr;
+                  part2->wpptr[tie_num2] = phantom_ptr2;
+               }
+               end_part->rope_tie[new_rptr->l2_num] = new_rptr;
+
+               rptr->link2 = phantom_ptr1;
+               rptr->l2_num = 0;
+               phantom_ptr1->wpptr[0] = part1;
+               phantom_ptr1->rope_tie[0] = rptr;
+               if (part1->type == PT_PULLEY)
+                  part1->wpptr[0] = phantom_ptr1;
+               else
+                  part1->wpptr[tie_num1] = phantom_ptr1;
+
+               phantom_ptr1->old_old_scrn_loc.x = phantom_ptr1->old_scrn_loc.x =
+                  phantom_ptr1->scrn_loc.x;
+               phantom_ptr1->loc.x = phantom_ptr1->scrn_loc.x;
+               phantom_ptr1->loc.x <<= SCALE_SHIFT;
+               phantom_ptr1->old_old_scrn_loc.y = phantom_ptr1->old_scrn_loc.y =
+                  phantom_ptr1->scrn_loc.y;
+               phantom_ptr1->loc.y = phantom_ptr1->scrn_loc.y;
+               phantom_ptr1->loc.y <<= SCALE_SHIFT;
+               set_adjusted_loc_size(phantom_ptr1);
+
+               phantom_ptr2->old_old_scrn_loc.x = phantom_ptr2->old_scrn_loc.x =
+                  phantom_ptr2->scrn_loc.x;
+               phantom_ptr2->loc.x = phantom_ptr2->scrn_loc.x;
+               phantom_ptr2->loc.x <<= SCALE_SHIFT;
+               phantom_ptr2->old_old_scrn_loc.y = phantom_ptr2->old_scrn_loc.y =
+                  phantom_ptr2->scrn_loc.y;
+               phantom_ptr2->loc.y = phantom_ptr2->scrn_loc.y;
+               phantom_ptr2->loc.y <<= SCALE_SHIFT;
+               set_adjusted_loc_size(phantom_ptr2);
+
+               tim_mode = TM_EDIT;    /*force new length set */
+               generate_rope_lines(rptr);
+               for (i=0;i<2;i++)
+                  rptr->old_old_pt[i] = rptr->old_pt[i] = rptr->pt[i];
+               generate_rope_lines(new_rptr);
+               for (i=0;i<2;i++)
+                  new_rptr->old_old_pt[i] = new_rptr->old_pt[i] = new_rptr->pt[i];
+               tim_mode = org_tim_mode;
+
+               part1 = part2 = pptr2 = 0;
+            }
+            else
+            {
+               if (part2 == end_part)
+                  part1 = part2 = 0;
+               else
+               {
+                  part1 = part2;
+                  part2 = part2->wpptr[0];
+               }
+            }
+         }
+      }
+
+      if (pptr2)
+         pptr2 = pptr2->next;
+   }
+quick_exit:
+   return;
+}
+
+

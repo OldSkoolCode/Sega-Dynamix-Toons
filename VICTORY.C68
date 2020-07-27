@@ -1,0 +1,268 @@
+/* * * * *
+*
+*  VICTORY.C
+*
+*  This file contains all the code that checks for a victory in the puzzle
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/06/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+/* * * * *
+*
+*  external functions
+*
+* * * * */
+extern void cat_sees_birds_and_curtains_open(void);
+extern void open_all_curtains(void);
+extern void sid_enters_tunnel(void);
+extern void sid_exits_tunnel(void);
+extern void cat_exits_tunnel(void);
+extern void two_bombs_sucked_in_vacuum(void);
+extern void kill_cat(void);
+extern void kill_mouse(void);
+extern void kill_three_cheese(void);
+extern void kill_five_cheese(void);
+extern void kill_three_mice(void);
+extern void kill_three_fish(void);
+extern void kill_six_fish(void);
+extern void mouse_eats_cheese(void);
+extern void mouse_eats_banana(void);
+extern void cat_eats_banana(void);
+extern void cat_eats_fish(void);
+extern void balloon_off_screen(void);
+extern void pop_balloon_with_rope(void);
+extern void two_rocks_offscreen(void);
+extern void baseball_offscreen(void);
+extern void anvil_offscreen(void);
+extern void smash_piano(void);
+extern void cat_offscreen(void);
+extern void cat_and_mouse_offscreen(void);
+extern void cat_offscreen_mouse_onscreen(void);
+extern void cat_and_mouse_blown_up(void);
+extern void cat_blown_up(void);
+extern void mouse_blown_up(void);
+extern void elephant_eats_peanut(void);
+extern void two_elephants_eat_peanuts(void);
+extern void billiards1(void);
+extern void cat_cracked_on_head(void);
+extern void cat_egg_in_face(void);
+extern void sid_egg_in_face(void);
+extern void cat_pin_poked(void);
+extern void switch_turned_off1(void);
+extern void angel_off_screen(void);
+extern void four_angels_off_screen(void);
+extern void two_counters_to_zero(void);
+extern void counter_to_zero(void);
+extern void sid_cheese_al_below(void);
+extern void sid_eats_banana_al_eats_fish(void);
+extern void sid_eats_gum_al_eats_fish(void);
+extern void cat_and_mouse_shot(void);
+extern void sid_plays_accordian(void);
+extern void sid_accordian_al_birds(void);
+extern void cat_eats_mouse(void);
+extern void sid_eats_cheese_al_eats_fish(void);
+extern void sid_eats_cheese_al_gets_egg(void);
+extern void sid_eats_two_cheese_al_eats_fish(void);
+extern void cat_eats_gum(void);
+extern void sid_falls_offscreen(void);
+extern void sid_falls_offscreen_kill_al(void);
+extern void sid_falls_offscreen_extreme_right(void);
+extern void three_als_sucked_in_vacuum(void);
+extern void sid_eats_cheese_al_cracked(void);
+extern void three_mice_offscreen(void);
+extern void three_mice_in_attic(void);
+extern void cat_tied_up(void);
+extern void six_balloons_offscreen(void);
+extern void egg_on_three_sid_three_al(void);
+extern void sid_and_al_eats_gum(void);
+extern void sid_erases_al(void);
+
+/* * * * *
+*
+*  data structures
+*
+* * * * */
+#if DEMO
+static VOID_VFPTR_C victory_func[] =
+{
+   cat_cracked_on_head,                /* cake1 */
+   cat_egg_in_face,                    /* cake2 */
+   mouse_eats_cheese,                  /* bran1 */
+   cat_eats_mouse,                     /* bran2 */
+   mouse_eats_cheese,                  /* hard1 */
+   cat_eats_fish,                      /* hard2 */
+   kill_cat,                           /* hard3 */
+   billiards1,                         /* loon1 */
+   sid_eats_cheese_al_gets_egg,        /* loon2 */
+   kill_cat                            /* loon3 */
+};
+#else
+static VOID_VFPTR_C victory_func[] =
+{
+   /* CAKEWALK */
+#if 0
+   cat_sees_birds_and_curtains_open,   /* cake1 */
+#endif
+   two_elephants_eat_peanuts,          /* cake2 */
+   sid_enters_tunnel,                  /* cake3 */
+   kill_mouse,                         /* cake4 */
+   cat_eats_fish,                      /* cake5 */
+   sid_plays_accordian,                /* cake6 */
+   kill_cat,                           /* cake7 */
+   sid_cheese_al_below,                /* cake8 */
+   sid_eats_banana_al_eats_fish,       /* cake9 */
+   two_counters_to_zero,               /* cake10 */
+   counter_to_zero,                    /* cake11 */
+   two_bombs_sucked_in_vacuum,         /* cake12 */
+   cat_eats_fish,                      /* cake13 */
+   sid_eats_cheese_al_eats_fish,       /* cake14 */
+   cat_eats_gum,                       /* cake15 */
+   mouse_eats_cheese,                  /* cake16 */
+   sid_falls_offscreen,                /* cake17 */
+   two_rocks_offscreen,                /* cake18 */
+   baseball_offscreen,                 /* cake19 */
+   anvil_offscreen,                    /* cake20 */
+   cat_eats_fish,                      /* cake21 */
+   cat_and_mouse_offscreen,            /* cake22 */
+   cat_offscreen_mouse_onscreen,       /* cake23 */
+   cat_egg_in_face,                    /* cake24 */
+   sid_eats_gum_al_eats_fish,          /* cake25 */
+   cat_and_mouse_shot,                 /* cake26 */
+   cat_and_mouse_blown_up,             /* cake27 */
+   sid_egg_in_face,                    /* cake28 */
+   kill_cat,                           /* cake29 */
+   cat_eats_banana,                    /* cake30 */
+
+   /* ALL BRAWN */
+   sid_exits_tunnel,                   /* brawn1 */
+   cat_cracked_on_head,                /* brawn2 */
+   elephant_eats_peanut,               /* brawn3 */
+   sid_accordian_al_birds,             /* brawn4 */
+   mouse_eats_cheese,                  /* brawn5 */
+   kill_three_fish,                    /* brawn6 */
+   cat_egg_in_face,                    /* brawn7 */
+   switch_turned_off1,                 /* brawn8 */
+   mouse_eats_cheese,                  /* brawn9 */
+   three_mice_in_attic,                /* brawn10 */
+   cat_eats_fish,                      /* brawn11 */
+   cat_pin_poked,                      /* brawn12 */
+   kill_cat,                           /* brawn13 */
+   kill_cat,                           /* brawn14 */
+   sid_eats_cheese_al_eats_fish,       /* brawn15 */
+   angel_off_screen,                   /* brawn16 */
+   sid_eats_cheese_al_gets_egg,        /* brawn17 */
+   cat_eats_mouse,                     /* brawn18 */
+   cat_eats_mouse,                     /* brawn19 */
+   kill_three_cheese,                  /* brawn20 */
+
+   /* REALLY HARD */
+   cat_eats_mouse,                     /* hard1 */
+   elephant_eats_peanut,               /* hard2 */
+   mouse_eats_banana,                  /* hard3 */
+   billiards1,                         /* hard4 */
+   mouse_eats_cheese,                  /* hard5 */
+   three_als_sucked_in_vacuum,         /* hard6 */
+   sid_falls_offscreen,                /* hard7 */
+   cat_eats_mouse,                     /* hard8 */
+   kill_cat,                           /* hard9 */
+   cat_eats_mouse,                     /* hard10 */
+   mouse_eats_cheese,                  /* hard11 */
+   sid_plays_accordian,                /* hard12 */
+   sid_plays_accordian,                /* hard13 */
+   cat_eats_mouse,                     /* hard14 */
+   mouse_eats_cheese,                  /* hard15 */
+   cat_eats_mouse,                     /* hard16 */
+   cat_eats_mouse,                     /* hard17 */
+   open_all_curtains,                  /* hard18 */
+   mouse_blown_up,                     /* hard19 */
+   kill_mouse,                         /* hard20 */
+   open_all_curtains,                  /* hard21 */
+   open_all_curtains,                  /* hard22 */
+   open_all_curtains,                  /* hard23 */
+   open_all_curtains,                  /* hard24 */
+   open_all_curtains,                  /* hard25 */
+
+   /* LOONEY BIN */
+   four_angels_off_screen,             /* loon1 */
+   cat_eats_mouse,                     /* loon2 */
+   sid_erases_al,                      /* loon3 */
+   sid_falls_offscreen_extreme_right,  /* loon4 */
+   sid_falls_offscreen,                /* loon5 */
+   sid_falls_offscreen_kill_al,        /* loon6 */
+   pop_balloon_with_rope,              /* loon7 */
+   kill_cat,                           /* loon8 */
+   kill_cat,                           /* loon9 */
+   mouse_eats_cheese,                  /* loon10 */
+   sid_eats_cheese_al_cracked,         /* loon11 */
+   cat_offscreen,                      /* loon12 */
+   kill_three_mice,                    /* loon13 */
+   cat_exits_tunnel,                   /* loon14 */
+   cat_tied_up,                        /* loon15 */
+   kill_five_cheese,                   /* loon16 */
+   three_mice_offscreen,               /* loon17 */
+   kill_six_fish,                      /* loon18 */
+   six_balloons_offscreen,             /* loon19 */
+   egg_on_three_sid_three_al,          /* loon20 */
+   cat_offscreen,                      /* loon21 */
+   sid_falls_offscreen,                /* loon22 */
+   mouse_eats_banana,                  /* loon23 */
+   sid_and_al_eats_gum,                /* loon24 */
+   cat_blown_up,                       /* loon25 */
+};
+#endif
+
+/* * * * *
+*
+*  void check_victory(void);
+*
+* * * * */
+void check_victory(void)
+{
+   if (victory_func[current_puzzle_number])
+      victory_func[current_puzzle_number]();
+   else
+      tim_mode = TM_VICTORY;
+}
+
+
+/* * * * *
+*
+*  PART *get_n_type(short type, short n, short list);
+*
+*  This function will return the n_th occurence of the specified part from the
+*  specified list. if the part cannot be found it will return a 0.
+*
+*  NOTE: list is either F1_MOVE_L, F1_STATIC_L, F1_AVAIL_L
+*
+* * * * */
+PART *get_n_type(short type, short n, short list)
+{
+   PART *pptr;
+   short count = 0;
+
+   /* search the list to find the specified part */
+   pptr = get_first_part(list);
+   while ((count < n) && pptr)
+   {
+      /* this IF can be combined but to make more readable it has been  */
+      /* written as so. */
+      if (pptr->type != type)
+         pptr = pptr->next;
+      else if (++count < n)
+         pptr = pptr->next;
+   }
+
+   /* reset the pointer if the part was not found */
+   if (pptr->type != type)
+      pptr = 0;
+
+   return(pptr);
+}
+

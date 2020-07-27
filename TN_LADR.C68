@@ -1,0 +1,221 @@
+/* * * * *
+*
+*  TN_LADR.C
+*
+*  This file contains the code associated with the ladders.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  06/27/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "simlib.h"
+
+
+/* * * * *
+*
+*  void ladder_reinit(PART *ladder);
+*
+* * * * */
+void ladder_reinit(PART *ladder)
+{
+   static PART_BORDER_C far ladder_border[4] =
+      { {0,0,0}, {32,0,0}, {32,32,0}, {0,32,0} };
+
+   /* If initalizing for the first time, just return */
+   if(!ladder)
+      return;
+   
+   /* Setup border pointer for ladder */
+   if(!ladder->state && (tim_mode != TM_RUN))
+   {
+      ladder->border = ladder_border;
+      (*(ladder->border + 2)).y = (*(ladder->border + 3)).y = ladder->size.y;
+      ladder->num_borders = 4;
+   }
+   else
+   {
+      ladder->border = 0;
+      ladder->num_borders = 0;
+   }
+   set_adjusted_loc_size(ladder);
+}
+
+/* * * * *
+*
+*  void ladder_resize(PART *wall_part);
+*
+* * * * */
+void ladder_resize(PART *wall_part)
+{
+   switch(tim_sub_mode)
+   {
+      case TSM_RESIZING|TSM_SIZE_T:
+      case TSM_RESIZING|TSM_SIZE_B:
+         wall_part->place_size.x = 32;
+         break;
+   }
+
+   wall_part->size.x = wall_part->place_size.x;
+   wall_part->size.y = wall_part->place_size.y;
+}
+
+/* * * * *
+*
+*  void init_part_ladder(PART *part, short run_index, short climb_seq,
+*     short default_index, short default_seq);
+*
+* * * * */
+void init_part_ladder(PART *part, short run_index, short climb_seq,
+   short default_index, short default_seq)
+{
+   PART *ladder;
+   short part_y, ladder_y;
+
+   /* verify that the part should be in this state. */
+   if ((ladder = part->toon_link)->type == PT_LADDER)
+   {
+      /* remember the state and orientation of the part. */
+      part->memory = 0;
+      
+      /* decide which direction to go (up/down) */
+      part_y = part->scrn_loc.y + (part->size.y>>1);
+      ladder_y = ladder->scrn_loc.y + (ladder->size.y>>1);
+      if (part_y < ladder_y)
+         part->memory |= MEMORY_DOWN_BIT;
+
+      /* remember the original direction the part was moving in.   */
+      /* THIS IS ALSO BEING DONE IN THE LADDER_EXIT ROUTINE */
+      if (part->flags2 & F2_FLIP_H_DRAW)
+         part->memory |= MEMORY_ORIENT_LEFT_BIT;
+
+      /* reverse the logic for the mouse */
+      if (part->type == PT_SID_MOUSE)
+         part->memory ^= MEMORY_ORIENT_LEFT_BIT;
+      
+      /* remember what the part was doing (walking/running) */
+      /* decide which exit the part should get off */
+      if (part->toon_state == run_index)
+      {
+         part->memory |= MEMORY_RUN_BIT;
+         part->memory |= ladder_exit(part,ladder,
+            part->memory&MEMORY_DOWN_BIT,1) << EXIT_SCALE;
+      }
+      else
+         part->memory |= ladder_exit(part,ladder,
+            part->memory&MEMORY_DOWN_BIT,99) << EXIT_SCALE;
+
+      /* verify that the part has an exit block */
+      if (((part->memory&MEMORY_EXIT_BLOCK)>>EXIT_SCALE) == MEMORY_NO_EXIT)
+      {
+         part->memory ^= MEMORY_DOWN_BIT;
+         part->memory &= MEMORY_EXIT_BLOCK ^ 0xffff;
+         part->memory |= ladder_exit(part,ladder,
+            part->memory&MEMORY_DOWN_BIT,1) << EXIT_SCALE;
+         
+         /* check the case where there is no exit. */
+         if (((part->memory&MEMORY_EXIT_BLOCK)>>EXIT_SCALE) == MEMORY_NO_EXIT)
+            if (!((part->memory ^= MEMORY_DOWN_BIT) & MEMORY_DOWN_BIT))
+               part->memory &= 0xffff ^ MEMORY_EXIT_BLOCK; 
+      }
+
+      part->state = climb_seq;
+   }
+   else
+   {
+      part->sub_state = default_index;
+      part->state = default_seq;
+   }
+}
+
+
+/* * * * *
+*
+*  short ladder_exit(PART *part, PART *ladder, short direction, short exit);
+*
+*  This function will return the 16 pixel block of the specified ladder exit
+*  in the specified direction relative to the specified part.
+*
+* * * * */
+short ladder_exit(PART *part, PART *ladder, short direction, short exit)
+{
+   short part_y, x, y, w, h;
+   PART *pptr, *last_wall;
+   short exit_loop, cur_exit;
+
+   /* verify the pointers. */
+   if (ladder->type != PT_LADDER)
+      return(-1);
+
+   part_y = part->scrn_loc.y;
+
+   x = ladder->scrn_loc.x - part->scrn_loc.x - 8;
+   w = ladder->size.x + 16;
+
+   /* if direction == 0, then moving up. */
+   if (!direction)
+   {
+      y = ladder->scrn_loc.y - part_y;
+      h = part_y - ladder->scrn_loc.y;
+   }
+   else
+   {
+      y = 0;
+      h = ladder->scrn_loc.y - part_y + ladder->size.y + 8;
+      
+      /* skip the very first wall encountered on the way down. This will  */
+      /* fix the problem of the cat getting back on the same wall. */
+      if (exit == 1)
+         exit = 2;
+   }
+
+   tn_query_dist(part, F1_STATIC_L, x, y, w, h);
+   pptr = part->qptr;
+   exit_loop = cur_exit = 0;
+   last_wall = 0;
+   while (pptr && !exit_loop)
+   {
+      switch (pptr->type)
+      {
+         case PT_WALL0:     
+         case PT_WALL1:     
+         case PT_WALL2:     
+         case PT_WALL3:     
+         case PT_WALL4:
+         case PT_WALL5:
+            if(pptr->size.x < pptr->size.y)
+               break;
+         case PT_HC_BELT:     
+            cur_exit++;
+            last_wall = pptr;
+            if (cur_exit == exit)
+               exit_loop = 1;
+      }
+      pptr = pptr->qptr;
+   }
+
+   /* check if a proper exit was found */
+   if (last_wall)
+   {
+      /* check if the exit is on the right */
+      if (last_wall->scrn_loc.x > ladder->scrn_loc.x)
+         part->memory &= MEMORY_ORIENT_LEFT_BIT ^ 0xffff;
+      else
+         part->memory |= MEMORY_ORIENT_LEFT_BIT;
+
+      return(last_wall->scrn_loc.y >> BLOCK_SCALE);
+   }
+   else
+      return(MEMORY_NO_EXIT);
+}
+
+
+
+
+
+

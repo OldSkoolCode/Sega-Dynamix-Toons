@@ -1,0 +1,121 @@
+/* * * * *
+*
+*  BULLET.C
+*
+*  This file contains the bullet routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/02/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "simlib.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   BULLET                                   *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* supershape structure definition */
+static F_SSHAPE_C bullet1 = {0, BULLET_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C bullet2 = {0, BULLET_PLANE, {1,255,255,255},
+   {{8,-4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C bullet3 = {0, BULLET_PLANE, {2,255,255,255},
+   {{7,-4},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far bullet_ss_tab[BULLET_NUM_STATES] = 
+   {&bullet1,&bullet2,&bullet3};
+
+/* size. */
+TIM_VEC_C far bullet_size[BULLET_NUM_STATES] = 
+   {{15,8},{12,17},{13,20}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far bullet_os[BULLET_NUM_STATES] = 
+   {{0,0},{6,-9},{6,-9}};
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+short bullet_bounce(PART *cur_part)
+{
+   PART *b_part;
+
+   b_part = cur_part->col_info.part;
+
+   switch (cur_part->type)
+   {
+      case PT_BALLOON:
+         cur_part->sub_state = 1;
+         break;
+      case PT_BOMB:
+         explode(cur_part,-15,-19);
+         break;
+      case PT_E_PLUG:
+         b_part->speed.x--;
+         break;
+   }
+
+   return(1);
+}
+
+
+
+void bullet_reinit(PART *b_part)
+{
+   static PART_BORDER_C far bord0[4] = {{14,2,0},{14,6,0},{3,6,0},{3,2,0}};
+   static PART_BORDER far fbord0[4];
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!b_part)
+   {
+      set_border_slopes(PT_BULLET, 1, bord0, fbord0, 0);
+      return;
+   }
+   if (b_part->flags2 & F2_FLIP_H_DRAW)
+      b_part->border = fbord0;
+   else
+      b_part->border = bord0;
+
+   set_adjusted_loc_size(b_part);
+}
+
+
+void bullet_internal(PART *b_part)
+{
+   if (b_part->state == 2)
+   {
+      part_to_er(b_part,1|2);
+      b_part->flags2 |= F2_INACTIVE;
+   }
+   else
+   {
+      if (!b_part->state)
+      {
+         if ((b_part->speed.x!=(BULLET_SPEED)) &&
+             (b_part->speed.x!=(-BULLET_SPEED)))
+         {
+            b_part->num_borders = 0;
+            b_part->state = 1;
+            set_adjusted_loc_size(b_part);
+         }
+      }
+      else
+      {
+         b_part->state++;
+         set_adjusted_loc_size(b_part);
+      }
+   }
+}
+
+

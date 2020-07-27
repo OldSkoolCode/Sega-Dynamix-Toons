@@ -1,0 +1,198 @@
+/* * * * *
+*
+*  HC_BELT.C
+*
+*  This file contains horizontal conveyor belt routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/27/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "simlib.h"
+#include "tim.h"
+
+
+#define CONV_NUM_STATES    10
+#define CONV_NUM_FRAMES    6
+
+
+void hc_belt_reinit(PART *hb_part)
+{
+   P_PART_BORDER border_ptr;
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!hb_part)
+      return;
+
+   border_ptr = hb_part->border;
+   border_ptr->x = 0;
+   border_ptr->y = 2;
+   border_ptr++;
+   border_ptr->x = hb_part->size.x;
+   border_ptr->y = 2;
+   border_ptr++;
+   border_ptr->x = hb_part->size.x;
+   border_ptr->y = hb_part->size.y;
+   border_ptr++;
+   border_ptr->x = 0;
+   border_ptr->y = hb_part->size.y;
+   set_border_slope(hb_part);
+}
+
+short hc_belt_bounce(PART *cur_part)
+{
+   short speed,cur_sub_state,border_num;
+   PART *conveyor;
+   
+   conveyor = cur_part->col_info.part;
+   border_num = cur_part->col_info.border_num;
+
+   if ((cur_sub_state = conveyor->memory) != 0)
+   {
+      speed = SIX_PIX;
+      if (border_num == 0)
+      {
+         if (cur_sub_state > 0)
+         {
+            if ((cur_part->speed.x += speed) > speed)
+               cur_part->speed.x = speed;
+         }
+         else
+         {
+            if ((cur_part->speed.x -= speed) < speed)
+               cur_part->speed.x = 0-speed;
+         }
+      }
+      else
+         if (border_num == 2)
+         {
+            if (cur_sub_state < 0)
+            {
+               if ((cur_part->speed.x+=speed) > speed)
+                  cur_part->speed.x = speed;
+            }
+            else
+            {
+               if ((cur_part->speed.x-=speed) < speed)
+                  cur_part->speed.x = 0-speed;
+            }
+         }
+   }
+   else
+      /* check if the conveyor just turned off and */
+      /* check if the part is on top of the conveyor */
+      if (  (conveyor->old_old_state != conveyor->state)
+         && (border_num == 0))
+         cur_part->speed.x = 0;
+
+   return(1);
+}
+
+void hc_belt_internal(PART *conveyor)
+{
+   /* remember the sub_state */
+   conveyor->memory = conveyor->sub_state;
+
+   /* check if something is trying to turn the belt */
+   if (conveyor->sub_state)
+   {
+      /* start the sound effects */
+      jtp_sx_play(SX_CONVEYOR, 0, 0);
+
+      /* animate the conveyor belt */
+      if (conveyor->sub_state > 0)
+         conveyor->state = (conveyor->state + 1) % CONV_NUM_FRAMES;
+      else
+         if (conveyor->state)
+            conveyor->state--;
+         else
+            conveyor->state = CONV_NUM_FRAMES - 1;
+
+      /* reset the belts sub_state */
+      conveyor->sub_state = 0;
+   }
+   else
+      jtp_sx_stop(SX_CONVEYOR);
+}
+
+
+
+void hc_belt_resize(PART *conveyor)
+{
+   P_PART_BORDER point1,point2;
+
+   conveyor->size.x = conveyor->place_size.x;
+   conveyor->size.y = conveyor->place_size.y;
+
+   point1 = conveyor->border + 1;
+   point2 = point1+1;
+
+   point1->x = point2->x = conveyor->size.x;
+}
+
+
+/* * * * *
+*
+*  void draw_conveyor_belt(pptr,plane,loc_scale_adj,size_scale_adj)
+*
+*  This function draws the conveyor belt any size in Toons.
+*
+* * * * */
+#pragma argsused
+void draw_conveyor_belt(PART *pptr,unsigned char plane,short loc_scale_adj,
+   short size_scale_adj)
+{
+   short state;
+   short j,x,y;
+   short width;
+   short sn;
+   signed char y_offset;
+   unsigned char count;
+   P_PART_ELEMENTS elements;
+
+   static char const far left_end_state_array[CONV_NUM_FRAMES]   = {1,1,2,2,0,0};
+   static char const far right_end_state_array[CONV_NUM_FRAMES]  = {7,7,8,8,9,9};
+   static char const far middle_state_array[CONV_NUM_FRAMES]     = {3,3,4,4,6,6};
+
+   state = pptr->state;
+   elements = &prop[pptr->type];
+
+   my_mouse_off();
+   count = 0;
+   width = pptr->size.x >> 4;
+   x = pptr->scrn_loc.x - ledge;
+   y = pptr->scrn_loc.y - tedge;
+   y_offset = 0;
+
+   for (j=0;j<width;j++)
+   {
+      /* find the bit map shape number. */
+      if (!j)
+         sn = left_end_state_array[state];
+      else
+         if (j == (width-1))
+            sn = right_end_state_array[state];
+         else
+         {
+            sn = middle_state_array[state];
+            if ((sn == 4) && (count % 2))
+               sn++;
+            if ((sn == 6) && (count % 2))
+               y_offset = 1;
+            else
+               y_offset = 0;
+            count++;
+         }
+         draw_bitmap(elements->part_shapes,x,y + y_offset,0, sn);
+
+      x += 8<<VIRTUALCOORDS;
+   }
+   my_mouse_on();
+}
+
+

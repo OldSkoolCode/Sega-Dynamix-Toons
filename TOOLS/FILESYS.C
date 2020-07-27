@@ -1,0 +1,229 @@
+/*
+ * ROM-DISK FILE SYSTEM 
+ *
+ * Copyright 1994 by Futurescape Productions.  All rights reserved. 
+ */
+
+#include <io.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+
+/* The FILE_SYSTEM external is a reference to an included file that was
+	constructed by ROMDOS.EXE.  This file is structured currently like this:
+		First WORD is the number of files in the file system.
+		A 12 character name, delimited with a 0 or 12 characters in size.
+		A LONG defining the size of the file.
+		... Data bytes for the file
+		The next 12 character name and size and data, and so on until all
+		the files have been defined. */
+
+typedef struct {
+	char				name[12];
+	unsigned long	length;
+} FILE_IDENT;
+
+typedef struct {
+	FILE_IDENT		*fi;
+	char				*beg;
+	char				*end;
+	char				*cur;
+} FILE_INFO;
+
+extern char    FILE_SYSTEM;
+
+#define	MAX_FD	20
+
+static FILE_INFO	open_files[MAX_FD];
+
+/* name of standard i/o device */
+
+/*------------------------------- open() ------------------------------------*/
+
+/*
+ * Open opens a file or creates it if it does not exist.  The flags argument
+ * is used to determine any errors.  Files are read only.
+ */
+
+int 
+open(const char *name, int flags,...)
+{
+	register FILE_IDENT *file_ptr;
+	int             fd;
+	int             i;
+	char				*fs_ptr;
+	unsigned short	 max_files;
+
+	errno = NOERROR;
+	/* Don't allow anything but a read only open */
+	if (flags & (O_WRONLY|O_RDWR|O_APPEND|O_CREAT|O_TRUNC)) {
+		errno = EACCES;
+		return (-1);
+	}
+
+	fs_ptr = &FILE_SYSTEM;
+	max_files = *((unsigned short *)fs_ptr);
+	fs_ptr = &FILE_SYSTEM + 2;
+
+	/* Check to see if the file exists */
+	for (i = 0; i < max_files; i++) {
+		file_ptr = (FILE_IDENT *)fs_ptr;
+		if (!strnicmp(name, file_ptr->name, 12))
+			break;
+		fs_ptr += sizeof(FILE_INFO);
+		fs_ptr += file_ptr->length;
+	}
+	if (i >= max_files) {
+		/* File does not exist */
+		errno = ENOENT;
+		return (-1);
+	}
+
+	/* Look for open slot in file descriptors */
+	for (i = 0; i < MAX_FD; i++)
+		if (open_files[i].fi != 0l)
+			break;
+
+	/* No empty slots */
+	if (i < MAX_FD) {
+		errno = EMFILE;
+		return (-1);
+	}
+
+	/* Everything OK, open file for reading */
+	fd = i;
+	open_files[i].fi = file_ptr;
+	open_files[fd].beg = (char *)(file_ptr + 1);
+	open_files[fd].end = open_files[fd].beg + file_ptr->length;
+	open_files[fd].cur = open_files[fd].beg;
+	return (fd);
+}
+
+/*---------------------------------- creat() --------------------------------*/
+
+int 
+creat(const char *name, int perms)
+{
+	errno = EACCES;
+	return (-1);
+}
+
+/*---------------------------------- unlink() -------------------------------*/
+
+int 
+unlink(const char *name)
+{
+	errno = EACCES;
+	return (-1);
+}
+
+/*---------------------------------- close() --------------------------------*/
+
+int 
+close(int fd)
+{
+	errno = NOERROR;
+	/* No such fd or file already closed? */
+	if ((fd > MAX_FD) || (open_files[fd].fi == 0l)) {
+		errno = EBADF;
+		return (-1);
+	}
+
+	open_files[fd].fi = 0l;
+	open_files[fd].cur = 0l;
+	return (0);
+}
+
+/*---------------------------------- lseek() --------------------------------*/
+
+long 
+lseek(int fd, long offset, int origin)
+{
+	char           *tmp;
+
+	errno = NOERROR;
+	/* No such fd or file already closed? */
+	if ((fd > MAX_FD) || (open_files[fd].fi == 0l)) {
+		errno = EBADF;
+		return (-1);
+	}
+
+	/* Save the current pointer -- used in case of an error */
+
+	tmp = open_files[fd].cur;
+
+	switch (origin) {
+	case 0:
+		open_files[fd].cur = open_files[fd].beg + offset;
+		break;
+	case 1:
+		open_files[fd].cur += offset;
+		break;
+	case 2:
+		open_files[fd].cur = open_files[fd].end + offset;
+	}
+
+	/* Out of range error */
+
+	if ((open_files[fd].cur < open_files[fd].beg) ||
+	    (open_files[fd].cur > open_files[fd].end)) {
+		open_files[fd].cur = tmp;	/* restore value */
+		errno = EDOM;
+		return (-1);
+	}
+	if (open_files[fd].cur > open_files[fd].end)
+		open_files[fd].end = open_files[fd].cur - 1;
+	return (open_files[fd].cur - open_files[fd].beg);
+}
+
+/*---------------------------------- read() ---------------------------------*/
+
+int 
+read(int fd, void *buf, unsigned int count)
+{
+	errno = NOERROR;
+	/* No such fd or file already closed? */
+	if ((fd > MAX_FD) || (open_files[fd].fi == 0l)) {
+		errno = EBADF;
+		return (-1);
+	}
+
+	if (open_files[fd].cur > open_files[fd].end)
+		return 0;
+
+	if (count > (open_files[fd].end - open_files[fd].cur + 1))
+		count = open_files[fd].end - open_files[fd].cur + 1;
+	memcpy(buf, open_files[fd].cur, count);
+	open_files[fd].cur += count;
+	return (count);
+}
+
+/*-------------------------------- write() ----------------------------------*/
+
+int 
+write(int fd, void *buf, unsigned int count)
+{
+	errno = NOERROR;
+	/* No such fd or file already closed? */
+	if ((fd > MAX_FD) || (open_files[fd].fi == 0l)) {
+		errno = EBADF;
+		return (-1);
+	}
+
+	errno = EACCES;
+	return (-1);
+
+#if 0
+	/* do not allow writing beyond the maximum allowed size */
+
+	if (count > (open_files[fd].end - open_files[fd].cur + 1))
+		count = open_files[fd].end - open_files[fd].cur + 1;
+
+	memcpy(open_files[fd].cur, buf, count);
+	open_files[fd].cur += count;
+	if (open_files[fd].cur > open_files[fd].end)
+		open_files[fd].end = open_files[fd].cur - 1;
+	return (count);
+#endif
+}

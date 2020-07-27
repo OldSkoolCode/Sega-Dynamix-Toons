@@ -1,0 +1,13 @@
+MAKE Version 3.6  Copyright (c) 1992 Borland International
+
+Available memory 516848 bytes
+
+        echo Compiling tn_prop.c68
+Compiling tn_prop.c68
+        com68 -Iinclude -Oa2s2 -q -g1 -Q tn_prop.c68 objs\tmpxxx.s
+tn_prop.c68, 818: warning: illegal combination of pointers, op =
+tn_prop.c68, 818: warning: illegal combination of pointers, op =
+tn_prop.c68, 818: warning: illegal combination of pointers, op =
+tn_prop.c68, 819: too many initializers at { level 3 }
+
+** error 1 ** deleting objs\tn_prop.o

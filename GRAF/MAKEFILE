@@ -1,0 +1,214 @@
+
+
+CATFPAS=catakeup.fpa \
+catangel.fpa \
+catate.fpa   \
+catbanan.fpa \
+catbomb.fpa  \
+catbutt.fpa  \
+catclimb.fpa \
+catcrack.fpa \
+catcut.fpa   \
+categg.fpa   \
+catfish.fpa  \
+catflail.fpa \
+catgum.fpa   \
+cathairb.fpa \
+cathdryr.fpa \
+catlunch.fpa \
+catpeel.fpa  \
+catpencl.fpa \
+catpiano.fpa \
+catpin1.fpa  \
+catpin2.fpa  \
+catpin3.fpa  \
+catpounc.fpa \
+catroot.fpa  \
+catrug.fpa   \
+catrun.fpa   \
+catrunaw.fpa \
+catsaw.fpa   \
+catshake.fpa \
+catshot.fpa  \
+catsleep.fpa \
+catslide.fpa \
+catsmash.fpa \
+catsrtch.fpa \
+catstop.fpa  \
+cattake.fpa  \
+catunnel.fpa \
+catvac.fpa   \
+catwalk.fpa  \
+catyarn.fpa 	 
+
+SIDFPAS=sidanvil.fpa \
+sidbanan.fpa \
+sidberny.fpa \
+sidbomb.fpa  \
+sidbonk.fpa  \
+sidbronx.fpa \
+sidbutt.fpa  \
+sidcheez.fpa \
+sidclimb.fpa \
+sidcut.fpa   \
+siddustb.fpa \
+sidegg.fpa   \
+sidfall.fpa  \
+sidfly.fpa   \
+sidgiggl.fpa \
+sidgill.fpa  \
+sidgum.fpa   \
+sidgun.fpa   \
+sidhair.fpa  \
+sidhdryr.fpa \
+sidhless.fpa \
+sidknif1.fpa \
+sidknif2.fpa \
+sidknife.fpa \
+sidlunch.fpa \
+sidmiror.fpa \
+sidninja.fpa \
+sidpeel.fpa  \
+sidpencl.fpa \
+sidpiano.fpa \
+sidpin.fpa   \
+sidragon.fpa \
+sidrock.fpa  \
+sidroot.fpa  \
+sidrun.fpa   \
+sidsaw.fpa   \
+sidshake.fpa \
+sidslide.fpa \
+sidsqeek.fpa \
+sidstop.fpa  \
+sidtake.fpa  \
+sidtunel.fpa \
+sidvac.fpa   \
+sidwait.fpa  \
+sidwalk.fpa  \
+sidwhop.fpa  \
+sidwulf.fpa  
+	     
+PARTFPAS=part0.fpa \
+part2.fpa  \
+part3.fpa  \
+part4.fpa  \
+part5.fpa  \
+part6.fpa  \
+part7.fpa  \
+part8.fpa  \
+part9.fpa  \
+part10.fpa \
+part11.fpa \
+part12.fpa \
+part13.fpa \
+part14.fpa \
+part15.fpa \
+part16.fpa \
+part17.fpa \
+part18.fpa \
+part19.fpa \
+part20.fpa \
+part21.fpa \
+part22.fpa \
+part23.fpa \
+part24.fpa \
+part25.fpa \
+part26.fpa \
+part27.fpa \
+part28.fpa \
+part29.fpa \
+part30.fpa \
+part31.fpa \
+part32.fpa \
+part33.fpa \
+part34.fpa \
+part35.fpa \
+part36.fpa \
+part38.fpa \
+part39.fpa \
+part40.fpa \
+part41.fpa \
+part42.fpa \
+part43.fpa \
+part44.fpa \
+part45.fpa \
+part46.fpa \
+part47.fpa \
+part48.fpa \
+part49.fpa \
+part50.fpa \
+part51.fpa \
+part52.fpa \
+part53.fpa \
+part54.fpa \
+part55.fpa \
+part56.fpa \
+part57.fpa \
+part58.fpa \
+part59.fpa \
+part60.fpa \
+part61.fpa \
+part62.fpa \
+part63.fpa \
+part64.fpa \
+part65.fpa \
+part66.fpa \
+part67.fpa \
+part68.fpa \
+part69.fpa \
+part70.fpa \
+part71.fpa \
+part72.fpa \
+part73.fpa \
+part74.fpa \
+part75.fpa \
+part77.fpa \
+part78.fpa \
+part79.fpa \
+part80.fpa \
+part82.fpa \
+part83.fpa \
+part84.fpa 
+	   
+
+makefile: $(CATFPAS) $(SIDFPAS) panel.bpe icons.fpa nuke.bpe ripaper.bpe\
+	checklis.bpe nuke2.bpe pigreq.bpe pigsave.bpe radiomap.bpe \
+	request.bpe cheklis2.bpe cursors.fpa speed.bpe clapper.bpe crawl.fpa \
+	rbuttons.fpa sidroot.fpa numbers.fpa handles.fpa backmock.bpe \
+	ripmap.bpe $(PARTFPAS) select.fpc selspr.fpa
+	touch makefile
+
+
+ripaper.fpc: ripaper.gmp
+	cvtsce /r3 /m $*.gmp $*.fpc
+
+ripmap.fpc: ripmap.gmp
+	cvtsce /r3 /m $*.gmp $*.fpc
+
+
+panel.fpc: panel.gmp
+	cvtsce /r3 /m $*.gmp $*.fpc
+	
+
+request.fpc: request.gmp
+	cvtsce /r3 /m $*.gmp $*.fpc
+
+.bmp.fpa:
+	bmp2fpa /b /y $*.bmp $*.fpa
+
+.gmp.fpc:
+	cvtsce /r3 $*.gmp $*.fpc
+
+.fpc.bpe:
+	bpecomp $*.fpc $*.bpe
+
+.anm.fpa:
+	anm2fpa /z $*.anm $*.fpa
+
+.lbm.fpc:
+	lbm2fpb $*.lbm $*.fpc
+
+handles.fpa: handles.inp
+	anm2fpa /c0 /l /g /o handles.inp handles.fpa
+	touch handles.inp

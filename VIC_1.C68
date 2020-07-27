@@ -1,0 +1,1497 @@
+/* * * * *
+*
+*  VIC_1.C
+*
+*  This file contains the code associated with the specified victory solutions
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/06/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+/* * * * *
+*
+*  void kill_cat(void);
+*
+* * * * */
+void kill_cat(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   /* check if the cat has been set inactive */
+   if (cat->flags2 & F2_INACTIVE)
+      victory_count = 50;
+}
+
+/* * * * *
+*
+*  void kill_mouse(void);
+*
+* * * * */
+void kill_mouse(void)
+{
+   static PART * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+
+   /* check if the mouse has been set inactive */
+   if (mouse->flags2 & F2_INACTIVE)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void kill_three_mice(void);
+*
+* * * * */
+void kill_three_mice(void)
+{
+   static PART * far mouse[3];
+   short i,mouse_count;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      for (i=0; i<3; i++)
+         mouse[i] = get_n_type(PT_SID_MOUSE,i+1,F1_MOVE_L);
+
+   mouse_count = 0;
+   for (i=0; i<3; i++)
+      if (mouse[i]->flags2 & F2_INACTIVE)
+         mouse_count++;
+
+   if (mouse_count == 3)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void mouse_eats_cheese(void);
+*
+* * * * */
+void mouse_eats_cheese(void)
+{
+   static PART * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+
+   if (mouse->toon_state == SID_CHEESE_INDEX)
+      victory_count = 120;
+}
+
+/* * * * *
+*
+*  void mouse_eats_banana(void);
+*
+* * * * */
+void mouse_eats_banana(void)
+{
+   static PART * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+
+   if (mouse->toon_state == SID_BANANA_INDEX)
+      victory_count = 60;
+}
+
+/* * * * *
+*
+*  void cat_eats_banana(void);
+*
+* * * * */
+void cat_eats_banana(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   if (cat->toon_state == CAT_BANANA_INDEX)
+      victory_count = 20;
+}
+
+/* * * * *
+*
+*  void cat_eats_fish(void);
+*
+* * * * */
+void cat_eats_fish(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   /* check if the cat has been set inactive */
+   if (  (cat->toon_state == CAT_FISH_INDEX)
+      && (cat->state == CAT_FISH_SEQ + 15))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void balloon_off_screen(void);
+*
+* * * * */
+void balloon_off_screen(void)
+{
+   static PART * far balloon;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      balloon = get_n_type(PT_BALLOON,1,F1_MOVE_L);
+
+   /* check if the balloon has been set inactive */
+   if (balloon->scrn_loc.y + balloon->size.y < 0)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void pop_balloon_with_rope(void);
+*
+* * * * */
+void pop_balloon_with_rope(void)
+{
+   static PART * far balloon;
+   short i;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      i = 0;
+      while(   ((balloon = get_n_type(PT_BALLOON,i,F1_MOVE_L)) != 0)
+            && !balloon->rope_tie[0])
+            i++;
+   }
+
+   /* check if the balloon has been set inactive */
+   if (balloon->flags2 & F2_INACTIVE)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void two_rocks_offscreen(void);
+*
+* * * * */
+void two_rocks_offscreen(void)
+{
+   static PART * far rock1, * far rock2;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      rock1 = get_n_type(PT_ROCK,1,F1_MOVE_L);
+      rock2 = get_n_type(PT_ROCK,2,F1_MOVE_L);
+   }                            
+
+   /* check if the balloon has been set inactive */
+   if (  (rock1->scrn_loc.y > 400)
+      && (rock2->scrn_loc.y > 400))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void baseball_offscreen(void);
+*
+* * * * */
+void baseball_offscreen(void)
+{
+   static PART * far ball;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      ball = get_n_type(PT_BASEBALL,1,F1_MOVE_L);
+
+   /* check if the balloon has been set inactive */
+   if (ball->scrn_loc.y > 400)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void anvil_offscreen(void);
+*
+* * * * */
+void anvil_offscreen(void)
+{
+   static PART * far anvil;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      anvil = get_n_type(PT_ANVIL,1,F1_MOVE_L);
+
+   /* check if the balloon has been set inactive */
+   if (anvil->scrn_loc.y > 400)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void smash_piano(void);
+*
+* * * * */
+void smash_piano(void)
+{
+   static PART * far piano;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      piano = get_n_type(PT_PIANO,1,F1_MOVE_L);
+
+   /* check if the balloon has been set inactive */
+   if (piano->state == 3)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_and_mouse_offscreen(void);
+*
+* * * * */
+void cat_and_mouse_offscreen(void)
+{
+   static PART * far cat, * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+   }
+
+   /* check if the balloon has been set inactive */
+   if (  (cat->scrn_loc.y > 400)
+      && (mouse->scrn_loc.y > 400))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_offscreen_mouse_onscreen(void);
+*
+* * * * */
+void cat_offscreen_mouse_onscreen(void)
+{
+   static PART * far cat, * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+   }
+
+   /* check if the balloon has been set inactive */
+   if (  (cat->scrn_loc.y > 400)
+      && (mouse->old_old_scrn_loc.y == mouse->scrn_loc.y))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_offscreen(void);
+*
+* * * * */
+void cat_offscreen(void)
+{
+   static PART * far cat;
+
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   /* check if the balloon has been set inactive */
+   if (  (cat->scrn_loc.y > 400)
+      || ((cat->scrn_loc.y < 0)
+      && (cat->toon_state == CAT_GUM_INDEX)))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void three_mice_offscreen(void);
+*
+* * * * */
+void three_mice_offscreen(void)
+{
+   static PART * far mouse[3];
+   short i,mouse_count;
+
+   if (!run_count)
+      for (i=0; i<3; i++)
+         mouse[i] = get_n_type(PT_SID_MOUSE,i+1,F1_MOVE_L);
+
+   mouse_count = 0;
+   for (i=0; i<3; i++)
+      if (  ((mouse[i]->scrn_loc.x < 0)
+         || (mouse[i]->scrn_loc.x > 640)
+         || (mouse[i]->scrn_loc.y < 0)
+         || (mouse[i]->scrn_loc.y > 400))
+         && (mouse[i]->toon_state != SID_TUNNEL_INDEX))
+         mouse_count++;
+
+   if (mouse_count == 3)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void three_mice_in_attic(void);
+*
+* * * * */
+void three_mice_in_attic(void)
+{
+   static PART * far mouse[3];
+   short i,mouse_count;
+
+   if (!run_count)
+      for (i=0; i<3; i++)
+         mouse[i] = get_n_type(PT_SID_MOUSE,i+1,F1_MOVE_L);
+
+   mouse_count = 0;
+   for (i=0; i<3; i++)
+      if (  ((mouse[i]->scrn_loc.y < 100)
+         && (mouse[i]->scrn_loc.y > 90))
+         && (mouse[i]->toon_state != SID_TUNNEL_INDEX))
+         mouse_count++;
+
+   if (mouse_count == 3)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void six_balloons_offscreen(void);
+*
+* * * * */
+void six_balloons_offscreen(void)
+{
+   static PART * far balloon[6];
+   short i,balloon_count;
+
+   if (!run_count)
+      for (i=0; i<6; i++)
+         balloon[i] = get_n_type(PT_BALLOON,i+1,F1_MOVE_L);
+
+   balloon_count = 0;
+   for (i=0; i<6; i++)
+      if (  (balloon[i]->scrn_loc.x < 0)
+         || (balloon[i]->scrn_loc.x > 640)
+         || (balloon[i]->scrn_loc.y < 0)
+         || (balloon[i]->scrn_loc.y > 400)
+         || (balloon[i]->flags2 & F2_INACTIVE))
+         balloon_count++;
+
+   if (balloon_count == 6)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void egg_on_three_sid_three_al(void);
+*
+* * * * */
+void egg_on_three_sid_three_al(void)
+{
+   static PART * far cat[3], * far mouse[3];
+   static short cat_egg[3],mouse_egg[3];
+   short i,egg_count;
+
+   if (!run_count)
+      for (i=0; i<3; i++)
+      {
+         cat[i] = get_n_type(PT_AL_CAT,i+1,F1_MOVE_L);
+         mouse[i] = get_n_type(PT_SID_MOUSE,i+1,F1_MOVE_L);
+         cat_egg[i] = mouse_egg[i] = 0;
+      }
+
+   egg_count = 0;
+   for (i=0; i<3; i++)
+   {
+      if (cat[i]->toon_state == CAT_EGG_INDEX)
+         cat_egg[i] = 1;
+      if (mouse[i]->toon_state == SID_EGG_INDEX)
+         mouse_egg[i] = 1;
+
+      if (cat_egg[i])
+         egg_count++;
+      if (mouse_egg[i])
+         egg_count++;
+   }
+
+   if (egg_count == 6)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void elephant_eats_peanut(void);
+*
+* * * * */
+void elephant_eats_peanut(void)
+{
+   static PART * far elephant;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      elephant = get_n_type(PT_ELEPHANT,1,F1_STATIC_L);
+
+   /* check if the elephant has been set inactive */
+   if (  (elephant->toon_state == 5)
+      && (elephant->state == 8))
+      victory_count = 15;
+}
+
+/* * * * *
+*
+*  void two_elephants_eat_peanuts(void);
+*
+* * * * */
+void two_elephants_eat_peanuts(void)
+{
+   static PART * far elephant1, *elephant2;
+   static short far peanut1,peanut2;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      /* find the elephants in the puzzle */
+      elephant1 = get_n_type(PT_ELEPHANT,1,F1_STATIC_L);
+      elephant2 = get_n_type(PT_ELEPHANT,2,F1_STATIC_L);
+      peanut1 = peanut2 = 0;
+   }
+
+   /* check if the elephant has been set inactive */
+   if (  (elephant1->toon_state == 5)
+      && (elephant1->state == 8))
+      peanut1 = 1;
+   if (  (elephant2->toon_state == 5)
+      && (elephant2->state == 8))
+      peanut2 = 1;
+
+   if (peanut1 && peanut2)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void billiards1(void);
+*
+* * * * */
+void billiards1(void)
+{
+   static PART * far balls[15];
+   static short far sunk[15];
+   short i,success;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      /* find the balls in the puzzle */
+      for (i = 0; i < 15; i++)
+      {
+         balls[i] = get_n_type(PT_CAT_EYE_M,i+1,F1_MOVE_L);
+         sunk[i] = 0;
+      }
+   }
+
+   /* check if the ball has been set inactive */
+   success = 1;
+   for (i = 0; i < 15; i++)
+   {
+      if (  (balls[i]->flags2 & F2_INACTIVE)
+         || (balls[i]->scrn_loc.x < 0)
+         || (balls[i]->scrn_loc.y < 0)
+         || (balls[i]->scrn_loc.x > 640)
+         || (balls[i]->scrn_loc.y > 400))
+         sunk[i] = 1;
+
+      if (!sunk[i])
+         success = 0;
+   }
+   
+   if (success)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_cracked_on_head(void);
+*
+* * * * */
+void cat_cracked_on_head(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   /* check if the cat has been set inactive */
+   if (  (cat->toon_state == CAT_CRACK_INDEX)
+      && (cat->flags2 && F2_INACTIVE))
+      victory_count = 15;
+}
+
+/* * * * *
+*
+*  void cat_egg_in_face(void);
+*
+* * * * */
+void cat_egg_in_face(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   if (  (cat->toon_state == CAT_EGG_INDEX)
+      && (cat->state == CAT_EGG_SEQ + 28))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_egg_in_face(void);
+*
+* * * * */
+void sid_egg_in_face(void)
+{
+   static PART * far mouse;
+   static eggs;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      eggs = 0;
+   }
+
+   if (  (mouse->toon_state == SID_EGG_INDEX)
+      && (mouse->state == SID_EGG_SEQ + 42)
+      && (mouse->sub_state == SID_ROOT_INDEX))
+      eggs++;
+
+   if (eggs == 2)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_pin_poked(void);
+*
+* * * * */
+void cat_pin_poked(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   if (  (cat->toon_state == CAT_PIN1_INDEX)
+      || (cat->toon_state == CAT_PIN2_INDEX)
+      || (cat->toon_state == CAT_PIN3_INDEX)
+      || (cat->toon_state == CAT_SHOT_INDEX))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void switch_turned_off1(void);
+*
+* * * * */
+void switch_turned_off1(void)
+{
+   static PART * far cat,* far knife_switch;
+   static short far on, far failure;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      /* find the cat in the puzzle */
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      knife_switch = get_n_type(PT_E_PLUG,1,F1_STATIC_L);
+      on = failure = 0;
+   }
+
+   /* check if the knife_switch is on */
+   if (knife_switch->sub_state)
+      on = 1;
+
+   /* check if the knife_switch has been turned off; */
+   if (  !knife_switch->sub_state
+      && (on == 1))
+      on = 2;
+
+   if (  (cat->toon_state == CAT_SHOT_INDEX)
+      || (cat->toon_state == CAT_PIN3_INDEX))
+      failure = 1;
+
+   /* check if the cat has not been hurt and the knife_switch has been turned off */
+   if (!failure && (on == 2))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void angel_off_screen(void);
+*
+* * * * */
+void angel_off_screen(void)
+{
+   static PART * far cat,* far angel;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      /* find the cat in the puzzle */
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      angel = 0;
+   }
+
+   if (  (cat->toon_state == CAT_SHOT_INDEX)
+      && (cat->toon_link->type == PT_AL_CAT))
+      angel = cat->toon_link;
+
+   if (  angel
+      && (angel->scrn_loc.y + angel->size.y < 0))
+      victory_count = 10;
+}
+
+
+/* * * * *
+*
+*  void four_angels_off_screen(void);
+*
+* * * * */
+void four_angels_off_screen(void)
+{
+   static PART * far cat[4],* far angel[4];
+   char i,angel_offscreen_count = 0;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      /* find the cat in the puzzle */
+      for (i = 0; i < 4; i++)
+      {
+         cat[i] = get_n_type(PT_AL_CAT,i+1,F1_MOVE_L);
+         angel[i] = 0;
+      }
+   }
+
+   for (i = 0; i < 4; i++)
+   {
+      if (  (cat[i]->toon_state == CAT_SHOT_INDEX)
+         && (cat[i]->toon_link->type == PT_AL_CAT))
+         angel[i] = cat[i]->toon_link;
+
+      if (  angel[i]
+         && (angel[i]->scrn_loc.y + angel[i]->size.y < 0))
+         angel_offscreen_count++;
+   }
+
+   if (angel_offscreen_count == 4)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_sees_birds_and_curtains_open(void);
+*
+* * * * */
+void cat_sees_birds_and_curtains_open(void)
+{
+   static PART * far cat;
+   static PART * message[5];
+   short i,message_count;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      for (i=0; i<5; i++)
+         message[i] = get_n_type(PT_MESSAGER,i+1,F1_STATIC_L);
+   }
+   
+   message_count = 0;
+   for (i=0; i<5; i++)
+      if (message[i]->state)
+         message_count++;
+
+   if (  (cat->toon_state == CAT_BIRDS_INDEX)
+      && (cat->state == CAT_BIRDS_SEQ + 10)
+      && (message_count == 5))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void open_all_curtains(void);
+*
+* * * * */
+void open_all_curtains(void)
+{
+   static PART * message[10];
+   static short max_messages;
+   short i,message_count;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      max_messages = 0;
+      while ((message[max_messages] =
+         get_n_type(PT_MESSAGER,max_messages+1,F1_STATIC_L)) != 0)
+      {
+         max_messages++;
+      }
+   }
+   
+   message_count = 0;
+   for (i=0; i<max_messages; i++)
+      if (message[i]->state)
+         message_count++;
+
+   if (message_count == max_messages)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_enters_tunnel(void);
+*
+* * * * */
+void sid_enters_tunnel(void)
+{
+   static PART * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+
+   if (  (mouse->toon_state == SID_TUNNEL_INDEX)
+      && (mouse->scrn_loc.x > 999))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_exits_tunnel(void);
+*
+* * * * */
+void sid_exits_tunnel(void)
+{
+   static PART * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+
+   if (  (mouse->toon_state == SID_TUNNEL_INDEX)
+      && (mouse->state == SID_TUNNEL_SEQ + 23))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_exits_tunnel(void);
+*
+* * * * */
+void cat_exits_tunnel(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   if (  (cat->toon_state == CAT_TUNNEL_INDEX)
+      && (cat->state == CAT_TUNNEL_SEQ + 35))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_tied_up(void);
+*
+* * * * */
+void cat_tied_up(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   if (  (cat->toon_state == CAT_YARN_INDEX)
+      && (cat->state == CAT_YARN_SEQ + 4))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void two_bombs_sucked_in_vacuum(void);
+*
+* * * * */
+void two_bombs_sucked_in_vacuum(void)
+{
+   static PART * far bomb, * far ww2;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      bomb = get_n_type(PT_BOMB,1,F1_MOVE_L);
+      ww2 = get_n_type(PT_WWII_BOMB,1,F1_MOVE_L);
+   }
+
+   if (  (bomb->flags3 & F3_IN_VACUUM)
+      && (ww2->flags3 & F3_IN_VACUUM))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void two_counters_to_zero(void);
+*
+* * * * */
+void two_counters_to_zero(void)
+{
+   static PART * far counter1, * far counter2;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      counter1 = get_n_type(PT_UD_COUNTER,1,F1_STATIC_L);
+      counter2 = get_n_type(PT_UD_COUNTER,2,F1_STATIC_L);
+   }
+
+   if (!(counter1->memory & 0x00ff) && !(counter2->memory & 0x00ff))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void counter_to_zero(void);
+*
+* * * * */
+void counter_to_zero(void)
+{
+   static PART * far counter;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      counter = get_n_type(PT_UD_COUNTER,1,F1_STATIC_L);
+
+   if (!(counter->memory && 0x00ff))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_cheese_al_below(void);
+*
+* * * * */
+void sid_cheese_al_below(void)
+{
+   static PART * far mouse, * far cat;
+   static short far cheese, fallen;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      cheese = fallen = 0;
+   }
+
+   if (  (mouse->toon_state == SID_CHEESE_INDEX)
+      && (mouse->state == SID_CHEESE_SEQ + 8))
+      cheese = 1;
+   if (cat->scrn_loc.y > 300)
+      fallen = 1;
+
+   if (cheese && fallen)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_eats_banana_al_eats_fish(void);
+*
+* * * * */
+void sid_eats_banana_al_eats_fish(void)
+{
+   static PART * far mouse, * far cat;
+   static short far banana, fish;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      banana = fish = 0;
+   }
+
+   if (  (mouse->toon_state == SID_BANANA_INDEX)
+      && (mouse->state == SID_BANANA_SEQ + 15))
+      banana = 1;
+   if (  (cat->toon_state == CAT_FISH_INDEX)
+      && (cat->state == CAT_FISH_SEQ + 15))
+      fish = 1;
+
+   if (banana && fish)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_eats_gum_al_eats_fish(void);
+*
+* * * * */
+void sid_eats_gum_al_eats_fish(void)
+{
+   static PART * far mouse, * far cat;
+   static short far gum, fish;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      gum = fish = 0;
+   }
+
+   if (  (mouse->toon_state == SID_GUM_INDEX)
+      && (mouse->state == SID_GUM_SEQ + 17))
+      gum = 1;
+   if (  (cat->toon_state == CAT_FISH_INDEX)
+      && (cat->state == CAT_FISH_SEQ + 15))
+      fish = 1;
+
+   if (gum && fish)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_and_al_eats_gum(void);
+*
+* * * * */
+void sid_and_al_eats_gum(void)
+{
+   static PART * far mouse, * far cat;
+   static short far gum1, gum2;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      gum1 = gum2 = 0;
+   }
+
+   if (  (mouse->toon_state == SID_GUM_INDEX)
+      && (mouse->state == SID_GUM_SEQ + 17))
+      gum1 = 1;
+   if (  (cat->toon_state == CAT_GUM_INDEX)
+      && (cat->state == CAT_GUM_SEQ + 27))
+      gum2 = 1;
+
+   if (gum1 && gum2)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_and_mouse_shot(void);
+*
+* * * * */
+void cat_and_mouse_shot(void)
+{
+   static PART * far mouse, * far cat;
+   static short far cat_shot, mouse_shot;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      cat_shot = mouse_shot = 0;
+   }
+
+   if (  (mouse->toon_state == SID_GUN_INDEX)
+      && (mouse->state == SID_GUN_SEQ + 11))
+      mouse_shot = 1;
+   if (  ((cat->toon_state == CAT_SHOT_INDEX)
+      && (cat->state == CAT_SHOT_SEQ + 29))
+      || ((cat->toon_state == CAT_BUTT_INDEX)
+      && (cat->state == CAT_BUTT_SEQ)))
+      cat_shot = 1;
+
+   if (mouse_shot && cat_shot)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_and_mouse_blown_up(void);
+*
+* * * * */
+void cat_and_mouse_blown_up(void)
+{
+   static PART * far mouse, * far cat;
+   static short far cat_blown_up, mouse_blown_up;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      cat_blown_up = mouse_blown_up = 0;
+   }
+
+   if (  (mouse->toon_state == SID_BOMB_INDEX)
+      && (mouse->state == SID_BOMB_SEQ + 34))
+      mouse_blown_up = 1;
+   if (  (cat->toon_state == CAT_BOMB_INDEX)
+      && (cat->state == CAT_BOMB_SEQ + 7))
+      cat_blown_up = 1;
+
+   if (mouse_blown_up && cat_blown_up)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_blown_up(void);
+*
+* * * * */
+void cat_blown_up(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   if (  (cat->toon_state == CAT_BOMB_INDEX)
+      && (cat->state == CAT_BOMB_SEQ + 7))
+      victory_count = 1;
+}
+
+/* * * * *
+*
+*  void mouse_blown_up(void);
+*
+* * * * */
+void mouse_blown_up(void)
+{
+   static PART * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+   }
+
+   if (  (mouse->toon_state == SID_BOMB_INDEX)
+      && (mouse->state == SID_BOMB_SEQ + 34))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_plays_accordian(void);
+*
+* * * * */
+void sid_plays_accordian(void)
+{
+   static PART * far mouse;
+   static short far finished;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      finished = 0;
+   }
+
+   if (mouse->toon_state == SID_ANVIL_INDEX)
+      finished = run_count;
+
+   if (finished && (run_count == finished + 30))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_accordian_al_birds(void);
+*
+* * * * */
+void sid_accordian_al_birds(void)
+{
+   static PART * far mouse, * far cat;
+   static short far accordian, birds;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      accordian = birds = 0;
+   }
+
+   if (mouse->toon_state == SID_ANVIL_INDEX)
+      accordian = 1;
+   if (cat->toon_state == CAT_BIRDS_INDEX)
+      birds = 1;
+
+   if (accordian && birds)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void cat_eats_mouse(void);
+*
+* * * * */
+void cat_eats_mouse(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   if (  (cat->toon_state == CAT_ATE_INDEX)
+      && (cat->state == CAT_ATE_SEQ + 46))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_eats_cheese_al_cracked(void);
+*
+* * * * */
+void sid_eats_cheese_al_cracked(void)
+{
+   static PART * far mouse, * far cat;
+   static short far cheese, cracked;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      cheese = cracked = 0;
+   }
+
+   if (mouse->toon_state == SID_CHEESE_INDEX)
+      cheese = 1;
+   if (cat->toon_state == CAT_CRACK_INDEX)
+      cracked = 1;
+
+   if (cheese && cracked)
+      victory_count = 30;
+}
+
+/* * * * *
+*
+*  void sid_eats_cheese_al_gets_egg(void);
+*
+* * * * */
+void sid_eats_cheese_al_gets_egg(void)
+{
+   static PART * far mouse, * far cat;
+   static short far cheese, egg;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      cheese = egg = 0;
+   }
+
+   if (mouse->toon_state == SID_CHEESE_INDEX)
+      cheese = 1;
+   if (cat->toon_state == CAT_EGG_INDEX)
+      egg = 1;
+
+   if (cheese && egg)
+      victory_count = 30;
+}
+
+/* * * * *
+*
+*  void sid_eats_cheese_al_eats_fish(void);
+*
+* * * * */
+void sid_eats_cheese_al_eats_fish(void)
+{
+   static PART * far mouse, * far cat;
+   static short far fish, cheese;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cheese = fish = 0;
+   }
+
+   if (cat->toon_state == CAT_FISH_INDEX)
+      fish = 1;
+   if (mouse->toon_state == SID_CHEESE_INDEX)
+      cheese = 1;
+
+   if (cheese && fish)
+      victory_count = 20;
+}
+
+/* * * * *
+*
+*  void cat_eats_gum(void);
+*
+* * * * */
+void cat_eats_gum(void)
+{
+   static PART * far cat;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+
+   if (cat->toon_state == CAT_GUM_INDEX)
+      victory_count = 20;
+}
+
+/* * * * *
+*
+*  void sid_falls_offscreen(void);
+*
+* * * * */
+void sid_falls_offscreen(void)
+{
+   static PART * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+
+   if (  (mouse->scrn_loc.y > 400)
+      && (mouse->toon_state != SID_TUNNEL_INDEX))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_falls_offscreen_kill_al(void);
+*
+* * * * */
+void sid_falls_offscreen_kill_al(void)
+{
+   static PART * far mouse, * far cat;
+   static short fallen, dead;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+      cat = get_n_type(PT_AL_CAT,1,F1_MOVE_L);
+      fallen = dead = 0;
+   }
+
+   if (  (mouse->scrn_loc.y > 400)
+      && (mouse->toon_state != SID_TUNNEL_INDEX))
+      fallen = 1;
+   if (cat->flags2 & F2_INACTIVE)
+      dead = 1;
+
+   if (fallen && dead)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void sid_falls_offscreen_extreme_right(void);
+*
+* * * * */
+void sid_falls_offscreen_extreme_right(void)
+{
+   static PART * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+
+   if (  (mouse->scrn_loc.y > 400)
+      && (mouse->scrn_loc.y < 420)
+      && (mouse->scrn_loc.x > 400)
+      && (mouse->toon_state != SID_TUNNEL_INDEX))
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void three_als_sucked_in_vacuum(void);
+*
+* * * * */
+void three_als_sucked_in_vacuum(void)
+{
+   static PART * far al[3];
+   short sucked_als;
+   char i;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+   {
+      for (i = 0; i < 3; i++)
+         al[i] = get_n_type(PT_AL_CAT,i+1,F1_MOVE_L);
+   }
+
+   sucked_als = 0;
+   for (i = 0; i < 3; i++)
+      if (al[i]->flags3 & F3_IN_VACUUM)
+         sucked_als++;
+
+   if (sucked_als == 3)
+      victory_count = 10;
+}
+
+/* * * * *
+*
+*  void kill_three_cheese(void);
+*
+* * * * */
+void kill_three_cheese(void)
+{
+   static PART * far cheese[3];
+   short i,cheese_count;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      for (i=0; i<3; i++)
+         cheese[i] = get_n_type(PT_CHEESE,i+1,F1_MOVE_L);
+
+   cheese_count = 0;
+   for (i=0; i<3; i++)
+      if (cheese[i]->flags2 & F2_INACTIVE)
+         cheese_count++;
+
+   if (cheese_count == 3)
+      victory_count = 30;
+}
+
+/* * * * *
+*
+*  void kill_three_fish(void);
+*
+* * * * */
+void kill_three_fish(void)
+{
+   static PART * far fish[3];
+   short i,fish_count;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      for (i=0; i<3; i++)
+         fish[i] = get_n_type(PT_FISH,i+1,F1_MOVE_L);
+
+   fish_count = 0;
+   for (i=0; i<3; i++)
+      if (fish[i]->flags2 & F2_INACTIVE)
+         fish_count++;
+
+   if (fish_count == 3)
+      victory_count = 30;
+}
+
+/* * * * *
+*
+*  void kill_six_fish(void);
+*
+* * * * */
+void kill_six_fish(void)
+{
+   static PART * far fish[6];
+   short i,fish_count;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      for (i=0; i<6; i++)
+         fish[i] = get_n_type(PT_FISH,i+1,F1_MOVE_L);
+
+   fish_count = 0;
+   for (i=0; i<6; i++)
+      if (fish[i]->flags2 & F2_INACTIVE)
+         fish_count++;
+
+   if (fish_count == 6)
+      victory_count = 30;
+}
+
+/* * * * *
+*
+*  void kill_five_cheese(void);
+*
+* * * * */
+void kill_five_cheese(void)
+{
+   static PART * far cheese[5];
+   short i,cheese_count;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      for (i=0; i<5; i++)
+         cheese[i] = get_n_type(PT_CHEESE,i+1,F1_MOVE_L);
+
+   cheese_count = 0;
+   for (i=0; i<5; i++)
+      if (cheese[i]->flags2 & F2_INACTIVE)
+         cheese_count++;
+
+   if (cheese_count == 5)
+      victory_count = 30;
+}
+
+/* * * * *
+*
+*  void sid_erases_al(void);
+*
+* * * * */
+void sid_erases_al(void)
+{
+   static PART * far mouse;
+
+   /* check if this is the first time into this puzzle. */
+   if (!run_count)
+      mouse = get_n_type(PT_SID_MOUSE,1,F1_MOVE_L);
+
+   if (  (mouse->toon_state == SID_PENCIL3_INDEX)
+      && (mouse->state == SID_PENCIL3_SEQ + 34))
+      victory_count = 20;
+}
+
+
+

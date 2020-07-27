@@ -1,0 +1,157 @@
+/* * * * *
+*
+*  TN_CHKEN.C
+*
+*  This file contains all the code associated with the chicken.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  08/08/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   CHICKEN                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/*
+*  This is the chicken sequence.  The root for the chicken is sshape #1.
+*  1,2,2,3,3,4,4,5,5,2,2,1.  the chicken rests at frame one until    
+*  she decides to lay an egg, then she goes back to resting at frame #1
+*  When she lays an egg the egg, will appear behind the nest on frame #3
+*  at an offset of {23,55} from the chicken position.
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C chicken1 = {0, CHICKEN_PLANE, {0,1,255,255},
+   {{0,6},{3,0},{0,0},{0,0}}};
+static F_SSHAPE_C chicken2 = {0, CHICKEN_PLANE, {0,2,255,255},
+   {{0,6},{7,-7},{0,0},{0,0}}};
+static F_SSHAPE_C chicken3 = {0, CHICKEN_PLANE, {0,3,4,255},
+   {{0,6},{3,0},{14,-15},{0,0}}};
+static F_SSHAPE_C chicken4 = {0, CHICKEN_PLANE, {0,3,4,255},
+   {{0,6},{3,0},{14,-15},{0,0}}};
+static F_SSHAPE_C chicken5 = {0, CHICKEN_PLANE, {0,3,4,255},
+   {{0,6},{3,0},{13,-15},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far chicken_ss_tab[CHICKEN_NUM_STATES] = 
+   {&chicken1,&chicken2,&chicken3,&chicken4,&chicken5};
+
+/* size. */
+TIM_VEC_C far chicken_size[CHICKEN_NUM_STATES] = 
+   {{36,18},{36,25},{36,33},{36,33},{36,33}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far chicken_os[CHICKEN_NUM_STATES] = 
+   {{0,0},{0,-14},{0,-31},{0,-31},{0,-31}};
+
+/* border definitions. */
+static PART_BORDER_C far chicken1_bord[CHICKEN_BORDERS] =
+   {{4,9,0x1170},{14,0,0xEDA0},{22,1,0xDDD0},{31,8,0x8E30},
+    {31,11,0x8000},{14,14,0x6B90},{4,11,0x2110},{4,9,0xC000}};
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void chicken_reinit(PART *chicken)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!chicken)
+   {
+      set_border_slopes(PT_CHICKEN,0,chicken1_bord,0,0);
+      return;
+   }
+
+   chicken->border = chicken1_bord;
+   set_adjusted_loc_size(chicken);
+}
+
+short chicken_bounce(PART *cur_part)
+{
+   PART *chicken;
+
+   chicken = cur_part->col_info.part;
+   chicken->sub_state = 1;
+   return(1);
+}
+
+void chicken_internal(PART *chicken)
+{
+   short index;
+
+   static char far state_array[] =
+   {
+      1,1,2,2,3,3,4,4,5,5,2,2,1,1,1,1,1
+   };
+   #define NUM_STATES   (sizeof(state_array)/sizeof(char))
+   #define CHICKEN_RATE     2
+
+   /* check for debouncing of the chicken */
+   if (!chicken->sub_state && chicken->work_var1)
+      chicken->work_var1--;
+
+   /* check if the chicken has been hit and if it has been debounced */
+   if (  chicken->sub_state
+      && !chicken->work_var1
+      && chicken->memory)
+   {
+      /* randomly choose a sound to play */
+      if (!chicken->work_var)
+      {
+         index = my_random() % 12;
+         switch (index)
+         {
+            case 0:
+               jtp_sx_play(SX_CHICKEN_DUCK,0,0);
+               break;
+            case 1:
+               jtp_sx_play(SX_CHICKEN_PIG,0,0);
+               break;
+            case 2:
+               jtp_sx_play(SX_CHICKEN_DOG,0,0);
+               break;
+            case 3:
+               jtp_sx_play(SX_CHICKEN_BURP,0,0);
+               break;
+            default:
+               jtp_sx_play(SX_CHICKEN_HEN,0,0);
+         }
+
+      }
+
+      if (!(++chicken->work_var % CHICKEN_RATE))
+      {
+         if (chicken->work_var < NUM_STATES * CHICKEN_RATE)
+         {
+            chicken->state = state_array[chicken->work_var / CHICKEN_RATE] - 1;
+            chicken_reinit(chicken);
+
+            /* check if an egg should be layed. */
+            if ((chicken->state == 3) && (chicken->old_state == 2))
+               create_part(PT_EGG,
+                  chicken->scrn_loc.x + 23,
+                  chicken->scrn_loc.y + 35,
+                  chicken->scrn_loc.x + 23,
+                  chicken->scrn_loc.y + 35,
+                  0,0,0,0);
+         }
+         else
+         {
+            chicken->sub_state = chicken->work_var = 0;
+            chicken->memory--;
+            chicken->work_var1 = 4;
+         }
+      }
+   }
+}
+
+
+

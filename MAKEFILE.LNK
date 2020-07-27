@@ -1,0 +1,24 @@
+-m
+-P
+MEMORY
+{
+    rom:  ORG(0x000000) LEN(0x200000)
+    ram:  ORG(0xFF0000) LEN(0x010000)
+}
+SECTIONS
+{
+    GROUP:
+    {
+	.text: {}
+	.graf {}
+	.levels {}
+	.sound: {}
+        .ld_tbl: {ld = ..;}
+    } > rom
+    .data: ALIGN(2) LOAD(ld) COPY {} > ram
+    .bss:
+    {
+	heap_org = ..;
+    } > ram
+}
+	heap_len = 0xFFF800 - heap_org;

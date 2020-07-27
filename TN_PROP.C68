@@ -1,0 +1,866 @@
+/* * * * *
+*
+*  TN_PROP.C
+*
+*  This module replaces the PROP.C original to T.I.M.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/02/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+/* * * * *
+*
+*  static function to this module
+*
+* * * * */
+static short pe_bounce( PART *);
+static void pe_internal( PART *);
+static void pe_reinit(PART *);
+static void pe_flip(PART *, short);
+static void pe_resize( PART *);
+static short pe_rope( PART *, PART *, short, short, short, long);
+
+static PART_BORDER_C far eyehook_border[4] = { {0,0}, {21,0}, {21,21}, {0,21} };
+static PART_BORDER_C far  pulley_border[4] = { {0,0}, {23,0}, {23,23}, {0,23} };
+static PART_BORDER_C far  mglass_border[4] = { {0,0}, {20,0}, {20,37}, {0,37} };
+
+      
+
+
+/* * * * *
+*
+*  These are the generic functions of the parts.
+*
+* * * * */
+#pragma argsused
+static short pe_bounce(PART *pptr)
+{
+   return(1);
+}
+
+#pragma argsused
+static void pe_internal(PART *pptr)
+{
+}
+
+#pragma argsused
+static void pe_reinit(PART *pptr)
+{
+}
+
+#pragma argsused
+static void pe_flip(PART *pptr,short flip_mode)
+{
+}
+
+#pragma argsused
+static void pe_resize(PART *pptr)
+{
+}
+
+#pragma argsused
+static short pe_rope(PART *pptr1,PART *pptr2,short tie_num,short rope_type,short mass,long force)
+{
+   return(0);
+}
+
+/* * * * *
+*
+*  special_reinit(part);
+*
+*  Handles special parts that do not have borders, but need
+*  them while the part is being placed.
+*
+* * * * */
+void special_reinit(PART *pptr)
+{
+   /* If initalizing for the first time, set slopes */
+   if(!pptr)
+      return;
+
+   /* If toon is not running, create a default border */
+   if(!pptr->state && (tim_mode != TM_RUN))
+   {
+      /* Determine which border to use */
+      switch(pptr->type)
+      {
+         case PT_EYEHOOK:
+            pptr->border = eyehook_border;
+            pptr->num_borders = 4;
+            break;
+         case PT_PULLEY:
+            pptr->border = pulley_border;
+            pptr->num_borders = 4;
+            break;
+         case PT_M_GLASS:
+            pptr->border = mglass_border;
+            pptr->num_borders = 4;
+            break;
+      }
+   }
+
+   /* In all other cases, remove the border */
+   else
+   {
+      pptr->border = 0;
+      pptr->num_borders = 0;
+   }
+}
+
+#ifdef _MSDOS_
+/* * * * *
+*
+*  void init_bin_order(void);
+*
+*  This function will set the order of the part bin. It should be called once
+*  on game startup.
+*
+* * * * */
+void init_bin_order(void)
+{
+   short i;
+	P_PART_ELEMENTS tptr;
+   static const short far bin_order[TN_NUM_PARTS] =
+   {
+      /* characters */
+      PT_AL_CAT,
+      PT_SID_MOUSE,
+      PT_DRAGON,
+      PT_ELEPHANT,
+      PT_CHICKEN,
+      PT_GUIDO,
+      PT_GIL,
+      PT_ONT,
+      PT_LARD,
+      PT_BERNY,
+
+      /* miscellaneous */
+      PT_TEAPOT,
+      PT_CATAPULT,
+      PT_BALLOON,
+      PT_TRAMP,
+      PT_M_GLASS,
+      PT_PIANO,
+      PT_ANVIL,
+      PT_HATPIN,
+      PT_PENCIL,
+      PT_HAMMER,
+      PT_MIRROR,
+      PT_KNIFE,
+      PT_CHAINSAW,
+
+      /* food */
+      PT_GUM,
+      PT_EGG,
+      PT_FISH,
+      PT_CHEESE,
+      PT_PEANUT,
+      PT_BANANA,
+
+      /* ropes */
+      PT_ROPE,
+      PT_TT,
+      PT_EYEHOOK,
+      PT_SCISSORS,
+      PT_PULLEY,
+      PT_HANDGUN,
+      PT_BULLET,
+      PT_WHISTLE,
+      PT_TRAP_DOOR,
+      PT_PHANTOM,
+
+      /* belts */
+      PT_PBELT,
+      PT_HC_BELT,
+      PT_GEAR,
+      PT_ANT,
+      PT_FAT_MAN,
+      PT_ENGINE,
+
+      /* electrical */
+      PT_E_PLUG,
+      PT_VACUUM,
+      PT_HAIRDRYER,
+      PT_EGG_TIMER,
+
+      /* puzzle parts */
+      PT_UD_COUNTER,
+      PT_INCR_DECR,
+      PT_SHOOT_SWTCH,
+      PT_MESSAGER,
+      PT_TRANS_ROT,
+      PT_ROT_TRANS,
+
+      /* explosives */
+      PT_BOMB,
+      PT_WWII_BOMB,
+      PT_EXPLOSION,
+
+      /* balls */
+      PT_HAIR_BALL,
+      PT_DUSTBUNNY,
+      PT_ROCK,
+      PT_YARNBALL,
+      PT_BASEBALL,
+      PT_SOCCER,
+      PT_BEACHBALL,
+      PT_CAT_EYE_M,
+      PT_STEELY_M,
+      PT_BOULDER_M,
+      PT_PEE_WEE_M,
+      PT_STRIPE_M,
+
+      /* walls */
+      PT_LADDER,
+      PT_TUNNEL,
+      PT_RUG,
+      PT_WALL0,
+      PT_WALL1,
+      PT_WALL2,
+      PT_WALL3,
+      PT_WALL4,
+      PT_WALL5,
+      PT_INCLINE0,
+      PT_INCLINE1,
+      PT_INCLINE2,
+      PT_INCLINE3,
+      PT_INCLINE4,
+      PT_INCLINE5,
+   };
+
+   for (i=0; i<TN_NUM_PARTS; i++) {
+		tptr = &prop[bin_order[i]];
+      tptr->part_bin_order = i;
+	}
+}
+#endif
+
+                     
+/* * * * *
+*
+*  This is the property array for the parts.
+*
+* * * * */
+PART_ELEMENTS far prop[TN_NUM_PARTS] =
+{
+   { 3776,1000,E_MAX<<2,16,                     /*0 CONVEYOR */
+      0,0,
+     {64,16},{24,16},0,
+      0,0,0,0,
+      {CONVEYOR_PLANE,CONVEYOR_PLANE1},CONVEYOR_BORDERS,40,0,
+      hc_belt_bounce,hc_belt_internal,hc_belt_reinit,
+      pe_flip,hc_belt_resize,pe_rope},
+   { 3776,1001,0,0,                             /*1 CONVEYOR BELT */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {BELT_PLANE,BELT_PLANE1},0,39,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 3776,1002,E_MAX-(E_MAX>>1),16,             /*2 SWITCH */
+      0,0,
+     {0,0},{120,120},0,
+      p2_ss_tab,p2_os,p2_size,0,
+      {SWITCH_PLANE,SWITCH_PLANE1},SWITCH_BORDERS,45,0,
+      ep_bounce,ep_internal,ep_reinit,
+      ep_flip,pe_resize,pe_rope},
+   { 1888,1003,E_MAX<<2,16,                     /*3 TEETER-TOTTER */
+      0,0,
+     {0,0},{120,120},0,
+      tt_ss_tab,tt_os,tt_size,0,
+      {TT_PLANE,TT_PLANE1},TT_BORDERS,30,0,
+      tt_bounce,tt_internal,tt_reinit,
+      tt_flip,pe_resize,tt_rope},
+   { 2832,20,E_MAX-(E_MAX>>1),16,              /*4 HAIRBALL */
+      0,0,
+     {0,0},{120,120},0,
+      0,p4_os,p4_size,0,
+      {HAIRBALL_PLANE, HAIRBALL_PLANE1},HAIRBALL_BORDERS,58,0,
+      pe_bounce,hair_internal,hair_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX<<1,0,                            /*5 DUSTBUNNY */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {DUSTBUNNY_PLANE, DUSTBUNNY_PLANE1},DUSTBUNNY_BORDERS,59,0,
+      pe_bounce,pe_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 2000,500,E_MAX>>2,24,                        /*6 ROCK */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {BALL_PLANE,BALL_PLANE1},BALL_BORDERS,60,0,
+      pe_bounce,pe_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 1322,50,E_MAX-(E_MAX>>2),16,                /*7 YARN BALL */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {BALL_PLANE,BALL_PLANE1},BALL_BORDERS,61,0,
+      pe_bounce,pe_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 1800,70,E_MAX-(E_MAX>>2)+(E_MAX>>3),16,     /*8 BASEBALL */
+      0,0,
+     {0,0},{120,120},0,
+      baseball_ss_tab,baseball_os,baseball_size,0,
+      {BALL_PLANE,BALL_PLANE1},BALL_BORDERS,62,0,
+      pe_bounce,ball_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 1800,40,E_MAX-(E_MAX>>3),8,                 /*9 SOCCERBALL */
+      0,0,
+     {0,0},{120,120},0,
+      soccer_ss_tab,soccer_os,soccer_size,0,
+      {BALL_PLANE,BALL_PLANE1},BALL_BORDERS,63,0,
+      pe_bounce,ball_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 1322,20,E_MAX,0,                            /*10 BEACHBALL */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {BALL_PLANE,BALL_PLANE1},BALL_BORDERS,64,0,
+      pe_bounce,pe_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 2832,20,E_MAX-(E_MAX>>1),16,              /*11 CAT-EYE MARBLE */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {BALL_PLANE,BALL_PLANE1},BALL_BORDERS,65,0,
+      pe_bounce,pe_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2400,400,E_MAX-(E_MAX>>2),64,              /*12 TEAPOT */
+      0,0,
+     {0,0},{120,120},0,
+      teapot_ss_tab,teapot_os,teapot_size,0,
+      {TEAPOT_PLANE,TEAPOT_PLANE1},TEAPOT_BORDERS,10,0,
+      pe_bounce,teapot_internal,teapot_reinit,
+      teapot_flip,pe_resize,pe_rope},
+   { 7552,1004,E_MAX<<2,16,                     /*13 VACUUM */
+      0,0,
+     {0,0},{120,120},0,
+      vacuum_ss_tab,vacuum_os,vacuum_size,0,
+      {VACUUM_PLANE,VACUUM_PLANE1},VACUUM_BORDERS,46,0,
+      vc_bounce,vc_internal,vc_reinit,
+      vc_flip,pe_resize,pe_rope},
+   { 1600,1005,0,0,                             /*14 ROPE */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {0,-1},0,29,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 7552,1006,E_MAX-(E_MAX>>1),16,             /*15 EYEHOOK */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {1,-1},0,31,0,
+      pe_bounce,pe_internal,eyehook_reinit,
+      eyehook_flip,pe_resize,pe_rope},
+   { 7552,1007,E_MAX-(E_MAX>>1),16,             /*16 SCISSORS */
+      0,0,
+     {0,0},{120,120},0,
+      p16_ss_tab,p16_os,p16_size,0,
+      {SCISSORS_PLANE,SCISSORS_PLANE1},SCISSORS_BORDERS,32,0,
+      scissors_bounce,scissors_internal,scissors_reinit,
+      scissors_flip,pe_resize,pe_rope},
+   { 3776,1008,0,0,                             /*17 PULLEY */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {1,-1},0,33,0,
+      pe_bounce,pe_internal,special_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 7552,1009,E_MAX<<2,48,                     /*18 GEAR */
+      0,0,
+     {0,0},{120,120},0,0,
+      0,0,0,{4,-1},8,41,0,
+      gear_bounce,gear_internal,gear_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 1132,90,E_MAX>>2,32,                       /*19 BOMB */
+      0,0,
+     {0,0},{120,120},0,
+      bomb_ss_tab,bomb_os,bomb_size,0,
+      {BOMB_PLANE,BOMB_PLANE1},BOMB_BORDERS,55,0,
+      dynamite_bounce,dynamite_internal,dynamite_reinit,
+      dynamite_flip,pe_resize,pe_rope},
+   { 7552,1010,E_MAX-(E_MAX>>2),16,             /*20 HANDGUN */
+      0,0,
+     {0,0},{120,120},0,
+      gun_ss_tab,gun_os,gun_size,0,
+      {GUN_PLANE,GUN_PLANE1},GUN_BORDERS,34,0,
+      pe_bounce,gun_internal,gun_reinit,
+      gun_flip,pe_resize,gun_rope},
+   { 0,20000,E_MAX-E_MAX,1,                     /*21 BULLET */
+      0,0,
+     {0,0},{120,120},0,
+      bullet_ss_tab,bullet_os,bullet_size,0,
+      {BULLET_PLANE,BULLET_PLANE1},4,35,0,
+      bullet_bounce,bullet_internal,bullet_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 14726,1011,E_MAX-(E_MAX>>2),12,            /*22 CATAPULT */
+      0,0,
+     {0,0},{120,120},0,
+      catapult_ss_tab,catapult_os,catapult_size,0,
+      {CATAPULT_PLANE,CATAPULT_PLANE1},CATAPULT_BORDERS,11,0,
+      catapult_bounce,catapult_internal,catapult_reinit,
+      catapult_flip,pe_resize,pe_rope},
+   { 9,1,E_MAX-(E_MAX>>2),32,                   /*23 BALLOON */
+      0,0,
+     {0,0},{120,120},0,0,
+      p23_os,0,0,{1,-1},8,12,0,
+      balloon_bounce,balloon_internal,balloon_reinit,
+      pe_flip,pe_resize,balloon_rope},
+   { 7552,1012,E_MAX-(E_MAX>>1),32,             /*24 TRAMPOLINE */
+      0,0,
+     {0,0},{120,120},0,p24_ss_tab,
+      p24_os,p24_size,0,{5,-1},4,13,0,
+      tramp_bounce,tramp_internal,tramp_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 3776,1013,E_MAX<<2,16,                     /*25 ANT */
+      0,0,
+     {0,0},{120,120},0,
+      ant_ernator_ss_tab,ant_ernator_os,ant_ernator_size,0,
+      {ANT_ERNATOR_PLANE,ANT_ERNATOR_PLANE1},ANT_ERNATOR_BORDERS,42,0,
+      ant_bounce,ant_internal,ant_reinit,
+      ant_flip,pe_resize,pe_rope},
+   { 7552,1014,E_MAX<<2,8,                     /*26 WALL0 */
+      0,0,
+     {320,200},{16,16},0,0,
+      0,0,0,{WALL_PLANE,WALL_PLANE1},WALL_BORDERS,73,1,
+      wall_bounce,pe_internal,wall_reinit,
+      pe_flip,wall_resize,pe_rope},
+   { 7552,1015,E_MAX<<2,48,                     /*27 WALL1 */
+      0,0,
+     {320,200},{16,16},0,0,
+      0,0,0,{WALL_PLANE,WALL_PLANE1},WALL_BORDERS,74,4,
+      wall_bounce,pe_internal,wall_reinit,
+      pe_flip,wall_resize,pe_rope},
+   { 4153,1016,E_MAX<<2,128,                    /*28 WALL2 */
+      0,0,
+     {320,200},{16,16},0,0,
+      0,0,0,{WALL_PLANE,WALL_PLANE1},WALL_BORDERS,75,4,
+      wall_bounce,pe_internal,wall_reinit,
+      pe_flip,wall_resize,pe_rope},
+   { 7552,1017,E_MAX<<2,64,                    /*29 WALL3 */
+      0,0,
+     {320,200},{16,16},0,0,
+      0,0,0,{WALL_PLANE,WALL_PLANE1},WALL_BORDERS,76,4,
+      wall_bounce,pe_internal,wall_reinit,
+      pe_flip,wall_resize,pe_rope},
+   { 3776,1018,E_MAX-(E_MAX>>1),16,             /*30 M_GLASS */
+      0,0,
+     {0,0},{120,120},0,mag_ss_tab,
+      mag_os,mag_size,0,{4,-1},0,14,0,
+      pe_bounce,mg_internal,special_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 1800,50,E_MAX-(E_MAX>>1),8,               /*31 STEELY MARBLE */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {BALL_PLANE,BALL_PLANE1},BALL_BORDERS,66,0,
+      pe_bounce,pe_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2832,30,E_MAX+(E_MAX>>1),16,              /*32 BOULDER MARBLE */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {BALL_PLANE,BALL_PLANE1},BALL_BORDERS,67,0,
+      pe_bounce,pe_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2832,10,E_MAX,16,                       /*33 PEE-WEE MARBLE */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {BALL_PLANE,BALL_PLANE1},BALL_BORDERS,68,0,
+      pe_bounce,pe_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2832,20,E_MAX+(E_MAX>>1),8,            /*34 STRIPE MARBLE */
+      0,0,
+     {0,0},{120,120},0,
+      0,0,0,0,
+      {BALL_PLANE,BALL_PLANE1},BALL_BORDERS,69,0,
+      pe_bounce,pe_internal,ball_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2832,2000,E_MAX-(E_MAX>>1),16,              /*35 DRAGON */
+      0,0,
+     {0,0},{120,120},0,dragon_ss_tab,
+      dragon_os,dragon_size,0,{DRAGON_PLANE,DRAGON_PLANE1},DRAGON_BORDERS,2,0,
+      dragon_collide,dragon_internal,dragon_reinit,
+      dragon_flip,pe_resize,pe_rope
+    },
+   { 2832,2000,E_MAX-(E_MAX>>1),20,              /*36 AL CAT */
+      0,0,
+     {0,0},{120,120},0,cat_ss_table,
+      cat_os,cat_size,0,{CAT_PLANE,CAT_PLANE1},CAT_BORDERS,0,0,
+      al_cat_collide,al_cat_internal,al_cat_reinit,
+      cat_flip,pe_resize,pe_rope
+    },
+   { 2832,1800,E_MAX-(E_MAX>>1),16,              /*37 SID MOUSE */
+      0,0,
+     {0,0},{120,120},0,mouse_ss_table,
+      mouse_os,mouse_size,0,{SID_PLANE,SID_PLANE1},SID_BORDERS,1,0,
+      mouse_collide,mouse_internal,mouse_reinit,
+      sid_flip,pe_resize,pe_rope
+    },
+   { 2832,2000,E_MAX-(E_MAX>>1),16,              /*38 EGG TIMER */
+      0,0,
+     {0,0},{120,120},0,
+      egg_timer_ss_tab,egg_timer_os,egg_timer_size,0,
+      {EGG_TIMER_PLANE,EGG_TIMER_PLANE1},EGG_TIMER_BORDERS,48,0,
+      pe_bounce,egg_timer_internal,egg_timer_reinit,
+      egg_timer_flip,pe_resize,pe_rope
+    },
+   { 2000,1020,E_MAX-(E_MAX>>1),16,             /*39 UP DOWN COUNTER */
+      0,0,
+     {0,0},{320,200},0,
+      updown_ss_tab,updown_os,updown_size,0,
+      {UPDOWN_PLANE, UPDOWN_PLANE1},UPDOWN_BORDERS,49,0,
+      updown_bounce,updown_internal,updown_reinit,
+      updown_flip,pe_resize,pe_rope
+    },
+   { 2000,1021,E_MAX-(E_MAX>>1),16,            /*40 INCREMENTER/DECREMENTER */
+      0,0,
+     {INCDEC_SIZE_MAX_X,(INCDEC_MAX_NUM-1)*INCDEC_MACHINE_SIZE_Y+INCDEC_SIZE_Y},
+      {INCDEC_SIZE_MIN_X,INCDEC_SIZE_Y},0,
+      incdec_ss_tab,0,incdec_size,0,
+      {INCDEC_PLANE,INCDEC_PLANE1},INCDEC_BORDERS,50,0,
+      incdec_bounce,incdec_internal,incdec_reinit,
+      incdec_flip,incdec_resize,pe_rope
+    },
+   { 2000,1022,E_MAX-(E_MAX>>1),16,           /*41 CHUTE SWITCH */
+      0,0,
+     {0,0},{320,200},0,
+      chuteswitch_ss_tab,chuteswitch_os,chuteswitch_size,0,
+      {CHUTESWITCH_PLANE,CHUTESWITCH_PLANE1},CHUTESWITCH_BORDERS,51,0,
+      pe_bounce,chuteswitch_internal,chuteswitch_reinit,
+      chuteswitch_flip,pe_resize,pe_rope
+    },
+   { 2000,1023,E_MAX-(E_MAX>>1),16,          /*42 MESSAGE MACHINE */
+      0,0,
+     {0,0},{320,200},0,
+      message_ss_tab,message_os,message_size,0,
+      {MESSAGE_PLANE,MESSAGE_PLANE1},MESSAGE_BORDERS,52,0,
+      message_bounce,message_internal,message_reinit,
+      pe_flip,pe_resize,message_rope
+    },
+   { 2000,1024,E_MAX,16,                     /*43 TRANS ROT */
+      0,0,
+     {0,0},{320,200},0,
+      transrot_ss_tab,transrot_os,transrot_size,0,
+      {TRANSROT_PLANE,TRANSROT_PLANE1},TRANSROT_BORDERS,53,0,
+      transrot_bounce,transrot_internal,transrot_reinit,
+      transrot_flip,pe_resize,transrot_rope
+    },
+   { 2000,1025,E_MAX-(E_MAX>>1),16,            /*44 ROT TRANS */
+      0,0,
+     {0,0},{320,200},0,
+      rottrans_ss_tab,rottrans_os,rottrans_size,0,
+      {ROTTRANS_PLANE,ROTTRANS_PLANE1},ROTTRANS_BORDERS,54,0,
+      pe_bounce,rottrans_internal,rottrans_reinit,
+      rottrans_flip,pe_resize,pe_rope
+    },
+   { 7552,1026,E_MAX<<2,12,                     /*45 LADDER */
+      0,0,
+     {320,200},{16,16},0,0,
+      0,0,0,{LADDER_PLANE,LADDER_PLANE1},0,70,1,
+      pe_bounce,pe_internal,ladder_reinit,
+      pe_flip,ladder_resize,pe_rope},
+   { 7552,1027,E_MAX,16,                        /*46 TUNNEL */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{TUNNEL_PLANE,TUNNEL_PLANE1},TUNNEL_BORDERS,71,0,
+      pe_bounce,pe_internal,tunnel_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 4153,1028,E_MAX<<2,4,                     /*48 INCLINE 0 */
+      0,0,
+     {32<<VIRTUALCOORDS,0},{8<<VIRTUALCOORDS,120<<VIRTUALCOORDS},0,
+      0, 0, 0,0,
+      {WALL_PLANE,WALL_PLANE1},WALL_BORDERS,79,0,
+      pe_bounce,pe_internal,incline_reinit,
+      incline_flip,incline_resize,pe_rope},
+   { 4153,1029,E_MAX<<2,12,                     /*48 INCLINE 1 */
+      0,0,
+     {32<<VIRTUALCOORDS,0},{8<<VIRTUALCOORDS,120<<VIRTUALCOORDS},0,
+      0, 0, 0,0,
+      {WALL_PLANE,WALL_PLANE1},WALL_BORDERS,80,0,
+      pe_bounce,pe_internal,incline_reinit,
+      incline_flip,incline_resize,pe_rope},
+   { 4153,1030,E_MAX<<2,16,                     /*49 INCLINE 2 */
+      0,0,
+     {32<<VIRTUALCOORDS,0},{8<<VIRTUALCOORDS,120<<VIRTUALCOORDS},0,
+      0,0,0,0,
+      {WALL_PLANE,WALL_PLANE1},WALL_BORDERS,81,0,
+      pe_bounce,pe_internal,incline_reinit,
+      incline_flip,incline_resize,pe_rope},
+   { 4153,1031,E_MAX<<2,8,                     /*50 INCLINE 3 */
+      0,0,
+     {32<<VIRTUALCOORDS,0},{8<<VIRTUALCOORDS,120<<VIRTUALCOORDS},0,
+      0,0,0,0,
+      {WALL_PLANE,WALL_PLANE1},WALL_BORDERS,82,0,
+      pe_bounce,pe_internal,incline_reinit,
+      incline_flip,incline_resize,pe_rope},
+   { 4153,1032,E_MAX<<2,16,                     /*51 INCLINE 4 */
+      0,0,
+     {32<<VIRTUALCOORDS,0},{8<<VIRTUALCOORDS,120<<VIRTUALCOORDS},0,
+      0,0,0,0,
+      {WALL_PLANE,WALL_PLANE1},WALL_BORDERS,83,0,
+      pe_bounce,pe_internal,incline_reinit,
+      incline_flip,incline_resize,pe_rope},
+   { 2000,9,E_MAX>>2,24,                        /*52 HAIR DRYER */
+      0,0,
+     {0,0},{320,200},0,
+      hairdryer_ss_tab,hairdryer_os,hairdryer_size,0,
+      {HAIRDRYER_PLANE, HAIRDRYER_PLANE1},HAIRDRYER_BORDERS,47,0,
+      pe_bounce,hairdryer_internal,hairdryer_reinit,
+      hairdryer_flip,pe_resize,pe_rope
+    },
+   { 2000,9,E_MAX>>2,24,                        /*53 NOON WHISTLE */
+      0,0,
+     {0,0},{320,200},0,
+      noonwhistle_ss_tab,noonwhistle_os,noonwhistle_size,0,
+      {NOONWHISTLE_PLANE,NOONWHISTLE_PLANE1},NOONWHISTLE_BORDERS,36,0,
+      pe_bounce,whistle_internal,whistle_reinit,
+      pe_flip,pe_resize,whistle_rope
+    },
+   { 2000,20,E_MAX>>2,32,                        /*54 BUBBLE GUM */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{2,-1},GUM_BORDERS,23,0,
+      pe_bounce,pe_internal,gum_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2000,10,E_MAX>>2,32,                        /*55 EGG */
+      0,0,
+     {0,0},{320,200},0,
+      egg_ss_tab,egg_os,egg_size,0,
+      {EGG_PLANE,EGG_PLANE1},EGG_BORDERS,24,0,
+      egg_bounce,egg_internal,egg_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2000,30,E_MAX>>2,16,                        /*56 FISH */
+      0,0,
+     {0,0},{320,200},0,
+      0,0,0,0,
+      {FISH_PLANE,FISH_PLANE1},FISH_BORDERS,25,0,
+      pe_bounce,pe_internal,fish_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2000,20,E_MAX>>2,48,                        /*57 CHEESE */
+      0,0,
+     {0,0},{320,200},0,
+      0,0,0,0,
+      {2,-1},CHEESE_BORDERS,26,0,
+      pe_bounce,pe_internal,cheese_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2000,30,E_MAX>>2,48,                        /*58 PEANUT */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{2,-1},NUT_BORDERS,27,0,
+      pe_bounce,pe_internal,nut_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2000,15,E_MAX>>2,48,                        /*59 BANANA */
+      0,0,
+     {0,0},{320,200},0,
+      banana_ss_tab,banana_os,banana_size,0,
+      {BANANA_PLANE,BANANA_PLANE1},BANANA_BORDERS,28,0,
+      pe_bounce,banana_internal,banana_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2832,2000,0,24,                            /*60 PIANO */
+      0,0,
+     {0,0},{320,200},0,
+      piano_ss_tab,piano_os,piano_size,0,
+      {PIANO_PLANE,PIANO_PLANE1},PIANO_BORDERS,15,0,
+      piano_collide,piano_internal,piano_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2400,2000,E_MAX>>4,48,                   /*61 ANVIL */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{2,-1},9,16,0,
+      pe_bounce,anvil_internal,anvil_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2400,60,E_MAX>>2,24,                    /*61 WW2 BOMB */
+      0,0,
+     {0,0},{320,200},0,
+      ww2bomb_ss_tab,ww2bomb_os,ww2bomb_size,0,
+      {WW2BOMB_PLANE,WW2BOMB_PLANE1},WW2BOMB_BORDERS,56,0,
+      ww2bomb_bounce,ww2bomb_internal,ww2bomb_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*63 HATPIN */
+      0,0,
+     {0,0},{320,200},0,
+      0,0,0,0,
+      {4,-1},HATPIN_BORDERS,17,0,
+      pe_bounce,pe_internal,hatpin_reinit,
+      hatpin_flip,pe_resize,pe_rope
+    },
+   { 2000,20,E_MAX>>1,24,                        /*64 PENCIL */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{2,-1},PENCIL_BORDERS,18,0,
+      pe_bounce,pe_internal,pencil_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 2000,30,E_MAX>>1,24,                        /*65 HAMMER */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{HAMMER_PLANE,HAMMER_PLANE1},HAMMER_BORDERS,19,0,
+      pe_bounce,mallet_internal,hammer_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*66 MIRROR */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{4,-1},0,20,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*67 BUTCHER KNIFE */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{2,-1},0,21,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 7552,1033,E_MAX<<2,16,                     /*68 ELEPHANT   */
+      0,0,
+     {0,0},{320,200},0,
+      elephant_ss_tab,elephant_os,elephant_size,0,
+      {ELEPHANT_PLANE,ELEPHANT_PLANE1},ELEPHANT_BORDERS,3,0,
+      elephant_bounce,elephant_internal,elephant_reinit,
+      elephant_flip,pe_resize,pe_rope
+    },
+   { 2000,9,E_MAX>>2,24,                        /*69 CHICKEN */
+      0,0,
+     {0,0},{320,200},0,
+      chicken_ss_tab,chicken_os,chicken_size,0,
+      {CHICKEN_PLANE,CHICKEN_PLANE1},CHICKEN_BORDERS,4,0,
+      chicken_bounce,chicken_internal,chicken_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*70 GUIDO */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{3,-1},0,5,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*71 GIL */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{3,-1},0,6,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*72 CHAINSAW */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{3,-1},0,22,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*73 ONT */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{3,-1},0,7,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*74 LARD */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{3,-1},0,8,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,1,E_MAX,0,                               /*75 EXPLOSION */
+      0,0,
+     {0,0},{120,120},0,
+      explosion_ss_tab,explosion_os,explosion_size,0,
+      {EXPLOSION_PLANE,EXPLOSION_PLANE1},0,57,0,
+      pe_bounce,explosion_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 2000,1034,0,0,                             /*76 PHANTOM */
+      0,0,
+     {0,0},{120,120},0,0,
+      0,0,0,{4,-1},0,38,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope},
+   { 2000,9,E_MAX>>2,24,                        /*77 RUG */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{RUG_PLANE,RUG_PLANE1},RUG_BORDERS,72,0,
+      rug_collide,rug_internal,rug_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 7552,1035,E_MAX<<2,16,                     /*78 TRAP DOOR */
+      0,0,
+     {0,0},{320,200},0,
+      trapdoor_ss_tab,trapdoor_os,trapdoor_size,0,
+      {TRAPDOOR_PLANE,TRAPDOOR_PLANE1},TRAPDOOR_BORDERS,37,0,
+      trap_door_bounce,trap_door_internal,trap_door_reinit,
+      trap_door_flip,pe_resize,trap_door_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*79 BERNY */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{3,-1},0,9,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*80 FAT MAN */
+      0,0,
+     {0,0},{320,200},0,
+      eatmotor_ss_tab, eatmotor_os, eatmotor_size,0,
+      {EATMOTOR_PLANE,EATMOTOR_PLANE1},EATMOTOR_BORDERS,43,0,
+      eatmotor_bounce,eatmotor_internal,eatmotor_reinit,
+      eatmotor_flip,pe_resize,pe_rope
+    },
+   { 0,0,E_MAX-(E_MAX>>1),16,                   /*81 ENGINE */
+      0,0,
+     {0,0},{320,200},0,0,
+      0,0,0,{3,-1},0,44,0,
+      pe_bounce,pe_internal,pe_reinit,
+      pe_flip,pe_resize,pe_rope
+    },
+   { 7552,1036,E_MAX<<2,256,                    /*82 WALL4 */
+      0,0,
+     {320,200},{16,16},0,0,
+      0,0,0,{WALL_PLANE,WALL_PLANE1},WALL_BORDERS,77,3,
+      wall_bounce,pe_internal,wall_reinit,
+      pe_flip,wall_resize,pe_rope},
+   { 7552,1037,E_MAX<<2,24,                    /*83 WALL5 */
+      0,0,
+     {320,200},{16,16},0,0,
+      0,0,0,{WALL_PLANE,WALL_PLANE1},WALL_BORDERS,78,3,
+      wall_bounce,pe_internal,wall_reinit,
+      pe_flip,wall_resize,pe_rope},
+   { 4153,1038,E_MAX<<2,4,                     /*84 INCLINE 5 */
+      0,0,
+     {32<<VIRTUALCOORDS,0},{8<<VIRTUALCOORDS,120<<VIRTUALCOORDS},0,
+      0, 0, 0,0,
+      {WALL_PLANE,WALL_PLANE1},WALL_BORDERS,84,0,
+      pe_bounce,pe_internal,incline_reinit,
+      incline_flip,incline_resize,pe_rope},
+};
+
+

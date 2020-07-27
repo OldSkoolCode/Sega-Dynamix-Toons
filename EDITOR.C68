@@ -1,0 +1,1121 @@
+/* * * * *
+*
+*  EDITOR.C
+*
+*  This file contains routines that handle the editor functions of TIM.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/21/92 Kevin Ryan  File created
+*
+* * * * */
+
+#include <ctype.h>
+#include "vm.h"
+#include "vm_mylib.h"
+/* #include "sx.h" */
+#include "tim.h"
+#include "tim_text.h"
+#include "toons.h"
+
+extern void erase_part(PART *part);
+extern UWORD cursorx, cursory;
+
+/*local routines */
+/*static void select_freeform_music( void); */
+static void init_edit_machine( void);
+static void place_a_part( void);
+static void place_belt_part( void);
+static void place_rope_part( void);
+static void place_tunnel_part( void);
+static void place_norm_part( void);
+static void pickup_a_part( void);
+static void flip_a_part_lr( void);
+static void flip_a_part_tb( void);
+static void resize_a_part( void);
+static short size_a_part_left( void);
+static short size_a_part_right( void);
+static short size_a_part_top( void);
+static short size_a_part_bottom( void);
+static short remap_tsm_sx(short tsm);
+static void set_active_part_scrn_loc(void);
+static short duplicate_active_part(void);
+
+/*local vars */
+static PART *last_part;
+static PART *last_active_part;
+
+static void init_edit_machine()
+{
+   redraw_rbi = redraw_tb = redraw_bb = redraw_lb =
+      redraw_rb = redraw_ai = 0;
+   go_count = 0;
+   tim_sub_mode = 0;
+   active_part = 0;
+   init_draw_list();
+   reinit_parts();
+   draw_gp_screen();
+}
+
+
+
+/* * * * *
+*
+*  void do_edit_modes(void);
+*
+*  This function handles the placement and resizing of the parts.
+*
+* * * * */
+void do_edit_modes()
+{
+   short busy;
+
+   if ((tim_sub_mode==TSM_PLACE) || (tim_sub_mode&TSM_RESIZING))
+      busy = 1;
+   else
+      busy = 0;
+
+   if (!busy)
+   {
+      active_part = mouse_over_part(active_part);
+      
+      if (active_part)
+      {
+         /* check if the active part is not a usable part */
+         if (active_part->flags1 & F1_INITIAL)
+            active_part = 0;
+         else
+            /* handle the electric parts. */
+            if (active_part->flags3 & F3_ELECT_PART)
+               connect_plug();
+      }
+   }
+
+   if (active_part)
+   {
+      if (tim_sub_mode != TSM_PLACE)
+         hilite_color = WHITE_OUTLINE;
+
+      if (!busy)
+         tim_sub_mode = get_tim_sub_mode(active_part);
+      else
+         /* check if the rope or belt icon should be updated */
+         if (tim_sub_mode == TSM_PLACE)
+         {
+            switch (active_part->type)
+            {
+               case PT_ROPE:
+                  change_mouse_icon(IC_ROPE);
+                  break;
+               case PT_PBELT:
+                  change_mouse_icon(IC_BELT);
+                  break;
+            }
+         }
+
+/*      if ((mouse_button1 == MOUSE_SINGLE) && (tim_sub_mode != TSM_NONE))
+         jtp_sx_play(remap_tsm_sx(tim_sub_mode),0,0); */
+ 
+      switch (tim_sub_mode & (TSM_RESIZING^0xffff))
+      {
+         case TSM_PLACE:
+            place_a_part();
+            break;
+
+         case TSM_PICKUP:
+            if (SYS_JoyHit && SYS_JoyTable[JOY_A])
+					{
+					SYS_JoyHit = FALSE;
+               pickup_a_part();
+					}
+            break;
+
+         case TSM_RECYCLE:
+            current_handle = HT_FLUSH;
+            recycle_a_part();
+            break;
+
+         case TSM_FLIP_LR:
+            current_handle = HT_FLIP_LR;
+            flip_a_part_lr();
+            break;
+
+         case TSM_FLIP_TB:
+            current_handle = HT_FLIP_TB;
+            flip_a_part_tb();
+            break;
+
+         case TSM_SIZE_L:
+            current_handle = HT_SIZE_LEFT;
+           	resize_a_part();
+            break;
+         case TSM_SIZE_R:
+            current_handle = HT_SIZE_RIGHT;
+            resize_a_part();
+            break;
+         case TSM_SIZE_T:
+            if (active_part->type != PT_INCR_DECR)
+            {
+               current_handle = HT_SIZE_UP;
+               resize_a_part();
+            }
+            else
+               tim_sub_mode &= (TSM_SIZE_T ^ 0xffff); 
+            break;
+         case TSM_SIZE_B:
+            current_handle = HT_SIZE_DOWN;
+            resize_a_part();
+            break;
+
+         case TSM_UNLOCK:
+            active_part->flags3 ^= F3_LOCKED;
+
+            /* if tunnel, make both ends (un)locked to the screen. */
+            if ((active_part->type == PT_TUNNEL) && (active_part->toon_link))
+            {
+               active_part->toon_link->flags3 &= (F3_LOCKED ^ 0xffff);
+               active_part->toon_link->flags3 |= active_part->flags3 & F3_LOCKED;
+            }
+            break;
+
+         case TSM_HEARTY_PART:
+            current_handle = HT_HEARTY;
+            do_hearty_part();
+            break;
+
+         case TSM_NONE:
+            if (SYS_JoyHit && SYS_JoyTable[JOY_A])
+					{
+					SYS_JoyHit = FALSE;
+					makeTempStatic(FALSE);
+	            active_part = 0;
+					}
+            break;
+      }
+   }
+   else
+      tim_sub_mode = 0;
+
+	if (active_part != last_active_part)
+		{
+		if (active_part->flags3 & F3_BACKGROUND)
+			erase_part(active_part);			/* erase background part */
+		makeTempStatic(FALSE);
+		last_active_part = active_part;
+		}
+
+}
+
+
+static short remap_tsm_sx(short tsm)
+{
+   switch (tsm)
+   {
+      case TSM_FLIP_LR:
+         return (SX_TSM_FLIP_LR);
+      case TSM_FLIP_TB:
+         return (SX_TSM_FLIP_TB);
+      case TSM_SIZE_L:
+         return (SX_TSM_SIZE_L);
+      case TSM_SIZE_R:
+         return (SX_TSM_SIZE_R);
+      case TSM_SIZE_T:
+         return (SX_TSM_SIZE_T);
+      case TSM_SIZE_B:
+         return (SX_TSM_SIZE_B);
+      case TSM_PICKUP:
+         return (SX_TSM_PICKUP);
+      case TSM_RECYCLE:
+         return (SX_TSM_RECYCLE);
+      case TSM_PLACE:
+         return (SX_TSM_PLACE);
+      case TSM_UNLOCK:
+         return (SX_TSM_UNLOCK);
+      case TSM_RESIZING:
+         return (SX_TSM_RESIZING);
+      case TSM_HEARTY_PART:
+         return (SX_TSM_HEART_PART);
+      case TSM_NONE:
+      default:
+         return (SX_TSM_NONE);
+   }
+}
+
+
+void check_special_draw()
+{
+   short type;
+
+   if ((tim_sub_mode==TSM_PLACE) && active_part)
+   {
+      type = active_part->type;
+      if ((type!=PT_PBELT) && (type!=PT_ROPE))
+         redraw_ai = 1;
+   }
+}
+
+
+
+static void place_a_part()
+{
+   active_part->scrn_loc.x = active_part->scrn_loc.y = -1;
+   switch (active_part->type)
+   {
+      case PT_PBELT:
+         place_belt_part();
+         break;
+      case PT_ROPE:
+         place_rope_part();
+         break;
+      case PT_TUNNEL:
+         place_tunnel_part();
+         break;
+      default:
+         place_norm_part();
+   }
+}
+
+
+
+static void place_belt_part()
+{
+   short vp;
+   PART *attach_part,*part1;
+   PBELT *belt_to_place;
+
+   belt_to_place = active_part->belt;
+   part1 = belt_to_place->link1;
+   vp = valid_pulley(belt_to_place);
+
+   if (SYS_JoyHit && SYS_JoyTable[JOY_A]) {
+		SYS_JoyHit = FALSE;
+      if (!vp)
+      {
+         if (part1)
+            recycle_a_part();
+      }
+      else
+      {
+         attach_part = mouse_over_part(0);
+         if (part1)
+         {
+            attach_part->flags2 |= F2_BELT_USED;
+            attach_part->start_flags2 = attach_part->flags2;
+            belt_to_place->link2 = attach_part;
+            attach_part->belt = belt_to_place;
+            generate_pbelt_lines(belt_to_place);
+            set_redraw(active_part,2);
+            move_from_avail(active_part);
+            tim_sub_mode = 0;
+            active_part = 0;
+         }
+         else
+         {
+            attach_part->flags2 |= F2_BELT_USED;
+            attach_part->start_flags2 = attach_part->flags2;
+            belt_to_place->link1 = attach_part;
+            attach_part->belt = belt_to_place;
+         }
+      }
+   }
+   else
+      if (part1)
+      {
+         line_pt1.x = part1->scrn_loc.x + part1->belt_loc.x;
+         line_pt1.y = part1->scrn_loc.y + part1->belt_loc.y;
+         line_pt2.x = (cursorx<<VIRTUALCOORDS) + ledge;
+         line_pt2.y = (cursory<<VIRTUALCOORDS) + tedge;
+         if (vp)
+            line_color = 10;
+         else
+            line_color = 12;
+      }
+}
+
+
+
+static void place_rope_part()
+{
+   short tie_num;
+   static PART *last_attach_part=0;
+   PART *attach_part,*part1;
+   ROPE *rope_to_place;
+
+   rope_to_place = active_part->rope_tie[0];
+   part1 = rope_to_place->link1;
+   attach_part = mouse_over_rope_tie(&tie_num,last_attach_part);
+   if ((attach_part==last_part) && part1)
+      attach_part = 0;
+   else
+      if ((attach_part==part1) && part1)
+         attach_part = 0;
+   last_attach_part = attach_part;
+
+   if (SYS_JoyHit && SYS_JoyTable[JOY_A]) {
+		SYS_JoyHit = FALSE;
+      if (!attach_part)
+      {
+         if (part1)
+            recycle_a_part();
+      }
+      else
+      {
+         if (part1)
+         {
+            if (last_part->type == PT_PULLEY)
+            {
+               last_part->wpptr[2] = last_part->wpptr[0] = attach_part;
+/*               orient_pulley(last_part); */
+               sub_parts_to_er(last_part,1|2);
+               part_to_er(last_part,1|2);
+               set_redraw(last_part,2);
+            }
+            else
+               last_part->wpptr[rope_to_place->l1_num+2] = last_part->wpptr[rope_to_place->l1_num] = attach_part;
+            generate_rope_lines(rope_to_place);
+            set_redraw(active_part,2);
+            if (attach_part->type == PT_PULLEY)
+            {
+               attach_part->wpptr[3] = attach_part->wpptr[1] = last_part;
+               attach_part->rope_tie[1] = rope_to_place;
+               if (last_part->type == PT_PULLEY)
+                  orient_pulley(last_part);
+               last_part = attach_part;
+            }
+            else
+            {
+               attach_part->wpptr[tie_num+2] = attach_part->wpptr[tie_num] = last_part;
+               attach_part->rope_tie[tie_num] = rope_to_place;
+               rope_to_place->org_link2 = rope_to_place->link2 = attach_part;
+               rope_to_place->org_l2 = rope_to_place->l2_num = tie_num;
+               if (last_part->type == PT_PULLEY)
+                  orient_pulley(last_part);
+               move_from_avail(active_part);
+               tim_sub_mode = 0;
+               active_part = 0;
+            }
+         }
+         else
+         {
+            if (attach_part->type != PT_PULLEY)
+            {
+               attach_part->rope_tie[tie_num] = rope_to_place;
+               rope_to_place->org_link1 = rope_to_place->link1 = attach_part;
+               rope_to_place->org_l1 = rope_to_place->l1_num = tie_num;
+               last_part = attach_part;
+            }
+         }
+      
+         /* reinitialize the attach part to have the rope tied on it. */
+         prop[attach_part->type].reinit_func(attach_part);
+         part_to_er(attach_part,1|2);
+         set_redraw(attach_part,2);
+      }
+   }
+   else
+      if (part1)
+      {
+         if (last_part->type == PT_PULLEY)
+         {
+            tie_num = 1;
+            orient_pulley(last_part);
+//            sub_parts_to_er(last_part,1|2);
+//            part_to_er(last_part,1|2);
+            set_redraw(last_part,2);
+         }
+         else
+            tie_num = rope_to_place->l1_num;
+         line_pt1.x = last_part->scrn_loc.x + last_part->rope_loc[tie_num].x;
+         line_pt1.y = last_part->scrn_loc.y + last_part->rope_loc[tie_num].y;
+         line_pt2.x = (cursorx<<VIRTUALCOORDS) + ledge;
+         line_pt2.y = (cursory<<VIRTUALCOORDS) + tedge;
+         if (attach_part)
+            line_color = 10;
+         else
+            line_color = 12;
+      }
+}
+
+/* * * * *
+*
+*  void place_tunnel_part(void);
+*
+* * * * */
+
+static void place_tunnel_part(void)
+{
+   PART *new_part;
+
+   /* set the scrn locations according to the mouse position. */
+   set_active_part_scrn_loc();
+
+   /* If it does overlap another part, dont allow player to place it */
+   if(part_overlap(active_part))
+      hilite_color = RED_OUTLINE;
+
+   /* check for a button press */
+   else if (SYS_JoyHit && SYS_JoyTable[JOY_A]) {
+		SYS_JoyHit = FALSE;
+      set_redraw(active_part,2);
+      active_part->start_scrn_loc.x = active_part->scrn_loc.x;
+      active_part->start_scrn_loc.y = active_part->scrn_loc.y;
+   
+      /* remove the part from the available list and place it on the */
+      /* static list. */
+      move_from_avail(active_part);
+
+      /* check if the active part is linked to another tunnel */
+      if (active_part->toon_link)
+      {
+         tim_sub_mode = 0;
+         active_part = 0;
+      }
+      else
+      {
+         /* create the other tunnel link. */
+         if ((new_part = copy_part(active_part)) != 0)
+         {
+            insert_into_list(new_part,&avail_list);
+            active_part->toon_link = new_part;
+            new_part->toon_link = active_part;
+            active_part = new_part;
+         }
+      }
+   }
+   else
+      hilite_color = GREEN_OUTLINE;
+
+   /* refresh the screen if the part was not placed. */
+/*   if ((!SYS_JoyHit) && (!SYS_JoyTable[JOY_A]))
+      erase_and_draw(active_part); */
+}
+
+/* * * * *
+*
+*  void place_norm_part(void);
+*
+* * * * */
+
+
+static void place_norm_part()
+{
+   PBELT *bptr;
+   short invalid_pulley;
+
+   set_active_part_scrn_loc();
+
+   /* handle the pulleys */
+   orient_pulleys(active_part);
+   if ((bptr=active_part->belt) != 0)
+      invalid_pulley = !valid_pulley(bptr);
+   else
+      invalid_pulley = 0;
+
+   /* handle the electric parts. */
+   if (active_part->flags3 & F3_ELECT_PART)
+      connect_plug();
+   else
+      if (active_part->flags3 & F3_ELECT_PLUG)
+         disconnect_plug(active_part);
+
+   if (part_overlap(active_part))
+      hilite_color = RED_OUTLINE;
+   else
+   {
+		if (SYS_JoyHit && SYS_JoyTable[JOY_A]) {
+			SYS_JoyHit = FALSE;
+         sub_parts_to_er(active_part,1|2);
+         if (invalid_pulley)
+         {
+/*            part_to_er(bptr->root_part,1|2); */
+            remove_pbelt(bptr->root_part);
+            freeform_remove_part(bptr->root_part);
+            redraw_rbi = 2;
+         }
+         set_redraw(active_part,2);
+         active_part->start_scrn_loc.x = active_part->scrn_loc.x;
+         active_part->start_scrn_loc.y = active_part->scrn_loc.y;
+         move_from_avail(active_part);
+         tim_sub_mode = 0;
+         active_part = 0;
+      }
+      else
+         hilite_color = GREEN_OUTLINE;
+   }
+
+/*   if ((!SYS_JoyHit) && (!SYS_JoyTable[JOY_A]))
+      erase_and_draw(active_part); */
+}
+
+
+
+static void pickup_a_part()
+{
+   PART *old_link1;
+   PBELT *bptr;
+   ROPE *rptr;
+
+   place_offset_x = (cursorx<<VIRTUALCOORDS) - active_part->scrn_loc.x + ledge;
+   place_offset_y = (cursory<<VIRTUALCOORDS) - active_part->scrn_loc.y + tedge;
+   if ((bptr=active_part->belt) != 0)
+      old_link1 = bptr->link1;
+
+//   sub_parts_to_er(active_part,1|2);
+//   part_to_er(active_part,1|2);
+
+   switch (active_part->type)
+   {
+      case PT_PBELT:
+         remove_pbelt(active_part);
+         bptr->link1 = old_link1;
+         old_link1->flags2 |= F2_BELT_USED;
+         old_link1->start_flags2 = old_link1->flags2;
+         old_link1->belt = bptr;
+         hilite_color = -1;
+         break;
+      case PT_ROPE:
+         rptr = active_part->rope_tie[0];
+         last_part = rptr->link2->wpptr[rptr->l2_num];
+         remove_rope(active_part,0);
+         hilite_color = -1;
+         break;
+      default:
+         move_to_avail(active_part);
+   }
+
+   tim_sub_mode = TSM_PLACE;
+}
+
+
+
+void recycle_a_part(void)
+{
+   PART *tunnel_link;
+
+//   sub_parts_to_er(active_part,1|2);
+//   part_to_er(active_part,1|2);
+
+   switch (active_part->type)
+   {
+      case PT_PBELT:
+         remove_pbelt(active_part);
+         freeform_remove_part(active_part);
+         break;
+      case PT_ROPE:
+         remove_rope(active_part,1);
+         freeform_remove_part(active_part);
+         break;
+      case PT_TUNNEL:
+         if ((tunnel_link = active_part->toon_link) != 0)
+         {
+//            part_to_er(tunnel_link,1|2);
+            tunnel_link->toon_link = active_part->toon_link = 0;
+            remove_from_list(tunnel_link);
+            free_a_part(tunnel_link);
+         }
+         move_to_avail(active_part);
+         finish_removal();
+         break;
+      default:
+         move_to_avail(active_part);
+         finish_removal();
+   }
+
+   redraw_rbi = 2;
+   tim_sub_mode = 0;
+}
+
+
+
+static void flip_a_part_lr()
+{
+   prop[active_part->type].flip_func(active_part,TSM_FLIP_LR);
+   active_part->start_flags2 = active_part->flags2;
+}
+
+
+
+static void flip_a_part_tb()
+{
+   prop[active_part->type].flip_func(active_part,TSM_FLIP_TB);
+   active_part->start_flags2 = active_part->flags2;
+}
+
+
+
+static void resize_a_part()
+{
+   short changed;
+
+   if (tim_sub_mode & TSM_RESIZING)
+   {
+      changed = 0;
+      if (SYS_JoyHit && SYS_JoyTable[JOY_B])
+	      switch(tim_sub_mode & ~TSM_RESIZING)
+				{
+	         case TSM_SIZE_L:
+					tim_sub_mode = TSM_RESIZING | TSM_SIZE_R;
+					break;
+ 
+				case TSM_SIZE_R:
+					tim_sub_mode = TSM_RESIZING | TSM_SIZE_L;
+					break;
+ 
+				case TSM_SIZE_T:
+					tim_sub_mode = TSM_RESIZING | TSM_SIZE_B;
+					break;
+ 
+				case TSM_SIZE_B:
+					tim_sub_mode = TSM_RESIZING | TSM_SIZE_T;
+					break;
+ 				}
+
+
+      switch(tim_sub_mode & ~TSM_RESIZING)
+      {
+         case TSM_SIZE_L:
+            changed = size_a_part_left();
+            break;
+
+         case TSM_SIZE_R:
+            changed = size_a_part_right();
+            break;
+
+         case TSM_SIZE_T:
+            changed = size_a_part_top();
+            break;
+
+         case TSM_SIZE_B:
+            changed = size_a_part_bottom();
+            break;
+      }
+
+      if (changed)
+      {
+         active_part->base_size = active_part->place_size;
+         prop[active_part->type].resize_func(active_part);
+         set_adjusted_loc_size(active_part);
+//         sub_parts_to_er(active_part,1|2);
+//         part_to_er(active_part,1|2);
+         set_redraw(active_part,2);
+      }
+
+      if (SYS_JoyHit && SYS_JoyTable[JOY_A]) {
+			SYS_JoyHit = FALSE;
+         tim_sub_mode = 0;
+         active_part = 0;
+      }
+   }
+   else
+   {
+/*		if (SYS_JoyHit && SYS_JoyTable[JOY_A]) {
+			SYS_JoyHit = FALSE; */
+         tim_sub_mode |= TSM_RESIZING;
+/*		} */
+   }
+}
+
+
+
+static short size_a_part_left()
+{
+   short old_x,new_x,min_x,max_x,new_size;
+   short changed;
+
+   changed = 0;
+   old_x = active_part->scrn_loc.x;
+   new_x = (((cursorx<<VIRTUALCOORDS) + 8) & (0xfff8<<VIRTUALCOORDS)) + ledge;
+   min_x = prop[active_part->type].min_size.x;
+   max_x = prop[active_part->type].max_size.x;
+   new_size = old_x - new_x + active_part->place_size.x;
+
+   if (new_size > max_x)
+   {
+      new_x += new_size - max_x;
+      new_size = max_x;
+   }
+   else
+      if (new_size < min_x)
+      {
+         new_x -= min_x - new_size;
+         new_size = min_x;
+      }
+
+   if (old_x != new_x)
+   {
+      active_part->scrn_loc.x = new_x;
+      active_part->place_size.x = new_size;
+      prop[active_part->type].resize_func(active_part);
+      set_adjusted_loc_size(active_part);
+      prop[active_part->type].reinit_func(active_part);
+
+      while (part_overlap(active_part))
+      {
+         active_part->scrn_loc.x += 8<<VIRTUALCOORDS;
+         active_part->place_size.x -= 8<<VIRTUALCOORDS;
+         prop[active_part->type].resize_func(active_part);
+         set_adjusted_loc_size(active_part);
+         prop[active_part->type].reinit_func(active_part);
+      }
+
+      if (active_part->scrn_loc.x != old_x)
+      {
+         active_part->start_scrn_loc.x = active_part->scrn_loc.x;
+         changed = 1;
+      }
+   }
+
+   return(changed);
+}
+
+
+
+static short size_a_part_right()
+{
+   short old_size,new_size,min_x,max_x;
+   short changed;
+
+   changed = 0;
+   old_size = active_part->place_size.x;
+   new_size = (((cursorx<<VIRTUALCOORDS) + 8) & (0xfff8<<VIRTUALCOORDS)) + ledge -
+      active_part->scrn_loc.x;
+   min_x = prop[active_part->type].min_size.x;
+   max_x = prop[active_part->type].max_size.x;
+
+   if (new_size > max_x)
+      new_size = max_x;
+   else
+      if (new_size < min_x)
+         new_size = min_x;
+
+   if (old_size != new_size)
+   {
+      active_part->place_size.x = new_size;
+      prop[active_part->type].resize_func(active_part);
+      set_adjusted_loc_size(active_part);
+      prop[active_part->type].reinit_func(active_part);
+
+      while (part_overlap(active_part))
+      {
+         active_part->place_size.x -= 8<<VIRTUALCOORDS;
+         prop[active_part->type].resize_func(active_part);
+         set_adjusted_loc_size(active_part);
+         prop[active_part->type].reinit_func(active_part);
+      }
+
+      if (active_part->place_size.x != old_size)
+         changed = 1;
+   }
+
+   return(changed);
+}
+
+
+
+static short size_a_part_top()
+{
+   short old_y,new_y,min_y,max_y,new_size;
+   short changed;
+
+   changed = 0;
+   old_y = active_part->scrn_loc.y;
+   new_y = (((cursory<<VIRTUALCOORDS) + 8) & (0xfff8<<VIRTUALCOORDS)) + tedge;
+   min_y = prop[active_part->type].min_size.y;
+   max_y = prop[active_part->type].max_size.y;
+   new_size = old_y - new_y + active_part->place_size.y;
+
+   if (new_size > max_y)
+   {
+      new_y += new_size - max_y;
+      new_size = max_y;
+   }
+   else
+      if (new_size < min_y)
+      {
+         new_y -= min_y - new_size;
+         new_size = min_y;
+      }
+
+   if (old_y != new_y)
+   {
+      active_part->scrn_loc.y = new_y;
+      active_part->place_size.y = new_size;
+      prop[active_part->type].resize_func(active_part);
+      set_adjusted_loc_size(active_part);
+      prop[active_part->type].reinit_func(active_part);
+
+      while (part_overlap(active_part))
+      {
+         active_part->scrn_loc.y += 8<<VIRTUALCOORDS;
+         active_part->place_size.y -= 8<<VIRTUALCOORDS;
+         prop[active_part->type].resize_func(active_part);
+         set_adjusted_loc_size(active_part);
+         prop[active_part->type].reinit_func(active_part);
+      }
+
+      if (active_part->scrn_loc.y != old_y)
+      {
+         active_part->start_scrn_loc.y = active_part->scrn_loc.y;
+         changed = 1;
+      }
+   }
+
+   return(changed);
+}
+
+
+
+static short size_a_part_bottom()
+{
+   short old_size,new_size,min_y,max_y;
+   short changed;
+
+   changed = 0;
+   old_size = active_part->place_size.y;
+   new_size = ((((cursory<<VIRTUALCOORDS) - 8) & (0xfff8<<VIRTUALCOORDS)) + tedge + 
+		8<<VIRTUALCOORDS) - active_part->scrn_loc.y;
+   min_y = prop[active_part->type].min_size.y;
+   max_y = prop[active_part->type].max_size.y;
+
+   if (new_size > max_y)
+      new_size = max_y;
+   else
+      if (new_size < min_y)
+         new_size = min_y;
+
+   if (old_size != new_size)
+   {
+      active_part->place_size.y = new_size;
+      prop[active_part->type].resize_func(active_part);
+      set_adjusted_loc_size(active_part);
+      prop[active_part->type].reinit_func(active_part);
+
+      while (part_overlap(active_part))
+      {
+         active_part->place_size.y -= 8<<VIRTUALCOORDS;
+         prop[active_part->type].resize_func(active_part);
+         set_adjusted_loc_size(active_part);
+         prop[active_part->type].reinit_func(active_part);
+      }
+
+      if (active_part->place_size.y != old_size)
+         changed = 1;
+   }
+
+   return(changed);
+}
+
+
+
+void scroll_pb_left(short new_mode)
+{
+   PART *new_pb_part;
+
+	new_pb_part = get_pb_part(-num_pb_slots);
+	if (new_pb_part != pb_part)
+		pb_part = new_pb_part;
+	else
+      pb_part = &avail_list;
+
+   redraw_rbi = 2;
+}
+
+
+
+void scroll_pb_right(short new_mode)
+{
+   PART *new_pb_part;
+
+	if ((new_pb_part=get_pb_part(num_pb_slots)) != 0)
+		pb_part = new_pb_part;
+}
+
+
+
+void over_partbin(HOT_SPOT *hs)
+{
+   short type;
+
+   if (tim_mode == TM_PARTBIN)
+      hs->new_mode = TM_PARTBIN;
+   else
+   {
+      hs->new_mode = TOON_EDIT;
+      if (tim_sub_mode == TSM_PLACE)
+      {
+         type = active_part->type;
+         switch (type)
+         {
+            case PT_PBELT:
+               hs->icon_num = IC_BELT;
+               break;
+            case PT_ROPE:
+               hs->icon_num = IC_ROPE;
+               break;
+            default:
+               hs->icon_num = IC_HAND;
+               break;
+         }
+      }
+      else
+         if (get_pb_part(hs->id))
+            hs->icon_num = IC_PICKUP;
+         else
+            hs->icon_num = IC_HAND;
+   }
+}
+
+
+
+void click_over_partbin(short slot)
+{
+   PART *new_part,*save_active_part,*pptr;
+
+   place_offset_x = place_offset_y = 0;
+   if ((active_part=get_pb_part(slot)) != 0)
+   {
+      place_offset_x = active_part->size.x>>1;
+      place_offset_y = active_part->size.y>>1;
+      if (freeform_mode && (unique_pb==0))
+      {
+         /* This makes a copy of the selected part */
+         new_part = copy_part(active_part);
+         save_active_part = active_part;
+         active_part = 0;
+         
+         /* This inserts a copy of the selected part into the partbin list */
+         if (check_free_memory())
+         {
+            active_part = save_active_part;
+            if ((new_part->next=active_part->next) != 0)
+               new_part->next->prev = new_part;
+            new_part->prev = active_part;
+            active_part->next = new_part;
+            active_part = new_part;
+         }
+         else
+            free_a_part(new_part);
+      }
+
+      if (active_part)
+      {
+         /* Initially place part off screen */
+         active_part->start_scrn_loc.x = active_part->scrn_loc.x = -100;
+         active_part->start_scrn_loc.y = active_part->scrn_loc.y = -100;
+         tim_sub_mode = TSM_PLACE;
+         redraw_rbi = 2;
+      }
+   }
+}          
+
+/* * * * *
+*
+*  void set_active_part_scrn_loc(void);
+*
+* * * * */
+static void set_active_part_scrn_loc(void)
+{
+   if (active_part->flags3 & F3_FINE_PLACE)
+   {
+      active_part->scrn_loc.x = ((cursorx<<VIRTUALCOORDS)-place_offset_x) + ledge;
+      if ((active_part->scrn_loc.x+active_part->size.x) <= ledge)
+         active_part->scrn_loc.x = ledge-active_part->size.x;
+      if (active_part->scrn_loc.x >= ledge+640)
+         active_part->scrn_loc.x = ledge+640;
+      active_part->scrn_loc.y = ((cursory<<VIRTUALCOORDS)-place_offset_y) + tedge;
+      if ((active_part->scrn_loc.y+active_part->size.y) <= (tedge))
+         active_part->scrn_loc.y = tedge-active_part->size.y;
+      if (active_part->scrn_loc.y >= (tedge+400))
+         active_part->scrn_loc.y = tedge+400;
+   }
+   else
+   {
+      active_part->scrn_loc.x = (((cursorx<<VIRTUALCOORDS)-place_offset_x) & 
+			(0xfff8<<VIRTUALCOORDS)) + ledge;
+      if ((active_part->scrn_loc.x+active_part->size.x) <= ledge)
+         active_part->scrn_loc.x += 8<<VIRTUALCOORDS;
+      active_part->scrn_loc.y = (((cursory<<VIRTUALCOORDS)-place_offset_y) & 
+			(0xfff8<<VIRTUALCOORDS)) + tedge;
+      if ((active_part->scrn_loc.y+active_part->size.y) <= tedge)
+         active_part->scrn_loc.y += 8<<VIRTUALCOORDS;
+   }
+
+   set_adjusted_loc_size(active_part);
+}
+
+
+/* * * * *
+*
+*  duplicate_active_part();
+*
+*  This function will make a duplicate copy of the active part
+*  provided on exists in the part bin.  The user will then
+*  be setup to place the part on the screen.
+*
+*  This function will return TRUE if a copy of the active
+*  part was made.  Otherwise it will return FALSE.
+*
+* * * * */
+static short duplicate_active_part(void)
+{
+   PART *pptr;
+   PART *source_part;
+
+   /* If there is no active part, just return */
+   if(!active_part)
+      return(0);
+
+   /* Scan the part bin for a part that matches the active part */
+   pptr = avail_list.next;
+   while(pptr && (pptr->type != active_part->type))
+      pptr = pptr->next;
+
+   /* If no part match, return error */
+   if(!pptr)
+      return(0);
+
+   /* Calculate pickup offset */
+   place_offset_x = active_part->size.x>>1;
+   place_offset_y = active_part->size.y>>1;
+   source_part = active_part;
+
+   /* If in freeform, make a copy of the part */
+   if (freeform_mode && (unique_pb==0))
+   {
+      /* If getting low on memory, return error */
+      if (  !check_free_memory()
+         || !(pptr = copy_part(pptr))) /* copy part from part bin */
+         return(0);
+
+      /* This inserts a copy of the selected part into the partbin list */
+      if ((pptr->next=active_part->next) != 0)
+         pptr->next->prev = pptr;
+      pptr->prev = active_part;
+      active_part->next = pptr;
+      active_part = pptr;
+   }
+
+   /* Copy the special fields that are to be duplicated */
+   pptr->flags3 &= ~F3_LOCKED;
+   pptr->state = source_part->state;
+   if((pptr->flags2 & F2_FLIP_H_DRAW) != (source_part->flags2 & F2_FLIP_H_DRAW))
+      prop[source_part->type].flip_func(pptr,TSM_FLIP_LR);
+   if((pptr->flags2 & F2_FLIP_V_DRAW) != (source_part->flags2 & F2_FLIP_V_DRAW))
+      prop[source_part->type].flip_func(pptr,TSM_FLIP_TB);
+   pptr->start_flags2 = source_part->flags2;
+   pptr->place_size = source_part->place_size;
+   prop[pptr->type].resize_func(pptr);
+   set_adjusted_loc_size(pptr);
+   prop[pptr->type].reinit_func(pptr);
+
+   /* Change modes so the player is placing the new part */
+   active_part = pptr;
+   tim_sub_mode = TSM_PLACE;
+   redraw_rbi = 2;
+
+   /* Return success */
+   return(TRUE);
+}
+

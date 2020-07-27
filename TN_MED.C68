@@ -1,0 +1,55 @@
+/* * * * *
+*
+*  TN_MED.C
+*
+*  This module contains all the code associated with the medicine ball.
+*
+*  Part number:   0
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/01/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "toons.h"
+
+
+
+/* * * * *
+*
+*  void medicine_ball_reinit(PART *b_part);
+*
+*  This function will reinitiallize the border of the medicine ball.
+*
+* * * * */
+void medicine_ball_reinit(PART *b_part)
+{
+   short i;
+   P_PART_BORDER pnt;
+   TIM_CVEC *bpnt;
+
+   static TIM_CVEC_C bord0[8] = {{10,0},{27,0},{36,9},{36,26},{26,36},{10,36},
+      {0,36},{0,10}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!b_part)
+   {
+      set_border_slopes(bord0, 0, 8);
+      return;
+   }
+
+   bpnt = &bord0[0];
+   
+   for (i=0,pnt=b_part->border;i<8;i++,pnt++,bpnt++)
+   {
+      pnt->x = bpnt->x;
+      pnt->y = bpnt->y;
+   }
+}
+
+

@@ -1,0 +1,130 @@
+/* * * * *
+*
+*  TN_RIP.C
+*
+*  This file contains code that handles the Rest In Peace requester
+*  in the Incredible Toons.
+*
+*  By Rich Rayl -- (c) 1993 Dynamix, Inc.  (Jeff Tunnell Productions)
+*
+*  Modification History:
+*  ---------------------
+*  10/06/93 RichR    File created
+*
+* * * * */
+
+#include "vm.h"
+#include "vm2.h"
+#include "tim.h"
+
+
+#define ANIM_SPEED      (240 / 20)
+
+/* Declare the local functions */
+void draw_rip(char button, short x, short y);
+
+/* Define the local variables */
+UWORD rip_chars;
+extern UBYTE riptest;
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     do_toon_rip();
+*
+*     This function will display the Rest In Peace requester
+*     and will allow the player to replay the level or to
+*     advance to the next level.  It also notifies the data
+*     base that the current puzzle was solved.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     none
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*
+* * * * */
+void do_toon_rip(void)
+{
+	int rip_select;
+
+	rip_select = 0;
+
+	SYS_LastChar = spriteChar;
+	cursoractive = FALSE;
+	ClearMapBuff(&MapABuff);
+	rip_chars = DLFPCChars(&riptest) | CHARPRIORITY;
+	DrawAnimMapFrame(0,0,0,&riptest, &MapABuff, rip_chars);
+	DrawAnimMapFrame(0,0,1,&riptest, &MapABuff, rip_chars);
+	addDMAQueue(ScrBAddr, 64*2*28, &MapABuff);
+	waitDMAQueue();
+	while (!SYS_JoyTable[JOY_A])
+		{
+		while (!SYS_JoyHit);
+		SYS_JoyHit = FALSE;
+		if (SYS_JoyTable[JOY_LEFT] || SYS_JoyTable[JOY_UP] || 
+				SYS_JoyTable[JOY_DOWN] || SYS_JoyTable[JOY_RIGHT])
+			rip_select ^= 1;
+
+		EraseAnimMapFrame(0,0,(rip_select^1)+1,&riptest, &MapABuff, rip_chars);
+		DrawAnimMapFrame(0,0,rip_select+1,&riptest, &MapABuff, rip_chars);
+		addDMAQueue(ScrBAddr, 64*2*28, &MapABuff);
+		waitDMAQueue();
+		}
+
+	ClearMapBuff(&MapABuff);
+	addDMAQueue(ScrBAddr, 64*2*28, &MapABuff);
+	waitDMAQueue();
+	SYS_LastChar = rip_chars;
+	cursoractive = TRUE;
+   /* If advancing, load next puzzle */
+	if (rip_select == 1)
+		{
+		tim_mode = TOON_RIP_ADVANCE;
+      load_next_puzzle();
+      do_toon_clapper();
+		}
+}
+
+
+/* * * * *
+*
+*  load_rip_bitmaps();
+*
+*  This function simply loads all of the bitmaps and fonts
+*  needed for the RIP requester.
+*
+*  Returns TRUE if they are all loaded.
+*
+* * * * */
+short load_rip_bitmaps(void)
+{
+}
+
+/* * * * *
+*
+*  free_rip_bitmaps();
+*
+*  This function frees the bitmaps and fonts used by the RIP requester.
+*
+* * * * */
+void free_rip_bitmaps(void)
+{
+}
+
+
+/* * * * *
+*
+*  void draw_rip(char button, short x, short y);
+*
+*  This function will draw all the cells of the rip requester.
+*/
+void draw_rip(char button, short x, short y)
+{
+}
+
+

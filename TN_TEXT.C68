@@ -1,0 +1,444 @@
+/* * * * *
+*
+*  TN_TEXT.C
+*
+*  This module contains the code that will handle all the text routines.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/11/93 ChrisC   File created
+*
+* * * * */
+#include <ctype.h>
+#include <string.h>
+#include "vm.h"
+#include "vm_keys.h"
+#include "vm_mylib.h"
+#include "sx.h"
+#include "keyboard.h"
+#include "mouse.h"
+#include "tim.h"
+#include "tim_text.h"
+#include "toons.h"
+#include "hstring.h"
+
+#define BLINK_RATE      2     // Number of times to blink per second
+
+short (* edit_field_callback)(void);
+
+/* * * * *
+*
+*  local variables
+*
+* * * * */
+extern short keyboard_flag;
+static P_TEXT insert_point;
+static short text_cursor_x, text_cursor_y, text_cursor_h;
+
+
+
+/* * * * *
+*
+*  static functions
+*
+* * * * */
+static P_TEXT scroll_string(P_TEXT pstring, P_TEXT string, short w, short h);
+static P_TEXT fancy_edit_string( unsigned short, P_TEXT, P_TEXT, short, short);
+
+
+
+/* * * * *
+*
+*  void my_str(char *string, short x, short y);
+*
+*  This function operates like vm_str except it's more fun!
+*
+* * * * */
+void my_str(char *string, short x, short y)
+{
+   vm_dstptr = vm_buffptr;
+   my_mouse_off();
+   vm_fgcolor = 0;
+   vm_str(string,x-2,y+1);
+   vm_fgcolor = 14;
+   vm_str(string,x-1,y);
+   my_mouse_on();
+}
+
+
+
+
+/* * * * *
+*
+*  void tn_my_str(char *string, short x, short y, short background,
+*     short shadow, short foreground);
+*
+*  This function operates like vm_str except it's more fun!
+*
+* * * * */
+void tn_my_str(P_TEXT string, short x, short y, short background, short shadow,
+   short foreground)
+{
+   vm_dstptr = vm_buffptr;
+   my_mouse_off();
+   vm_bgcolor = background;
+   vm_fgcolor = shadow;
+   vm_hstr(string,x-1,y);
+   vm_hstr(string,x+1,y);
+   vm_hstr(string,x,y-1);
+   vm_hstr(string,x,y+1);
+   vm_fgcolor = foreground;
+   vm_hstr(string,x,y);
+   my_mouse_on();
+}
+
+
+
+/* * * * *
+*
+*  void edit_field(char *string, short x, shorty, short w, short h,
+*     short max_strlen);
+*
+*  This function will edit the specified string in the specified rectangle.
+*  It uses Kevins routines.
+*
+*  note--the current location of the cursor is assumed to be the current mouse
+*  location.
+*
+* * * * */
+void edit_field(P_TEXT pstring, short x, short y, short w, short h,
+   char foreground, char background, char shadow, char mode, short max_strlen,
+   short scroll)
+{
+   char exit, blink, flip;
+   short movex,movey;    // only used to move cursor up and down
+   short ix,iy,fh;
+   P_TEXT tptr, string;
+
+   /* Setup some misc. variables */
+   string = pstring;
+   fh = vm_fontheight(0);
+   mouse_button1 = 0;
+   keyboard_flag = 0;
+   my_key = 0;
+   exit = 0;
+   blink = 0;
+   vm_countdown = 0;
+
+   // initiallize the strings and stuff.
+   build_text_ptrs(string,w,h,fh);
+   insert_point = default_set_ptr(string,x,y,w,h,mouse_x,mouse_y);
+   draw_field(string,x,y,w,h,foreground,background,shadow,mode);
+   movex = text_cursor_x + 4;
+   movey = text_cursor_y + text_cursor_h/2;
+   flip_and_copy();
+
+   /* Process key presses and button clicks */
+   while ((ASCII(my_key) != ASCII(RETURN)) && !exit)
+   {
+      // check for mouse exit of window
+      my_mouse_move();
+      if (mouse_button1 == MOUSE_SINGLE)
+         if ((mouse_x > x) && (mouse_x < x + w) &&
+            (mouse_y > y) && (mouse_y < y + h))
+         {
+            insert_point = default_set_ptr(string,x,y,w,h,mouse_x,mouse_y);
+            draw_field(string,x,y,w,h,foreground,background,shadow,mode);
+            flip = 1;
+         }
+         else
+            exit = 1;
+
+      my_key = remap_key(vm_scankey());
+      if (my_key && (ASCII(my_key) != ASCII(RETURN)))
+      {
+         if((SCAN(my_key) == KB_KP_UP) || (SCAN(my_key) == KB_KP_DOWN))
+         {
+            if(SCAN(my_key) == KB_KP_UP)
+            {
+               if(movey - text_cursor_h > y)
+                  movey -= text_cursor_h;
+            }
+            else
+            {
+               movey += text_cursor_h;
+               insert_point = default_set_ptr(string,x,y,w,h,movex,movey);
+               if(!*insert_point)
+                  movey -= text_cursor_h;
+            }
+            insert_point = default_set_ptr(string,x,y,w,h,movex,movey);
+            draw_field(string,x,y,w,h,foreground,background,shadow,mode);
+         }
+         else
+         {
+            /* Edit the string */
+            insert_point = fancy_edit_string(my_key,string,insert_point,max_strlen,scroll);
+            build_text_ptrs(string,w,h,fh);
+            if(insert_point < string)
+               string = insert_point;
+
+            /* If last character of string does not fit,
+               remove the character that was just entered */
+            if(!scroll)
+            {
+               tptr = string + hstrlen(string) - 1;
+               default_set_xywh(string,tptr,x,y,w,h,&ix,&iy);
+               if(   (insert_point != string)
+                  && (  (max_width >= w)
+                     || ((h>=fh) && (iy+fh > y+h))
+                     || ((h<fh) && (iy > y+h))))
+               {
+                  insert_point--;
+                  hstrcpy(insert_point, insert_point+1);
+               }
+            }
+            else
+               string = scroll_string(pstring, string, w, h);
+
+            /* Redraw field and determine new movement location */
+            draw_field(string,x,y,w,h,foreground,background,shadow,mode);
+            movex = text_cursor_x + 4;
+            movey = text_cursor_y + text_cursor_h/2;
+         }
+         flip = 1;
+      }
+
+      /* If a call back function is specified, call it */
+      if(edit_field_callback)
+         edit_field_callback();
+
+      /* If need to flip pages, do so after drawing cursor */
+      if(flip)
+      {
+         vm_lcolor = 0;
+         my_mouse_off();
+         vm_line(text_cursor_x,text_cursor_y,text_cursor_x,text_cursor_y+text_cursor_h);
+         my_mouse_on();
+         vm_countdown = (240/BLINK_RATE/2);
+         blink = 1;
+         my_flip(1);
+         flip = 0;
+      }
+
+      /* If text cursor changes states, redraw it */
+      else if(!vm_countdown)
+      {
+         vm_countdown = (240/BLINK_RATE/2);
+         blink = !blink;
+         vm_srcptr = vm_scrnptr;
+         vm_dstptr = vm_buffptr;
+         mouse_copy(0,0,vm_width,vm_height);
+         vm_lcolor = (blink ? 0 : background);
+         my_mouse_off();
+         vm_line(text_cursor_x,text_cursor_y,text_cursor_x,text_cursor_y+text_cursor_h);
+         my_mouse_on();
+         my_flip(1);
+      }
+   }
+
+   // draw string
+   vm_dstptr = vm_buffptr;
+   vm_lcolor = vm_fcolor = background;
+   my_mouse_off();
+   vm_rect(x-1,y-1,w+2,h+2);
+   my_mouse_on();
+   set_toon_clip(x-2,y,w+2,h);
+   default_text(string,x,y,w,h,foreground,background,shadow,0);
+   set_full_scrn_clip();
+   flip_and_copy();
+
+   /* Clear buttons and wait for keyboard's enter key to be released */
+   mouse_clear_buttons();
+   my_key = 0;
+   while(vm_keystatus(ENTER) || vm_keystatus(KB_KP_ENTER))
+      ;
+   keyboard_flag = 1;
+}
+
+
+/* * * * *
+*
+*  void draw_field(char *string, short x, short y, short w, short h,
+*     char foreground, char background, char shadow, char mode);
+*
+*  This function will draw the specified string in the specified rectangle.
+*
+* * * * */
+void draw_field(P_TEXT string, short x, short y, short w, short h,
+   char foreground, char background, char shadow, char mode)
+{
+   short ix,iy;
+
+   set_game_scrn_clip();
+   vm_dstptr = vm_buffptr;
+   my_mouse_off();
+
+   // erase background 
+   vm_lcolor = vm_fcolor = background;
+   vm_rect(x-1,y-1,w+2,h+2);
+
+   // draw string
+   set_toon_clip(x-2,y,w+2,h);
+   default_text(string,x,y,w,h,foreground,background,shadow,mode);
+   set_full_scrn_clip();
+
+   // draw cursor
+   default_set_xywh(string,insert_point,x,y,w,h,&ix,&iy);
+   my_mouse_on();
+   text_cursor_x = ix-1;
+   text_cursor_y = iy;
+   text_cursor_h = vm_fontheight(0)-1;
+   if(text_cursor_h >= h)
+      text_cursor_h = h-1;
+}
+
+// max_length:  note that max_length cannot be > 400
+P_TEXT fancy_edit_string(unsigned short new_char,P_TEXT sptr,P_TEXT iptr,short max_length, short scroll)
+{
+   short slen;
+   P_TEXT tptr;
+
+   slen = hstrlen(sptr);
+   switch (SCAN(new_char))
+   {
+      case KB_BACKSPACE:
+         if(vm_keystatus(KB_CTRL))
+         {
+            iptr = sptr;
+            *iptr = 0;
+         }
+         else if (iptr != sptr)
+         {
+            iptr--;
+            hstrcpy(iptr,iptr+1);
+         }
+         break;
+
+      case KB_KP_LEFT:
+         if (iptr != sptr)
+         {
+            iptr--;
+            if(vm_keystatus(KB_CTRL))
+            {
+               while((iptr > sptr) && ((*iptr <= 32) || (*iptr == '\\')))
+                  iptr--;
+               while((iptr > sptr) && (*iptr > 32) && (*iptr != '\\'))
+                  iptr--;
+               if(iptr > sptr)
+                  iptr++;
+            }
+         }
+         else if(scroll)
+            iptr = scroll_string(0,sptr,-1,0);
+         break;
+
+      case KB_KP_RIGHT:
+         if (*iptr != 0)
+         {
+            iptr++;
+            if(vm_keystatus(KB_CTRL))
+            {
+               while(*iptr && (*iptr > 32) && (*iptr != '\\'))
+                  iptr++;
+               while(*iptr && ((*iptr <= 32) || (*iptr == '\\')))
+                  iptr++;
+            }
+         }
+         break;
+
+      case KB_HOME:
+      case KB_PGUP:
+         if(scroll)
+            iptr = scroll_string(0,sptr,-9999,0);
+         else
+            iptr = sptr;
+         break;
+
+      case KB_END:
+      case KB_PGDN:
+         iptr = sptr + slen;
+         break;
+
+      case KB_DEL:
+         if (*iptr != 0)
+            hstrcpy(iptr,iptr+1);
+         break;
+
+      default:
+         new_char = ASCII(new_char);
+         if (  (slen < max_length)
+            && (new_char >= ' '))
+//            && new_char
+//            && (new_char != ASCII(TAB)))
+         {
+            tptr = iptr + hstrlen(iptr) + 1;
+            *tptr-- = 0;
+            while(tptr > iptr)
+            {
+               *tptr = *(tptr-1);
+               tptr--;
+            }
+            *iptr++ = new_char;
+         }
+         break;
+   }
+
+   return(iptr);
+}
+
+/* * * * *
+*
+*  scroll_string(pstring, string, w, h);
+*
+*  Scroll the specified string be determining a new starting
+*  location for the string.
+*
+* * * * */
+P_TEXT scroll_string(P_TEXT pstring, P_TEXT string, short w, short h)
+{
+   static P_TEXT original;
+   static short  ow,oh;    // original w and h
+   unsigned char ctemp;
+   short width;
+
+   /* If a original string is specified, save it */
+   if(pstring)
+   {
+      original = pstring;
+      ow = w;
+      oh = h;
+   }
+
+   /* If string is only one line, determine start location */
+   if(h <= vm_fontheight(0))
+   {
+      if(!pstring)   // special case when scrolling left
+      {
+         if(original-insert_point <= w)
+            string = insert_point+w;
+         else
+            string = original;
+      }
+      else do
+      {
+         if(*insert_point)
+         {
+            ctemp = *(insert_point+1);
+            *(insert_point+1) = 0;
+         }
+         width = vm_hstr_width(string);
+         if(*insert_point)
+            *(insert_point+1) = ctemp;
+         if(width >= ow-2)
+            string++;
+      } while((width >= ow-2) && *string);
+   }
+
+   /* Return new string to caller */
+   return(string);
+}
+
+
+

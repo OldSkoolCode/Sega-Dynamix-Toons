@@ -1,0 +1,319 @@
+/* * * * *
+*
+*  TN_TRAP.C
+*
+*  This file contains all the code associated with the trap door
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  08/10/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  TRAPDOOR                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        This contains two different animation. The sequence for when the
+   branch gets pulled is: 1,2,3,4,5,6,7,8 all mod 2. The sequence for when
+   the branch breaks is: 1,9,10,11,12,13,14,15 all mod 2.
+   
+   The rope ties are:
+        Frame   Rope Tie offset
+        1       (21,14)
+        2       (20,22)
+        3       (10,28)
+        4       (-11,32)
+        5       (-17,25)
+        6-8     (-11,37)
+        9-15    (-3,17)
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C trapdoor1 = {0, TRAPDOOR_PLANE, {0,1,2,255},
+   {{0,0},{4,0},{3,5},{0,0}}};
+static F_SSHAPE_C trapdoor2 = {0, TRAPDOOR_PLANE, {0,1,3,255},
+   {{0,0},{4,0},{4,5},{0,0}}};
+static F_SSHAPE_C trapdoor3 = {0, TRAPDOOR_PLANE, {0,4,1,255},
+   {{0,0},{4,9},{4,0},{0,0}}};
+static F_SSHAPE_C trapdoor4 = {0, TRAPDOOR_PLANE, {0,5,11,255},
+   {{0,0},{-3,11},{1,0},{0,0}}};
+static F_SSHAPE_C trapdoor5 = {0, TRAPDOOR_PLANE, {0,6,12,255},
+   {{0,0},{-9,12},{3,0},{0,0}}};
+static F_SSHAPE_C trapdoor6 = {0, TRAPDOOR_PLANE, {0,7,13,255},
+   {{0,0},{-6,12},{3,0},{0,0}}};
+static F_SSHAPE_C trapdoor7 = {0, TRAPDOOR_PLANE, {0,7,14,255},
+   {{0,0},{-6,12},{-5,0},{0,0}}};
+static F_SSHAPE_C trapdoor8 = {0, TRAPDOOR_PLANE, {0,7,15,255},
+   {{0,0},{-6,12},{0,0},{0,0}}};
+static F_SSHAPE_C trapdoor9 = {0, TRAPDOOR_PLANE, {0,1,8,255},
+   {{0,0},{4,0},{4,4},{0,0}}};
+static F_SSHAPE_C trapdoor10 = {0, TRAPDOOR_PLANE, {0,1,9,255},
+   {{0,0},{4,0},{4,6},{0,0}}};
+static F_SSHAPE_C trapdoor11 = {0, TRAPDOOR_PLANE, {0,11,10,255},
+   {{0,0},{1,0},{4,10},{0,0}}};
+static F_SSHAPE_C trapdoor12 = {0, TRAPDOOR_PLANE, {0,12,255,255},
+   {{0,0},{3,0},{0,0},{0,0}}};
+static F_SSHAPE_C trapdoor13 = {0, TRAPDOOR_PLANE, {0,13,255,255},
+   {{0,0},{3,0},{0,0},{0,0}}};
+static F_SSHAPE_C trapdoor14 = {0, TRAPDOOR_PLANE, {0,14,255,255},
+   {{0,0},{-5,0},{0,0},{0,0}}};
+static F_SSHAPE_C trapdoor15 = {0, TRAPDOOR_PLANE, {0,15,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far trapdoor_ss_tab[TRAPDOOR_NUM_STATES] = 
+   {&trapdoor1,&trapdoor2,&trapdoor3,&trapdoor4,&trapdoor5,&trapdoor6,
+    &trapdoor7,&trapdoor8,&trapdoor9,&trapdoor10,&trapdoor11,&trapdoor12,
+    &trapdoor13,&trapdoor14,&trapdoor15};
+
+/* size. */
+TIM_VEC_C far trapdoor_size[TRAPDOOR_NUM_STATES] = 
+   {{31,13},{31,16},{31,20},{34,24},{39,25},{23,28},
+    {13,28},{13,28},{31,13},{31,18},{31,24},{30,25},
+    {18,25},{12,25},{8,25}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far trapdoor_os[TRAPDOOR_NUM_STATES] = 
+   {{0,0},{0,0},{0,0},{-6,0},{-18,0},{-11,0},{-11,0},{-11,0},
+    {0,0},{0,0},{0,0},{0,0},{0,0},{-9,0},{0,0}};
+
+/* border definitions. */
+static PART_BORDER_C far trapdoor1_bord[TRAPDOOR_BORDERS] =
+   {{0,2,0},{30,2,0},{30,4,0},{0,12,0}};
+static PART_BORDER_C far trapdoor5_bord[TRAPDOOR_BORDERS] =
+   {{0,2,0},{7,2,0},{7,25,0},{0,25,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far trapdoor_bord_tab[TRAPDOOR_NUM_STATES] =
+   {trapdoor1_bord,trapdoor1_bord,trapdoor1_bord,trapdoor1_bord,
+    trapdoor5_bord,trapdoor5_bord,trapdoor5_bord,trapdoor5_bord,
+    trapdoor1_bord,trapdoor1_bord,trapdoor1_bord,trapdoor5_bord,
+    trapdoor5_bord,trapdoor5_bord,trapdoor5_bord};
+static P_PART_BORDER far trapdoor_fbord_tab[TRAPDOOR_NUM_STATES];
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void trap_door_reinit(PART *trap_door)
+{
+   static const char far rope_tie[][2] =
+   {
+      {30,21},       /*  {21,14}, */
+      {29,29},       /*  {20,22}, */
+      {19,35},       /*  {10,28}, */
+      {-2,39},      /*  {-11,32}, */
+      {-8,35},      /*  {-17,25}, */
+      {-2,44},      /*  {-11,37}, */
+      {-2,44},      /*  {-11,37}, */
+      {-2,44},      /*  {-11,37}, */
+      { 6,24},       /*  {-3,17}, */
+      { 6,24},       /*  {-3,17}, */
+      { 6,24},       /*  {-3,17}, */
+      { 6,24},       /*  {-3,17}, */
+      { 6,24},       /*  {-3,17}, */
+      { 6,24},       /*  {-3,17}, */
+      { 6,24},       /*  {-3,17}, */
+   };
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!trap_door)
+   {
+      set_border_table_slopes(PT_TRAP_DOOR, 1, trapdoor_bord_tab,
+                                    trapdoor_fbord_tab, TRAPDOOR_NUM_STATES);
+      return;
+   }
+
+   if (trap_door->flags2 & F2_FLIP_H_DRAW)
+   {
+      trap_door->border = trapdoor_fbord_tab[trap_door->state];
+      trap_door->rope_loc[0].x = trap_door->base_size.x -
+         rope_tie[trap_door->state][0];
+   }
+   else
+   {
+      trap_door->border = trapdoor_bord_tab[trap_door->state];
+      trap_door->rope_loc[0].x = rope_tie[trap_door->state][0];
+   }
+   trap_door->rope_loc[0].y = rope_tie[trap_door->state][1];
+   set_adjusted_loc_size(trap_door);
+}
+
+#pragma argsused
+void trap_door_flip(PART *trap_door,short flip_mode)
+{
+   trap_door->flags2 ^= F2_FLIP_H_DRAW;
+   trap_door_reinit(trap_door);
+   part_to_er(trap_door,1|2);
+   set_redraw(trap_door,2);
+}
+
+#pragma argsused
+short trap_door_bounce(PART *cur_part)
+{
+   PART *trap_door;
+   short bord_num;
+   #define TRAP_DOOR_STICK_BORD_NUM    2
+   #define TRAP_DOOR_STICK_FBORD_NUM   0
+
+   trap_door = cur_part->col_info.part;
+   bord_num = cur_part->col_info.border_num;
+
+   if (trap_door->flags2 & F2_FLIP_H_DRAW)
+   {
+      if (bord_num == TRAP_DOOR_STICK_FBORD_NUM)
+         trap_door->sub_state = 1;
+   }
+   else
+   {
+      if (bord_num == TRAP_DOOR_STICK_BORD_NUM)
+         trap_door->sub_state = 1;
+   }
+
+   return(1);
+}
+
+#pragma argsused
+short trap_door_rope(PART *from_part,PART *trap_door,short tie_num,short rope_type,short mass,long force)
+{
+   if (rope_type & RP_PULL_DOWN)
+      trap_door->sub_state = -1;
+   
+   return(0);
+}
+
+void trap_door_internal(PART *trap_door)
+{
+   static const char far pull_stick_state_array[] =
+   {
+      1,2,3,4,5,6,7,8
+   };
+   #define PULL_STICK_NUM_STATES   (sizeof(pull_stick_state_array)/sizeof(char))
+   static const char far break_stick_state_array[] =
+   {
+      1,9,10,11,12,13,14,15
+   };
+   #define BREAK_STICK_NUM_STATES   (sizeof(break_stick_state_array)/sizeof(char))
+
+   short direction, trap_door_link, other_tie, rope_action;
+   long force;
+   ROPE *rptr;
+   PART *other_part;
+
+   /* check if the stick is being pulled or broken and the trap door has not  */
+   /* been triggered yet */
+   if (trap_door->sub_state && !trap_door->toon_state)
+   {
+      jtp_sx_play(SX_TRAPDOOR, 1, 0);
+
+      /* check if the stick should be broken */
+      if (trap_door->sub_state > 0)
+         trap_door->toon_state = 1;
+      else
+         trap_door->toon_state = BREAK_STICK_NUM_STATES + 1;
+   }
+
+   /* check if the trap door has been triggered. */
+   if (trap_door->toon_state)
+   {
+      /* check if the trap door should animate the breaking stick */
+      if (trap_door->toon_state < BREAK_STICK_NUM_STATES + 1)
+      {
+         trap_door->state=break_stick_state_array[trap_door->toon_state-1]-1;
+
+         /* check if the trap door should animate */
+         if (trap_door->toon_state != BREAK_STICK_NUM_STATES)
+         {
+            trap_door->toon_state++;
+            trap_door_reinit(trap_door);
+         }
+      }
+      else
+      {
+         trap_door->state = pull_stick_state_array[trap_door->toon_state -
+            BREAK_STICK_NUM_STATES - 1] - 1;
+
+         /* check if the trap door should animate */
+         if (trap_door->toon_state != BREAK_STICK_NUM_STATES +
+            PULL_STICK_NUM_STATES)
+         {
+            trap_door->toon_state++;
+            trap_door_reinit(trap_door);
+         }
+      }
+
+      /* if there is a rope, then tell the other end that it has been pulled */
+      direction = MOVING_NEITHER;   /* not pulling up or down */
+
+      /* check if there is a rope attached.  */
+      if ((rptr = trap_door->rope_tie[0]) != 0)
+      {
+         if (rptr->link1 == trap_door)
+         {
+            trap_door_link = 0;
+            other_tie = rptr->l2_num;
+         }
+         else
+         {
+            trap_door_link = 1;
+            other_tie = rptr->l1_num;
+         }
+   
+         force = (trap_door->force > 0 ? trap_door->force : -trap_door->force);
+         rope_action = get_rope_action(rptr, trap_door_link, direction);
+         other_part = get_rope_link(trap_door,rptr);
+         prop[other_part->type].rope_func(trap_door,other_part,other_tie,
+            rope_action,0,force);
+         trap_door->force = 0;
+      }
+   }
+}
+
+/* * * * *
+*
+*  short collide_with_trap_door(PART *trap_door, PART *pptr);
+*
+*  This function will set the substate of the trap_door and return true if the
+*  pptr is overlapping the plungers. It is an extremely rough approximation of
+*  a collision.
+*
+* * * * */
+short collide_with_trap_door(PART *trap_door, PART *pptr)
+{
+   short x,y,w,h;
+   short cx,cy,cw,ch;
+
+   if (trap_door->flags2 & F2_FLIP_H_DRAW)
+      x = trap_door->scrn_loc.x + trap_door->offset.x;
+   else
+      x = trap_door->scrn_loc.x + trap_door->offset.x + 15;
+
+   w = trap_door->size.x - 15;
+   y = trap_door->scrn_loc.y + trap_door->offset.y + 15;
+   h = trap_door->size.y - 15;
+   cx = pptr->scrn_loc.x + pptr->offset.x;
+   cw = pptr->size.x;
+   cy = pptr->scrn_loc.y + pptr->offset.y;
+   ch = pptr->size.y;
+
+   /* check if the part is near the plunger */
+   if ((cx + cw < x) || (x + w < cx) || (cy + ch < y) || (y + h < cy))
+      return(0);
+
+   trap_door->sub_state = 1;
+   return(1);
+}
+
+
+
+

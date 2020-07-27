@@ -1,0 +1,31 @@
+/*
+ *  strnicmp.c
+ *
+ *  Copyright 1994 by Futurescape Productions.  All rights reserved.
+ */
+
+#include <string.h>
+
+/*-------------------------------- strnicmp() --------------------------------*/
+
+/*
+ *	strnicmp compares not more than count characters (characters following
+ *	the null terminator are not compared) from the string pointed to by
+ *	s1 to the string pointed to by s2 with out regard to each characters
+ *	case.  strnicmp() returns an integer greater than, equal to, or less
+ *	than zero, corresponding to the possibly null-terminated string
+ *	pointed to by s1 being greater than, equal to, or less than the the
+ *	possibly null-terminated string pointed to by s2.
+ */
+
+int strnicmp(register const char *s1, register const char *s2, size_t count)
+{
+	while( (toupper(*s1) == toupper(*s2)) && (--count != -1) ) {
+		if ( !*s1++ )
+			return(0);
+		s2++;
+	}
+	if( toupper(*s1) != toupper(*s2) )
+		count--;
+	return ((count != -1) ? (char)(toupper(*s1) - toupper(*s2)) : 0);
+}

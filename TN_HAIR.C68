@@ -1,0 +1,107 @@
+/* * * * *
+*
+*  TN_HAIR.C 
+*
+*  This file contains all the code associated with the hairball.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  06/21/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+#include <string.h>
+
+
+
+/* * * * *
+*
+*  local function to this module
+*
+* * * * */
+
+
+/* * * * *
+*
+*  global and local variables and defines.
+*
+* * * * */
+TIM_SCVEC_C far p4_os[] = {{-14,3},{1,0},{0,-4},{0,0}};
+TIM_VEC_C far p4_size[] = {{29,11},{19,19},{26,23},{20,18}};
+
+
+/* * * * *
+*
+*  void hair_reinit(PART *hair);
+*
+*  This function will reinitiallize the borders of the hair character.
+*
+* * * * */
+void hair_reinit(PART *hair)
+{
+   static PART_BORDER_C far hair_bord[2] = {{-10,7,0},{10,7,0}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!hair)
+   {
+      set_border_slopes(PT_HAIR_BALL, 0, hair_bord, 0, 0);
+      return;
+   }
+   
+   hair->border = hair_bord;
+   set_adjusted_loc_size(hair);
+}
+
+/* * * * *
+*
+*  hair_internal(PART *hair);
+*
+* * * * */
+void hair_internal(PART *hair)
+{
+   #define HAIR_HANG_TIME     100
+   #define HAIR_TIME          2
+
+   switch (hair->state)
+   {
+      case 0:
+         if (  (hair->speed.x!=(HAIR_SPEED))
+            && (hair->speed.x!=(-HAIR_SPEED)))
+         {
+            jtp_sx_play(SX_HAIRBALL, 2, 0);
+            hair->speed.x = hair->speed.y = 0;
+            hair->num_borders = 0;
+            hair->border = 0;
+            hair->state = 1;
+            hair->work_var = HAIR_TIME;
+            set_adjusted_loc_size(hair);
+         }
+         break;
+      case 1:
+      case 2:
+         if (!(--hair->work_var))
+         {
+            hair->state++;
+            if (hair->state == 3)
+               hair->work_var = HAIR_HANG_TIME;
+            else
+               hair->work_var = HAIR_TIME;
+            set_adjusted_loc_size(hair);
+         }
+         break;
+      case 3:
+         if (hair->work_var)
+            hair->work_var--;
+         else
+         {
+            part_to_er(hair,1|2);
+            hair->flags2 |= F2_INACTIVE;
+         }
+         break;
+   }
+}
+
+

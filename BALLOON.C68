@@ -1,0 +1,207 @@
+/* * * * *
+*
+*  BALLOON.C
+*
+*  This file contains balloon routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/06/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+
+/* super shape - balloon */
+TIM_SCVEC_C far p23_os[] = {{0,0},{-15,-15},{-15,-15}};
+
+
+void balloon_reinit(PART *b_part)
+{
+   static PART_BORDER_C far bord0[8] = {{4,0,0},{13,0,0},{17,4,0},{17,15,0},{10,26,0},{6,26,0},
+      {0,16,0},{0,4,0}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!b_part)
+   {
+      set_border_slopes(PT_BALLOON, 0, bord0, 0, 0);
+      return;
+   }
+   b_part->border = bord0;
+}
+
+
+
+short balloon_bounce(PART *cur_part)
+{
+   PART *balloon;
+   short cur_mid, balloon_mid;
+
+   /* assigns the pointers to the correct parts. */
+   if (cur_part->type == PT_BALLOON)
+   {
+      balloon = cur_part;
+      cur_part = cur_part->col_info.part;
+   }
+   else
+      balloon = cur_part->col_info.part;
+   
+   switch (cur_part->type)
+   {
+      case PT_HATPIN:
+         /* check if the hat pin is horizontal */
+         if (cur_part->state)
+         {
+            cur_mid = cur_part->scrn_loc.x + (cur_part->base_size.x>>1);
+            balloon_mid = balloon->scrn_loc.x + (balloon->base_size.x>>1);
+
+            /* check if the pin is left */
+            if (cur_part->flags2 & F2_FLIP_H_DRAW)
+            {
+               /* check if the balloon is hitting from the left */
+               if (cur_mid > balloon_mid) 
+                  balloon->sub_state = 1;
+            }
+            else
+            {
+               /* check if the balloon is hitting from the right */
+               if (cur_mid < balloon_mid)
+                  balloon->sub_state = 1;
+            }
+         }
+         else
+         {
+            cur_mid = cur_part->scrn_loc.y + (cur_part->size.y>>1);
+            balloon_mid = balloon->scrn_loc.y + (balloon->size.y>>1);
+
+            /* check if the pin is down */
+            if (cur_part->flags2 & F2_FLIP_V_DRAW)
+            {
+               /* check if the balloon is hitting from below */
+               if ((cur_mid < balloon_mid) && (balloon->speed.y < 0))
+                  balloon->sub_state = 1;
+            }
+            else
+            {
+               /* check if the balloon is hitting from above */
+               if ((cur_mid > balloon_mid) && (balloon->speed.y > 0))
+                  balloon->sub_state = 1;
+            }
+         }
+         break;
+      case PT_BULLET:
+         balloon->sub_state = 1;
+         break;
+      case PT_PENCIL:
+         balloon_mid = balloon->scrn_loc.x + (balloon->base_size.x>>1);
+         if (balloon_mid < cur_part->scrn_loc.x)
+            balloon->sub_state = 1;
+         break;
+      default:
+         if (abs(balloon->speed.y) > ONE_PIX)
+            jtp_sx_play(SX_BALLOON_BOUNCE,0,0);
+   }
+
+   return(1);
+}
+
+
+
+void balloon_internal(PART *balloon)
+{
+   #define BALLOON_NUM_STATES    5
+
+   short tie_num;
+   PART *pptr,*phantom_ptr;
+   ROPE *rptr;
+   static const char far state_array[BALLOON_NUM_STATES] =
+   {
+      0,1,1,2,2
+   };
+
+   if (balloon->sub_state)
+   {
+      balloon->flags2 |= F2_INTERNAL;
+
+      if (balloon->toon_state == BALLOON_NUM_STATES-1)
+      {
+         part_to_er(balloon,1|2);
+         balloon->flags2 |= F2_INACTIVE;
+      }
+      else
+      {
+         if ((rptr=balloon->rope_tie[0]) != 0)
+         {
+            if ((phantom_ptr = make_a_part(PT_PHANTOM)) == 0)
+               goto no_phan;
+            insert_into_list(phantom_ptr,&move_list);
+            phantom_ptr->flags1 |= F1_CREATED;
+
+            phantom_ptr->rope_tie[0] = rptr;
+            phantom_ptr->wpptr[0] = balloon->wpptr[0];
+            pptr = phantom_ptr->wpptr[0];
+            if ((tie_num=get_rope_return_tie_num(balloon,pptr)) != -1)
+               pptr->wpptr[tie_num] = phantom_ptr;
+            if (rptr->link1 == balloon)
+            {
+               rptr->link1 = phantom_ptr;
+               phantom_ptr->scrn_loc.x = rptr->pt[0].x;
+               phantom_ptr->scrn_loc.y = rptr->pt[0].y;
+            }
+            else
+            {
+               rptr->link2 = phantom_ptr;
+               phantom_ptr->scrn_loc.x = rptr->pt[1].x;
+               phantom_ptr->scrn_loc.y = rptr->pt[1].y;
+            }
+            phantom_ptr->loc.x = phantom_ptr->scrn_loc.x;
+            phantom_ptr->loc.x <<= SCALE_SHIFT;
+            phantom_ptr->loc.y = phantom_ptr->scrn_loc.y;
+            phantom_ptr->loc.y <<= SCALE_SHIFT;
+            set_adjusted_loc_size(phantom_ptr);
+
+            balloon->rope_tie[0] = 0;
+            balloon->wpptr[0] = 0;
+         }
+
+      no_phan:
+         if (balloon->state == 0)
+            jtp_sx_play(SX_BALLOON,0,0);
+
+         balloon->state = state_array[++balloon->toon_state];
+         set_adjusted_loc_size(balloon);
+      }
+   }
+}
+
+#pragma argsused
+short balloon_rope(PART *from_part,PART *b_part,short tie_num, short rope_type,short mass,long force)
+{
+   ROPE *rptr;
+
+   rptr = b_part->rope_tie[0];
+
+   if (rope_type == RP_SLACK)
+   {
+      rptr->slack++;
+      return(0);
+   }
+
+   if (from_part->type == PT_TT)
+   {
+      if (b_part->force > force)
+         return(1);
+   }
+   else
+      if ((b_part->force+b_part->force) > force)
+         return(1);
+
+   return(0);
+}
+
+

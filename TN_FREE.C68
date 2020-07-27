@@ -1,0 +1,1029 @@
+/* * * * *
+*
+*  TN_FREE.C
+*
+*  This module replaces the FREEFORM.C of T.I.M.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/02/93 ChrisC   File created
+*
+* * * * */
+#include <string.h>
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "simlib.h"
+
+
+/*local routines */
+static void free_all_parts( PART *);
+
+/* TOON parts */
+static short make_part0( PART *);
+static short make_part1( PART *);
+static short make_part2( PART *);
+static short make_part3( PART *);
+static short make_part4( PART *);
+static short make_part_ball( PART *);
+static short make_part12( PART *);
+static short make_part13( PART *);
+static short make_part14( PART *);
+static short make_part15( PART *);
+static short make_part16( PART *);
+static short make_part17( PART *);
+static short make_part18( PART *);
+static short make_part19( PART *);
+static short make_part20( PART *);
+static short make_part21( PART *);
+static short make_part22( PART *);
+static short make_part23( PART *);
+static short make_part24( PART *);
+static short make_part25( PART *);
+static short make_part_wall( PART *);
+static short make_part30( PART *);
+static short make_part35( PART *);
+static short make_part36( PART *);
+static short make_part37( PART *);
+static short make_part38( PART *);
+static short make_part39( PART *);
+static short make_part40( PART *);
+static short make_part41( PART *);
+static short make_part42( PART *);
+static short make_part43( PART *);
+static short make_part44( PART *);
+static short make_part45( PART *);
+static short make_part46( PART *);
+static short make_incline( PART *);
+static short make_part52( PART *);
+static short make_part53( PART *);
+static short make_part54( PART *);
+static short make_part55( PART *);
+static short make_part56( PART *);
+static short make_part57( PART *);
+static short make_part58( PART *);
+static short make_part59( PART *);
+static short make_part60( PART *);
+static short make_part61( PART *);
+static short make_part62( PART *);
+static short make_part63( PART *);
+static short make_part64( PART *);
+static short make_part65( PART *);
+static short make_part68( PART *);
+static short make_part69( PART *);
+static short make_part75( PART *);
+static short make_part76( PART *);
+static short make_part77( PART *);
+static short make_part78( PART *);
+static short make_part80( PART *);
+
+
+
+const MAKE_PART far mp_data[TN_NUM_PARTS] =
+{
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 24,16, 24,16, make_part0},
+   {F1_STATIC|F1_AVAIL_L,            0,  0, 0,  0, 0, make_part1},
+   {F1_STATIC|F1_AVAIL_L,            0, 31,29, 31,29, make_part2},
+   {F1_STATIC|F1_AVAIL_L,            0, 40,18, 40,18, make_part3},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 29,11, 29,11, make_part4},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 20,13, 20,13, make_part_ball},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 18,18, 18,18, make_part_ball},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 13,13, 13,13, make_part_ball},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 16,17, 16,17, make_part_ball},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 17,17, 17,17, make_part_ball},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 17,17, 17,17, make_part_ball},
+   {          F1_AVAIL_L,F3_FINE_PLACE,  7, 7,  7, 7, make_part_ball},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 21,16, 21,16, make_part12},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 44,27, 44,27, make_part13},
+   {F1_STATIC|F1_AVAIL_L,            0, 15,15, 15,15, make_part14},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 10,10, 10,10, make_part15},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 21,18, 21,18, make_part16},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 12,12, 12,12, make_part17},
+   {F1_STATIC|F1_AVAIL_L,            0, 16,16, 16,16, make_part18},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 19,24, 19,24, make_part19},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 27,34, 27,34, make_part20},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 20, 3, 20, 3, make_part21},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 63,33, 63,33, make_part22},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 18,24, 18,24, make_part23},
+   {F1_STATIC|F1_AVAIL_L,            0, 33,15, 33,15, make_part24},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 26,24, 26,24, make_part25},
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16, 8, 16, 8, make_part_wall},
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16, 8, 16, 8, make_part_wall},
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16, 8, 16, 8, make_part_wall},
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16, 8, 16, 8, make_part_wall},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE,  5, 5,  5, 5, make_part30},
+   {          F1_AVAIL_L,F3_FINE_PLACE,  7, 7,  7, 7, make_part_ball},
+   {          F1_AVAIL_L,F3_FINE_PLACE,  8, 8,  8, 8, make_part_ball},
+   {          F1_AVAIL_L,F3_FINE_PLACE,  4, 4,  4, 4, make_part_ball},
+   {          F1_AVAIL_L,F3_FINE_PLACE,  6, 6,  6, 6, make_part_ball},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 17,21, 17,21, make_part35},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 23,19, 23,19, make_part36},
+   {          F1_AVAIL_L,F3_FINE_PLACE, 23,19, 23,19, make_part37},
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 17,21, 17,21, make_part38}, /*38 */
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 46,14, 46,14, make_part39}, /*38 */
+   {F1_STATIC|F1_AVAIL_L,            0, INCDEC_SIZE_MIN_X,INCDEC_SIZE_Y,INCDEC_SIZE_MIN_X,INCDEC_SIZE_Y,make_part40}, /*40 */
+   {F1_STATIC|F1_AVAIL_L,            0, 63,51, 63,51, make_part41}, /*41 */
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 32,21, 32,21, make_part42}, /*42 */
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 55,29, 55,29, make_part43}, /*43 */
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 19,52, 19,52, make_part44}, /*44 */
+   {F1_STATIC|F1_AVAIL_L,            0, 16,16, 16,16, make_part45}, /*45 */
+   {F1_STATIC|F1_AVAIL_L,            0, 26,23, 26,23, make_part46}, /*46 */
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16,16, 16,16, make_incline}, /*47 */
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16,16, 16,16, make_incline}, /*48 */
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16,16, 16,16, make_incline}, /*49 */
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16,16, 16,16, make_incline}, /*50 */
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16,16, 16,16, make_incline}, /*51 */
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 23,16, 23,16, make_part52}, /*52 */
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 11,23, 11,23, make_part53}, /*53 */
+   {          F1_AVAIL_L,F3_FINE_PLACE, 15,10, 15,10, make_part54}, /*54 */
+   {          F1_AVAIL_L,F3_FINE_PLACE,  8, 7,  8, 7, make_part55}, /*55 */
+   {          F1_AVAIL_L,F3_FINE_PLACE, 33, 9, 33, 9, make_part56}, /*56 */
+   {          F1_AVAIL_L,F3_FINE_PLACE, 18,11, 18,11, make_part57}, /*57 */
+   {          F1_AVAIL_L,F3_FINE_PLACE, 22, 9, 22, 9, make_part58}, /*58 */
+   {          F1_AVAIL_L,F3_FINE_PLACE, 16, 8, 16, 8, make_part59}, /*59 */
+   {          F1_AVAIL_L,F3_FINE_PLACE, 38,25, 38,25, make_part60}, /*60 */
+   {          F1_AVAIL_L,F3_FINE_PLACE, 27,15, 27,15, make_part61}, /*61 */
+   {          F1_AVAIL_L,F3_FINE_PLACE, 45,24, 45,24, make_part62}, /*62 */
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE,  4,20,  4,20, make_part63}, /*63 */
+   {          F1_AVAIL_L,F3_FINE_PLACE, 29, 6, 29, 6, make_part64}, /*64 */
+   {          F1_AVAIL_L,F3_FINE_PLACE, 21,15, 21,15, make_part65}, /*65 */
+   {                   0,            0,  0, 0,  0, 0,           0}, /*66 */
+   {                   0,            0,  0, 0,  0, 0,           0}, /*67 */
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 38,27, 38,27, make_part68}, /*68 */
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 36,18, 36,18, make_part69}, /*69 */
+   {                   0,            0,  0, 0,  0, 0,           0}, /*70 */
+   {                   0,            0,  0, 0,  0, 0,           0}, /*71 */
+   {                   0,            0,  0, 0,  0, 0,           0}, /*72 */
+   {                   0,            0,  0, 0,  0, 0,           0}, /*73 */
+   {                   0,            0,  0, 0,  0, 0,           0}, /*74 */
+   {          F1_AVAIL_L,F3_FINE_PLACE,  0, 0,  0, 0, make_part75},
+   {          F1_AVAIL_L,F3_FINE_PLACE,  0, 0,  0, 0, make_part76},
+   {F1_STATIC|F1_AVAIL_L,            0, 32, 8, 32, 8, make_part77}, /*77 */
+   {F1_STATIC|F1_AVAIL_L,            0, 31,13, 31,13, make_part78}, /*78 */
+   {                   0,            0,  0, 0,  0, 0,           0}, /*79 */
+   {F1_STATIC|F1_AVAIL_L,F3_FINE_PLACE, 28,29, 28,29, make_part80}, /*80 */
+   {                   0,            0,  0, 0,  0, 0,           0}, /*81 */
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16, 8, 16, 8, make_part_wall}, /*82 */
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16, 8, 16, 8, make_part_wall}, /*83 */
+   {F1_STATIC|F1_AVAIL_L,F3_BACKGROUND, 16,16, 16,16, make_incline}, /*84 */
+};
+
+
+static PART *freeform_partbin;
+
+/* * * * *
+*
+*  free part functions
+*
+* * * * */
+void clear_the_pb(void)
+{
+   if(avail_list.next != freeform_partbin)
+      free_all_parts(avail_list.next);
+   avail_list.next = 0;
+}
+
+void free_the_parts(void)
+{
+   free_all_parts(avail_list.next);
+   free_all_parts(static_list.next);
+   free_all_parts(move_list.next);
+   static_list.next = static_list.prev = 0;
+   move_list.next   = move_list.prev   = 0;
+   avail_list.next  = avail_list.prev  = 0;
+   active_part = 0;  /* RichR - Added */
+}
+
+
+
+static void free_all_parts(PART *cur_part)
+{
+   PART *next;
+
+   while (cur_part != 0)
+   {
+      next = cur_part->next;
+      free_a_part(cur_part);
+      cur_part = next;
+   }
+}
+
+
+
+void free_a_part(PART *cur_part)
+{
+   if (cur_part)
+   {
+      /* explicitly free the borders that have been allocated. */
+      if (cur_part->border)
+         switch (cur_part->type)
+         {
+            case PT_HC_BELT:
+            case PT_PBELT:
+            case PT_ROPE:
+            case PT_EYEHOOK:
+            case PT_PULLEY:
+            case PT_WALL0:
+            case PT_WALL1:
+            case PT_WALL2:
+            case PT_WALL3:
+            case PT_WALL4:
+            case PT_WALL5:
+            case PT_INCR_DECR:
+               if(cur_part->border)
+               {
+                  vm_hfree(cur_part->border);
+                  cur_part->border = 0;
+               }
+         };
+
+      if ((cur_part->belt) && (!(cur_part->flags2&F2_BELT)))
+         my_my_free(cur_part->belt);
+      if (cur_part->rope_tie[0])
+         if ((cur_part->type==PT_PULLEY) || (cur_part->type==PT_ROPE))
+            my_my_free(cur_part->rope_tie[0]);
+      my_my_free(cur_part);
+   }
+}
+
+/* * * * *
+*
+*  make_partbin();
+*
+*  This function create one of each of the different types of
+*  parts and places them in the parts bin.
+*
+* * * * */
+void make_partbin(void)
+{
+   short i, part;
+   PART *new_part;
+
+   const static far short freeform_available[] =
+   {
+      PT_HC_BELT,   
+      PT_PBELT,     
+      PT_E_PLUG,    
+      PT_TT,        
+/*////      PT_HAIR_BALL,         */
+      PT_DUSTBUNNY, 
+      PT_ROCK,      
+      PT_YARNBALL,  
+      PT_BASEBALL,  
+      PT_SOCCER,    
+      PT_BEACHBALL, 
+      PT_CAT_EYE_M, 
+      PT_TEAPOT,    
+      PT_VACUUM,    
+      PT_ROPE,      
+      PT_EYEHOOK,   
+      PT_SCISSORS,  
+      PT_PULLEY,    
+      PT_GEAR,      
+      PT_BOMB,
+      PT_HANDGUN,   
+/*////      PT_BULLET,     */
+      PT_CATAPULT,  
+      PT_BALLOON,   
+      PT_TRAMP,     
+      PT_ANT,     
+      PT_WALL0,     
+      PT_WALL1, 
+      PT_WALL2,      
+      PT_WALL3, 
+      PT_M_GLASS,   
+      PT_STEELY_M,  
+      PT_BOULDER_M, 
+      PT_PEE_WEE_M, 
+      PT_STRIPE_M,  
+      PT_DRAGON,    
+      PT_AL_CAT,    
+      PT_SID_MOUSE, 
+      PT_EGG_TIMER, 
+      PT_UD_COUNTER, 
+      PT_INCR_DECR, 
+      PT_SHOOT_SWTCH, 
+      PT_MESSAGER,  
+      PT_TRANS_ROT, 
+      PT_ROT_TRANS, 
+      PT_LADDER,    
+      PT_TUNNEL,    
+      PT_INCLINE0,  
+      PT_INCLINE1,  
+      PT_INCLINE2,  
+      PT_INCLINE3,  
+      PT_INCLINE4,
+      PT_HAIRDRYER,
+      PT_WHISTLE,
+      PT_GUM,
+      PT_EGG,
+      PT_FISH,
+      PT_CHEESE,
+      PT_PEANUT,
+      PT_BANANA,
+      PT_PIANO,
+      PT_ANVIL,
+      PT_WWII_BOMB,
+      PT_HATPIN,
+      PT_PENCIL,
+/*////      PT_HAMMER, */
+/*////      PT_MIRROR, */
+/*////      PT_KNIFE, */
+      PT_ELEPHANT,
+      PT_CHICKEN,
+/*////      PT_GUIDO, */
+/*////      PT_GIL, */
+/*////      PT_CHAINSAW, */
+/*////      PT_ONT, */
+/*////      PT_LARD, */
+/*////      PT_EXPLOSION, */
+/*////      PT_PHANTOM, */
+      PT_RUG,
+      PT_TRAP_DOOR,
+/*////      PT_BERNY, */
+      PT_FAT_MAN,
+/*////      PT_ENGINE, */
+      PT_WALL4, 
+      PT_WALL5, 
+      PT_INCLINE5,
+      -1
+   };
+
+   /* Clear the current part bin first */
+   clear_the_pb();
+
+   /* If partbin has already been created, just link it */
+   if(freeform_partbin)
+      avail_list.next = freeform_partbin;
+
+   /* Make each of the parts and place them in the empty part bin */
+   else
+   {
+      i = 0;
+      while ((part = freeform_available[i++]) >= 0)
+         if ((new_part = make_a_part(part)) != 0)
+            insert_into_list(new_part,&avail_list);
+      freeform_partbin = avail_list.next;
+   }
+
+   /* Set current position to the front of the list */
+   pb_part = &avail_list;
+}
+
+/* * * * *
+*
+*  make part functions
+*
+* * * * */
+void make_free_form(void)
+{
+   make_partbin();
+   cur_level.density = 67;
+   cur_level.gravity = 272;
+   cur_level.max_ledge = cur_level.max_tedge = -8;
+   cur_level.music_num = MUS_TITLE;
+   init_prop_physics();
+}
+
+/* * * * *
+*
+*  initalize_a_part(part, type);
+*
+*  This function will assign the default values to the
+*  specified part based on the specified part type.
+*
+* * * * */
+short initalize_a_part(PART *part, short type)
+{
+   /* If no part specified, return error */
+   if(!part)
+      return(0);
+
+   /* Assign default values based on the part type */
+   part->type = type;
+   part->flags1 = mp_data[type].flags1;
+   part->flags3 = mp_data[type].flags3;
+   part->place_size.x = mp_data[type].psize_x;
+   part->place_size.y = mp_data[type].psize_y;
+   part->num_borders = prop[type].num_borders;
+   part->start_scrn_loc.x = -1;
+   part->start_scrn_loc.y = -1;
+
+   /* Call the user make function */
+   if (mp_data[type].make_func)
+      if (mp_data[type].make_func(part) == 1)
+         return(0);
+
+   /* Finish initalization and return success */
+   part->start_flags2 = part->flags2;
+   set_part_size(part);
+   my_heapcheck();
+   return(1);
+}
+
+/* * * * *
+*
+*  set_default_place_size(pptr);
+*
+*  This function will set the default place size for the
+*  specified part.
+*
+* * * * */
+void set_default_place_size(PART *pptr)
+{
+   short type;
+   if(pptr)
+   {
+      type = pptr->type;
+      pptr->place_size.x = mp_data[type].psize_x;
+      pptr->place_size.y = mp_data[type].psize_y;
+   }
+}
+
+/* * * * *
+*
+*  reuse_a_part(type);
+*
+*  This function will can the move list for a part that
+*  was created but in now inactive and is the same as
+*  the specified type.  If one is found, it is initalized
+*  and return back to caller.  If a part can not be found,
+*  then this function will return NULL.
+*
+* * * * */
+PART *reuse_a_part(short type)
+{
+   PART *new_part, *prev, *next;
+   char *ptr;
+   short i;
+
+   /* Search list for a created but inactive part that is the same type */
+   new_part = move_list.next;
+   while(   new_part
+         && (  !(new_part->flags2 & F2_INACTIVE)
+            || !(new_part->flags1 & F1_CREATED)
+            || (new_part->type != type)))
+      new_part = new_part->next;
+
+   /* If a part is found, clear it to 0 */
+   if(new_part)
+   {
+      prev = new_part->prev;
+      next = new_part->next;
+      ptr = (char *)new_part;
+      for(i=sizeof(PART); i; i--)
+         *ptr++ = 0;
+      new_part->prev = prev;
+      new_part->next = next;
+   }
+
+   /* If a part is found, initalize it and clear the inactive flag */
+   if(new_part && initalize_a_part(new_part, type))
+      new_part->flags2 &= ~F2_INACTIVE;
+   else
+      new_part = 0;
+
+   /* Return new part to caller */
+   return(new_part);
+}
+
+PART *make_a_part(short type)
+{
+   PART *new_part;
+
+   /* Allocate memory for new part */
+   my_heapcheck();
+   new_part = (PART *) tn_calloc(1,sizeof(PART));
+
+   /* If unable to initalize the part, free it */
+   if(!new_part || !initalize_a_part(new_part, type))
+   {
+      free_a_part(new_part);
+      new_part = 0;
+   }
+
+   /* Return new part to caller */
+   return(new_part);
+}
+
+
+static short make_part0(PART *new_part)     /*hc belt */
+{
+   new_part->flags2 |= F2_BELT|F2_RESIZE_X;
+   new_part->start_state = new_part->state = 4;
+   new_part->start_sub_state = new_part->sub_state = 0;
+
+   new_part->belt_loc.x = 9-5; /* 6; */
+   new_part->belt_loc.y = 16-5; /* 14; */
+   new_part->belt_size = 11; /* 4; */
+
+   new_part->size.x = new_part->place_size.x = 48;
+   new_part->size.y = new_part->place_size.y = 32;  /* default is horizontal */
+
+   if ((new_part->border = (P_PART_BORDER )
+      vm_hmalloc(new_part->num_borders*sizeof(PART_BORDER),MEMF_CLEAR)) == 0)
+      return(1);
+   hc_belt_reinit(new_part);
+   return(0);
+}
+
+static short make_part1(PART *new_part)     /*pulley belt */
+{
+   if ((new_part->belt = (PBELT *) tn_calloc(1,sizeof(PBELT))) == 0)
+      return(1);
+   new_part->belt->root_part = new_part;
+   return(0);
+}
+
+static short make_part2(PART *new_part)    /*electrical plug */
+{
+   new_part->flags1 |= F1_FLIPS_TB;
+   new_part->flags2 |= F2_SUPERSHAPE;
+   new_part->flags3 |= F3_ELECT_PLUG;
+
+   ep_reinit(new_part);
+   return(0);
+}
+
+static short make_part3(PART *new_part)     /*teeter-totter */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_ROPE1|F2_ROPE2;
+
+   tt_reinit(new_part);
+   return(0);
+}
+
+static short make_part4(PART *new_part)      /*hair ball */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+
+   hair_reinit(new_part);
+   return(0);
+}
+
+static short make_part_ball(PART *new_part) /* ball */
+{
+   switch (new_part->type)
+   {
+      case PT_SOCCER:
+      case PT_BASEBALL:
+         new_part->flags2 |= F2_SUPERSHAPE;
+   }
+
+   ball_reinit(new_part);
+   return(0);
+}
+
+static short make_part12(PART *new_part)    /*teapot */
+{
+   new_part->flags1 |= F1_SLIDES|F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+
+   teapot_reinit(new_part);
+   return(0);
+}
+
+static short make_part13(PART *new_part)     /*vacuum cleaner */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+   new_part->flags3 |= F3_ELECT_PART;
+
+   vc_reinit(new_part);
+   return(0);
+}
+
+static short make_part14(PART *new_part)    /*rope */
+{
+   if ((new_part->rope_tie[0] = (ROPE *) tn_calloc(1,sizeof(ROPE))) == 0)
+      return(1);
+   new_part->rope_tie[0]->root_part = new_part;
+   return(0);
+}
+
+static short make_part15(PART *new_part)    /*eyehook */
+{
+   new_part->flags1 |= F1_FLIPS_TB;
+   new_part->flags2 |= F2_ROPE1;
+
+   eyehook_reinit(new_part);
+   return(0);
+}
+
+static short make_part16(PART *new_part)    /*scissors */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+
+   scissors_reinit(new_part);
+   return(0);
+}
+
+static short make_part17(PART *new_part)     /*pulley */
+{
+   new_part->flags2 |= F2_ROPE1;
+
+   new_part->rope_loc[0].x = 0;
+   new_part->rope_loc[0].y = 8;
+   new_part->rope_loc[1].x = 15;
+   new_part->rope_loc[1].y = 8;
+
+   if ((new_part->rope_tie[0] = (ROPE *) tn_calloc(1,sizeof(ROPE))) == 0)
+      return(1);
+   new_part->rope_tie[0]->root_part = new_part;
+   special_reinit(new_part);
+   return(0);
+}
+
+static short make_part18(PART *new_part)    /*gear */
+{
+   new_part->flags2 |= F2_BELT;
+
+   new_part->belt_loc.x = new_part->belt_loc.y = 18-4; /* 13; */
+   new_part->belt_size = 8;
+
+   gear_reinit(new_part);
+   return(0);
+}
+
+static short make_part19(PART *new_part)    /*dynamite */
+{
+   new_part->flags1 |= F1_FLIPS_LR;/*|F1_SLIDES; */
+   new_part->flags2 |= F2_SUPERSHAPE;
+   new_part->flags3 |= F3_FUSE;
+
+   dynamite_reinit(new_part);
+   return(0);
+}
+
+static short make_part20(PART *new_part)    /*handgun */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_ROPE1|F2_SUPERSHAPE;
+   new_part->flags3 |= F3_HEARTY_PART;
+   new_part->memory = new_part->start_memory = 6;
+
+   gun_reinit(new_part);
+   return(0);
+}
+
+static short make_part21(PART *new_part)    /*bullet */
+{
+   new_part->flags2 |= F2_SUPERSHAPE;
+   bullet_reinit(new_part);
+   return(0);
+}
+
+static short make_part22(PART *new_part)    /*catapult */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+   new_part->flags3 |= F3_HEARTY_PART;
+   new_part->memory = new_part->start_memory = 1;
+   catapult_reinit(new_part);
+   return(0);
+}
+    
+static short make_part23(PART *new_part)     /*balloon */
+{
+   new_part->flags1 |= F1_SLIDES;
+   new_part->flags2 |= F2_ROPE1;
+
+   new_part->rope_loc[0].x = 16;
+   new_part->rope_loc[0].y = 47;
+
+   balloon_reinit(new_part);
+   return(0);
+}
+
+static short make_part24(PART *new_part)    /*trampoline */
+{
+   new_part->flags2 |= F2_SUPERSHAPE;
+
+   tramp_reinit(new_part);
+   return(0);
+}
+
+static short make_part25(PART *new_part)     /*anternator */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_BELT|F2_ROT_PROVIDE|F2_SUPERSHAPE;
+
+   ant_reinit(new_part);
+   return(0);
+}
+
+static short make_part_wall(PART *new_part)     /*brick wall,small pipe, wood wall */
+{
+   new_part->flags1 |= F1_MULTIDRAW;
+   new_part->flags2 |= F2_RESIZE_X|F2_RESIZE_Y;
+   new_part->size.x = new_part->place_size.x = 16;
+   new_part->size.y = new_part->place_size.y = 8;  /* default is horizontal */
+
+   if ((new_part->border = (P_PART_BORDER )
+      vm_hmalloc(new_part->num_borders*sizeof(PART_BORDER),MEMF_CLEAR)) == 0)
+      return(1);
+   wall_reinit(new_part);
+   return(0);
+}
+
+static short make_part30(PART *new_part)    /*magnifying glass */
+{
+   new_part->flags2 |= F2_SUPERSHAPE;
+   special_reinit(new_part);
+   return(0);
+}
+
+static short make_part35(PART *new_part)    /*dragon */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+
+   dragon_reinit(new_part);
+   return(0);
+}
+
+static short make_part36(PART *new_part)    /*al cat */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+
+   al_cat_reinit(new_part);
+   return(0);
+}
+
+static short make_part37(PART *new_part)    /*sid mouse */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+
+   mouse_reinit(new_part);
+   return(0);
+}
+
+static short make_part38(PART *new_part)    /*egg timer */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+   new_part->flags3 |= F3_ELECT_PART|F3_HEARTY_PART;
+
+   egg_timer_reinit(new_part);
+   return(0);
+}
+
+static short make_part39(PART *new_part)     /*updown counter */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+   new_part->flags3 |= F3_HEARTY_PART;
+
+   /* This will just test out the counter for now. */
+   updown_reinit(new_part);
+   return(0);
+}
+
+static short make_part40(PART *new_part)     /*incrementer/decrementer */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_RESIZE_Y;
+
+   if ((new_part->border = (P_PART_BORDER )
+      vm_hmalloc(new_part->num_borders*sizeof(PART_BORDER),MEMF_CLEAR)) == 0)
+      return(1);
+
+   /* This will just test out the counter for now. */
+   new_part->place_size.y = INCDEC_SIZE_Y;
+   new_part->place_size.x = INCDEC_SIZE_MIN_X;
+   new_part->memory = new_part->start_memory = 0x0010;
+   incdec_resize(new_part);
+   incdec_reinit(new_part);
+   return(0);
+}
+
+static short make_part41(PART *new_part)     /*chute switch */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+   chuteswitch_reinit(new_part);
+   return(0);
+}
+
+static short make_part42(PART *new_part)     /*message machine */
+{
+   char *letter;
+
+   /* This will just test out the messager for now. */
+   letter = (char *) (&new_part->start_memory);
+   strcpy(letter,"A");
+   new_part->memory = new_part->start_memory;
+
+   new_part->flags2 |= F2_ROPE1|F2_SUPERSHAPE;
+   new_part->flags3 |= F3_HEARTY_PART;
+   message_reinit(new_part);
+   return(0);
+}
+
+static short make_part43(PART *new_part)     /* transrot */
+{
+   new_part->belt_size = TRANSROT_BELT_SIZE;
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_BELT|F2_ROPE1|F2_SUPERSHAPE;
+   transrot_reinit(new_part);
+   return(0);
+}
+
+static short make_part44(PART *new_part)     /* rottrans  */
+{
+   new_part->belt_size = ROTTRANS_BELT_SIZE;
+   new_part->flags1 |= F1_FLIPS_TB;
+   new_part->flags2 |= F2_BELT|F2_ROPE1|F2_SUPERSHAPE;
+   rottrans_reinit(new_part);
+   return(0);
+}
+
+static short make_part45(PART *new_part)     /* ladder  */
+{
+   new_part->flags1 |= F1_MULTIDRAW;
+   new_part->flags2 |= F2_RESIZE_Y;
+   ladder_reinit(new_part);
+   return(0);
+}
+
+#pragma argsused
+static short make_part46(PART *new_part)     /* tunnel  */
+{
+   tunnel_reinit(new_part);
+   return(0);
+}
+
+#pragma argsused
+static short make_incline(PART *new_part)     /* incline  */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_RESIZE_X;
+   new_part->start_state = new_part->state = 1;
+   incline_reinit(new_part);
+   return(0);
+}
+
+static short make_part52(PART *new_part)    /*hair dryer */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+   new_part->flags3 |= F3_ELECT_PART;
+   hairdryer_reinit(new_part);
+   return(0);
+}
+
+static short make_part53(PART *new_part)     /* noon whistle */
+{
+   new_part->flags2 |= F2_ROPE1|F2_SUPERSHAPE;
+   whistle_reinit(new_part);
+   return(0);
+}
+
+static short make_part54(PART *new_part)     /* gum  */
+{
+   gum_reinit(new_part);
+   return(0);
+}
+
+static short make_part55(PART *new_part)     /* egg  */
+{
+   new_part->flags2 |= F2_SUPERSHAPE;
+   egg_reinit(new_part);
+   return(0);
+}
+
+static short make_part56(PART *new_part)     /* fish  */
+{
+   fish_reinit(new_part);
+   return(0);
+}
+
+static short make_part57(PART *new_part)     /* cheese  */
+{
+   cheese_reinit(new_part);
+   return(0);
+}
+
+static short make_part58(PART *new_part)     /* nut  */
+{
+   nut_reinit(new_part);
+   return(0);
+}
+
+static short make_part59(PART *new_part)     /* banana  */
+{
+   new_part->flags2 |= F2_SUPERSHAPE;
+   new_part->flags3 |= F3_HEARTY_PART;
+
+   banana_reinit(new_part);
+   return(0);
+}
+
+static short make_part60(PART *new_part)     /* piano  */
+{
+   new_part->flags2 |= F2_ROPE1|F2_SUPERSHAPE;
+   piano_reinit(new_part);
+   return(0);
+}
+
+#pragma argsused
+static short make_part61(PART *new_part)     /* anvil  */
+{
+   new_part->flags2 |= F2_ROPE1;
+   anvil_reinit(new_part);
+   return(0);
+}
+
+static short make_part62(PART *new_part)     /* ww2 bomb  */
+{
+   new_part->flags2 |= F2_SUPERSHAPE;
+   ww2bomb_reinit(new_part);
+   return(0);
+}
+
+static short make_part63(PART *new_part)     /* hatpin  */
+{
+   new_part->flags1 |= F1_FLIPS_LR|F1_FLIPS_TB;
+   hatpin_reinit(new_part);
+   return(0);
+}
+
+#pragma argsused
+static short make_part64(PART *new_part)     /* pencil  */
+{
+   pencil_reinit(new_part);
+   return(0);
+}
+
+#pragma argsused
+static short make_part65(PART *new_part)     /* mallet  */
+{
+   hammer_reinit(new_part);
+   return(0);
+}
+
+static short make_part68(PART *new_part)     /* elephant  */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_SUPERSHAPE;
+   elephant_reinit(new_part);
+   return(0);
+}
+
+static short make_part69(PART *new_part)     /* chicken  */
+{
+   new_part->flags2 |= F2_SUPERSHAPE;
+   new_part->flags3 |= F3_HEARTY_PART;
+   new_part->memory = new_part->start_memory = 1;
+
+   chicken_reinit(new_part);
+   return(0);
+}
+
+static short make_part75(PART *new_part)    /*explosion */
+{
+   new_part->flags2 |= F2_SUPERSHAPE;
+   return(0);
+}
+
+static short make_part76(PART *new_part)     /*phantom */
+{
+   new_part->flags2 |= F2_ROPE1;
+
+   new_part->rope_loc[0].x = 0;
+   new_part->rope_loc[0].y = 0;
+   return(0);
+}
+
+static short make_part77(PART *new_part)     /* rug  */
+{
+   rug_reinit(new_part);
+   return(0);
+}
+
+static short make_part78(PART *new_part)     /* trap door  */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_ROPE1|F2_SUPERSHAPE;
+   trap_door_reinit(new_part);
+   return(0);
+}
+
+static short make_part80(PART *new_part)     /* eat motor--fat man */
+{
+   new_part->flags1 |= F1_FLIPS_LR;
+   new_part->flags2 |= F2_BELT|F2_ROT_PROVIDE|F2_SUPERSHAPE;
+
+   eatmotor_reinit(new_part);
+   return(0);
+}
+
+
+
+

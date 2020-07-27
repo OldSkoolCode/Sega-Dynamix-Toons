@@ -1,0 +1,192 @@
+/* * * * *
+*
+*  TN_EGG1.C
+*
+*  This file contains all the code associated with the egg part
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  08/08/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                     EGG                                    *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*  
+   This is the egg in its resting/falling state and the explosion when
+   it hits a wall.  due to the structure of the animation the egg should
+   only splat when it hits a floor(wall). the falling/rolling/resting
+   state for the egg is shape #1.  the anim sequence for the splat is...
+   2,3,4,5,6,7,8,9,10,11,12,13,14,15,16.  shape 16 is just the splatted
+   egg alone on the screen.  I think that it should disappear after a period
+   of time.
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C egg1 = {0, EGG_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C egg2 = {0, EGG_PLANE, {4,1,8,255},
+   {{-4,-3},{-3,-2},{3,-3},{0,0}}};
+static F_SSHAPE_C egg3 = {0, EGG_PLANE, {4,1,8,255},
+   {{-4,-3},{-4,-6},{4,-6},{0,0}}};
+static F_SSHAPE_C egg4 = {0, EGG_PLANE, {2,1,8,255},
+   {{-9,-6},{-5,-9},{5,10},{0,0}}};
+static F_SSHAPE_C egg5 = {0, EGG_PLANE, {2,1,8,255},
+   {{-9,-6},{-7,-12},{5,-13},{0,0}}};
+static F_SSHAPE_C egg6 = {0, EGG_PLANE, {4,1,8,255},
+   {{-4,-3},{-8,-14},{6,-14},{0,0}}};
+static F_SSHAPE_C egg7 = {0, EGG_PLANE, {4,1,8,255},
+   {{-4,-3},{-9,-15},{7,-15},{0,0}}};
+static F_SSHAPE_C egg8 = {0, EGG_PLANE, {7,1,8,255},
+   {{-6,0},{-9,-16},{8,-16},{0,0}}};
+static F_SSHAPE_C egg9 = {0, EGG_PLANE, {7,1,8,255},
+   {{-6,0},{-10,-16},{9,-17},{0,0}}};
+static F_SSHAPE_C egg10 = {0, EGG_PLANE, {7,5,3,255},
+   {{-6,0},{-11,-14},{10,-16},{0,0}}};
+static F_SSHAPE_C egg11 = {0, EGG_PLANE, {7,5,3,255},
+   {{-6,0},{-12,-12},{11,-13},{0,0}}};
+static F_SSHAPE_C egg12 = {0, EGG_PLANE, {7,5,3,255},
+   {{-6,0},{-13,-9},{11,-10},{0,0}}};
+static F_SSHAPE_C egg13 = {0, EGG_PLANE, {7,5,3,255},
+   {{-6,0},{-14,-6},{12,-7},{0,0}}};
+static F_SSHAPE_C egg14 = {0, EGG_PLANE, {7,5,3,255},
+   {{-6,0},{-14,-3},{13,-3},{0,0}}};
+static F_SSHAPE_C egg15 = {0, EGG_PLANE, {7,5,3,255},
+   {{-6,0},{-9,0},{9,0},{0,0}}};
+static F_SSHAPE_C egg16 = {0, EGG_PLANE, {7,255,255,255},
+   {{-6,0},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far egg_ss_tab[EGG_NUM_STATES] = 
+   {&egg1,&egg2,&egg3,&egg4,&egg5,&egg6,
+    &egg7,&egg8,&egg9,&egg10,&egg11,&egg12,
+    &egg13,&egg14,&egg15,&egg16};
+
+/* size. */
+TIM_VEC_C far egg_size[EGG_NUM_STATES] = 
+   {{4,3},{11,7},{13,10},{20,14},{20,12},{18,18},
+    {20,19},{21,20},{23,21},{25,20},{27,18},{26,14},
+    {60,22},{63,15},{66,8},{30,8}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far egg_os[EGG_NUM_STATES] = 
+   {{0,0},{-17,-14},{-17,-27},{-37,-41},{-37,-52},{-31,-58},{-34,-63},{-36,-66},
+    {-40,-68},{-45,-65},{-49,-55},{-53,-42},{-55,-28},{-56,-13},{-57,0},{-22,0}};
+
+/* border definitions. */
+static PART_BORDER_C far egg1_bord[EGG_BORDERS] =
+   {{0,2,0},{1,0,0},{2,0,0},{3,1,0},
+    {3,2,0},{2,3,0},{1,3,0},{0,2,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far egg_bord_tab[EGG_NUM_STATES] =
+   {egg1_bord,egg1_bord,egg1_bord,egg1_bord,
+    egg1_bord,egg1_bord,egg1_bord,egg1_bord,
+    egg1_bord,egg1_bord,egg1_bord,egg1_bord,
+    egg1_bord,egg1_bord,egg1_bord,egg1_bord};
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void egg_reinit(PART *egg)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!egg)
+   {
+      set_border_table_slopes(PT_EGG,0,egg_bord_tab,0,EGG_NUM_STATES);
+      return;
+   }
+
+   egg->border = egg_bord_tab[egg->state];
+   set_adjusted_loc_size(egg);
+}
+
+short egg_bounce(PART *cur_part)
+{
+   PART *egg;
+
+   /* assigns the pointers to the correct parts. */
+   if (cur_part->type == PT_EGG)
+   {
+      egg = cur_part;
+      cur_part = cur_part->col_info.part;
+   }
+   else
+   {
+      egg = cur_part->col_info.part;
+   }
+
+   /* check if the egg should break */
+   switch (cur_part->type)
+   {
+      case PT_ROCK:
+      case PT_GEAR:
+      case PT_HANDGUN:
+      case PT_BULLET:
+      case PT_WALL0:           
+      case PT_WALL1:           
+      case PT_WALL2:           
+      case PT_WALL3:           
+      case PT_WALL4:           
+      case PT_WALL5:           
+      case PT_PIANO:
+      case PT_ANVIL:
+      case PT_WWII_BOMB:
+      case PT_BOMB:
+      case PT_HAMMER:
+         if (egg->speed.y > EGG_THRESHOLD)
+            egg->sub_state = 1;
+         break;
+   }
+   return(1);
+}
+
+void egg_internal(PART *egg)
+{
+   static char far state_array[] =
+   {
+      1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,16,16,16,16,16
+   };
+   #define NUM_STATES   (sizeof(state_array)/sizeof(char))
+   #define EGG_RATE     2
+
+   if (egg->sub_state)
+   {
+      if (!egg->work_var)
+         jtp_sx_play(SX_EGG, 2, 0);
+
+      /* check if the egg should stop bouncing */
+      if (!egg->work_var)
+      {
+         egg->speed.x = egg->speed.y = 0;
+      }
+
+      egg->work_var++;
+      if (!(egg->work_var % EGG_RATE))
+      {
+         if (egg->work_var < NUM_STATES * EGG_RATE)
+         {
+            egg->state = state_array[egg->work_var / EGG_RATE] - 1;
+            /* update_character_position(egg,ALIGN_DOWN); */
+         }
+         else
+         {
+            kill_character(egg);
+         }
+      }
+   }
+}
+
+
+

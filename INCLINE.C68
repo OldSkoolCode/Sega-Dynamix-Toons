@@ -1,0 +1,74 @@
+/* * * * *
+*
+*  INCLINE.C
+*
+*  This file contains incline routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/01/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "simlib.h"
+
+
+/* * * * *
+*
+*  data structures
+*
+* * * * */
+
+
+
+void incline_reinit(PART *i_part)
+{
+   static PART_BORDER_C far bord0[4] = { {0,2}, {7,10}, {7,15}, {0,8} };
+   static PART_BORDER_C far bord1[4] = { {0,2}, {15,10}, {15,15}, {0,8} };
+   static PART_BORDER_C far bord2[4] = { {0,2}, {23,10}, {23,15}, {0,8} };
+   static PART_BORDER_C far bord3[4] = { {0,2}, {31,10}, {31,15}, {0,8} };
+   static PC_PART_BORDER_C far bord_tab[4] = {bord0,bord1,bord2,bord3};
+   static P_PART_BORDER far fbord_tab[4];
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!i_part)
+   {
+      set_border_table_slopes(PT_INCLINE0, 1, bord_tab, fbord_tab, 4);
+      return;
+   }
+
+   if (i_part->flags2 & F2_FLIP_H_DRAW)
+      i_part->border = fbord_tab[i_part->state];
+   else
+      i_part->border = bord_tab[i_part->state];
+
+   set_adjusted_loc_size(i_part);
+}
+
+
+
+void incline_resize(PART *incline_part)
+{
+   incline_part->size = incline_part->base_size = incline_part->place_size;
+   incline_part->start_state = incline_part->state =
+      (incline_part->size.x>>(3+VIRTUALCOORDS)) - 1;
+
+   incline_reinit(incline_part);
+}
+
+
+#pragma argsused
+void incline_flip(PART *incline_part,short flip_mode)
+{
+   incline_part->flags2 ^= F2_FLIP_H_DRAW;
+   incline_reinit(incline_part);
+
+   part_to_er(incline_part,1|2);
+   set_redraw(incline_part,2);
+}
+
+

@@ -1,0 +1,285 @@
+/* * * * *
+*
+*  HOT_SPOT.C
+*
+*  This file contains routines to handle hot spots.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/17/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+#define	ENABLE		TRUE
+#define	ALL			TRUE
+
+#define HSD_C(z,m,l,a,x,y,w,h,i,n,d,o,c) static const HOT_SPOT m={l,a,d,{x,y},{w,h},i,n,o,c}
+#define HSD2_C(m,l,a,n,x,y,w,h,i) static const HOT_SPOT m={l,a,0,{x,y},{x+w,y+h},i,n,0,0}
+
+extern UWORD cursorx, cursory;
+
+#if ALL
+
+/* * * * *
+*
+*  TITLE SCREEN HOT SPOTS
+*
+* * * * */
+HSD_C(full_screen,fsh1,0,TM_TITLE,0,0,639,399,0,TM_EDIT,0,0,0);
+HOT_SPOT *toon_title_hot_spots = &fsh1;
+
+	
+/* * * * *
+*
+*  EDIT PANEL HOT SPOTS
+*
+* * * * */
+HSD_C(left_button,  eph3,0,TOON_EDIT,1,354,43,354+34,IC_LEFT,TOON_LEFT,0,0,0);
+HSD_C(right_button, eph4,&eph3,TOON_EDIT,44,353,44+43,353+39,IC_RIGHT,TOON_RIGHT,0,0,0);
+#if 0
+#define Y      Y_START_OF_BIN
+#define MAX    MAX_ICON_HEIGHT
+#else
+#define Y      0
+#define MAX    2
+#endif
+HSD_C(partbin_slot0,eph5,&eph4,TOON_EDIT,7,Y+0*MAX,73,Y+1*MAX,2,TOON_EDIT,0,over_partbin,click_over_partbin);
+HSD_C(partbin_slot1,eph6,&eph5,TOON_EDIT,7,Y+1*MAX,73,Y+2*MAX,2,TOON_EDIT,1,over_partbin,click_over_partbin);
+HSD_C(partbin_slot2,eph7,&eph6,TOON_EDIT,7,Y+2*MAX,73,Y+3*MAX,2,TOON_EDIT,2,over_partbin,click_over_partbin);
+HSD_C(partbin_slot3,eph8,&eph7,TOON_EDIT,7,Y+3*MAX,73,Y+4*MAX,2,TOON_EDIT,3,over_partbin,click_over_partbin);
+HSD_C(partbin_slot4,eph9,&eph8,TOON_EDIT,7,Y+4*MAX,73,Y+5*MAX,2,TOON_EDIT,4,over_partbin,click_over_partbin);
+
+HSD_C(partbin_slot0,ep2h0,   0,TOON_EDIT,7,Y+0*MAX,73,Y+5*MAX,2,TOON_EDIT,0,over_partbin,click_over_partbin);
+HOT_SPOT *edit_panel_hot_spots2 = &ep2h0;
+
+/* * * * *
+*
+*  CONTROL PANEL HOT SPOTS
+*
+* * * * */
+
+#endif
+
+HSD_C(fairy_button, cph1,&eph9,TOON_PUZZLE_MODE,583,0,639,64,IC_FREE_FORM,TOON_FAIRY,0,0,0);
+HSD_C(puzzle_button,cph2,&cph1,TOON_FREE_FORM,591,15,636,62,IC_PUZZLE_MODE,TOON_PUZZLE,0,0,0);
+HSD_C(load_arw_bttn,cph3,&cph2,TOON_PUZZLE_MODE|TOON_FREE_FORM,592,73,615,98,IC_LOAD,TOON_LOAD_ARROW,0,0,0);
+HSD_C(save_arw_bttn,cph4,&cph3,TOON_FREE_FORM,614,61,639,87,IC_SAVE,TOON_SAVE_ARROW,0,0,0);
+HSD_C(pig_button,   cph5,&cph4,TOON_PUZZLE_MODE|TOON_FREE_FORM,593,97,639,142,IC_PIG,TOON_PIG,0,0,0);
+HSD_C(clapper_buttn,cph6,&cph5,TOON_PUZZLE_MODE|TOON_FREE_FORM,593,144,634,193,IC_CLAPPER,TOON_CLAPPER,0,0,0);
+HSD_C(horn_button,  cph7,&cph6,TOON_PUZZLE_MODE|TOON_FREE_FORM,587,191,639,240,IC_HORN,TOON_HORN,0,0,0);
+HSD_C(nuke_button,  cph8,&cph7,TOON_PUZZLE_MODE|TOON_FREE_FORM,591,241,639,296,IC_NUKE,TOON_NUKE,0,0,0);
+HSD_C(chklist_button,cph9,&cph8,TOON_CHKLIST|TOON_FREE_FORM,589,305,639,339,IC_CHKLIST,TOON_CHKLIST_BUTTON,0,0,0);
+HSD_C(stop_button,  cph10,&cph9,TOON_CHKLIST|TOON_PUZZLE_MODE|TOON_FREE_FORM,593,348,639,392,IC_STOP,TOON_STOP,0,0,0);
+HOT_SPOT *edit_panel_hot_spots = &cph10;
+
+#if ALL
+
+/* * * * *
+*
+*  TOON QUIT HOT SPOTS
+*
+* * * * */
+HSD_C(NO_button,       qph1,0,    TOON_STOP,363,146,484,244,0,TOON_STOP_NO,0,0,0);
+HSD_C(AFFIRMATIVE_btn, qph2,&qph1,TOON_STOP,240,237,330,271,0,TOON_STOP_AFFIRMATIVE,0,0,0);
+HOT_SPOT *toon_quit_hot_spots = &qph2;
+  
+/* * * * *
+*
+*  CLAPPER HOT SPOTS
+*
+* * * * */
+HSD2_C(ch1,   0, TOON_CLAPPER, TOON_CLAPPER_CAMERA, 160,332,68,49,   0);
+HSD2_C(ch2,&ch1, TOON_CLAPPER, TOON_CLAPPER_CAMERA, 140,0,378,145,   0);
+HSD2_C(ch3,&ch2, TOON_CLAPPER, TOON_CLAPPER_GOAL,   232,231,270,148, 0);
+HOT_SPOT *toon_clapper_hot_spots = &ch3;
+
+/* * * * *
+*
+*  REST IN PEACE HOT SPOTS
+*
+* * * * */
+HSD2_C(rip1,    0, TOON_RIP, TOON_RIP_REPLAY,  199,173,115,118,   0);
+HSD2_C(rip2,&rip1, TOON_RIP, TOON_RIP_ADVANCE, 326,177,139,123,   0);
+HOT_SPOT *toon_rip_hot_spots = &rip2;
+
+/* * * * *
+*
+*  Check List hot spots.
+*
+* * * * */
+HSD2_C(clh01,      0, TOON_CHKLIST, TOON_CHKLIST_MAKE_TOON,  273,89,135,21, 0);
+HSD2_C(clh02, &clh01, TOON_CHKLIST, TOON_CHKLIST_MAKE_TOON,  406,81,45,35,  0);
+HSD2_C(clh03, &clh02, TOON_CHKLIST, TOON_CHKLIST_TEST_TOON,  261,251,157,26, 0);
+HSD2_C(clh04, &clh03, TOON_CHKLIST, TOON_CHKLIST_TEST_TOON,  423,248,26,41,  0);
+HSD2_C(clh05, &clh04, TOON_CHKLIST, TOON_CHKLIST_SAVE_TOON,  262,279,145,26, 0);
+HSD2_C(clh06, &clh05, TOON_CHKLIST, TOON_CHKLIST_SAVE_TOON,  389,298,62,39,  0);
+HSD2_C(clh07, &clh06, TOON_CHKLIST, TOON_CHKLIST_GOAL     ,  295,117,62,22,  0);
+HSD2_C(clh08, &clh07, TOON_CHKLIST, TOON_CHKLIST_GOAL     ,  359,111,37,28,  0);
+HSD2_C(clh09, &clh08, TOON_CHKLIST, TOON_CHKLIST_LOCK     ,  298,140,107,37, 0);
+HSD2_C(clh10, &clh09, TOON_CHKLIST, TOON_CHKLIST_LOCK     ,  413,135,29,37,  0);
+HSD2_C(clh11, &clh10, TOON_CHKLIST, TOON_CHKLIST_TUNES    ,  297,210,110,43, 0);
+HSD2_C(clh12, &clh11, TOON_CHKLIST, TOON_CHKLIST_TUNES    ,  404,212,48,35,  0);
+HSD2_C(clh13, &clh12, TOON_CHKLIST, TOON_CHKLIST_CANCEL   ,  297,310,75,44,  0);
+HSD2_C(clh14, &clh13, TOON_CHKLIST, TOON_CHKLIST_CORNER   ,  411,29,41,34,   0);
+HOT_SPOT *toon_chklist_hot_spots = &clh14;
+
+
+/* * * * *
+*
+*  HEARTY PART hot spots.
+*
+* * * * */
+HSD2_C(htypt01,        0, TOON_HEARTY_PART, TOON_HEARTY_PART_UP_ARROW  ,  367,109,41,56, 0);
+HSD2_C(htypt02, &htypt01, TOON_HEARTY_PART, TOON_HEARTY_PART_DOWN_ARROW,  370,171,33,45, 0);
+HSD2_C(htypt03, &htypt02, TOON_HEARTY_PART, TOON_HEARTY_PART_CANCEL    ,  248,185,94,40, 0);
+HOT_SPOT *toon_hearty_part_hot_spots = &htypt03;
+
+
+/* * * * *
+*
+*  HORN HOT SPOTS
+*
+* * * * */
+HSD_C(horn_nevermind_bttn,hnh1,0,    TOON_HORN,192,215,248,260,0,TOON_HORN_NEVERMIND,0,0,0);
+HSD_C(horn_sound_up_bttn, hnh2,&hnh1,TOON_HORN,308,140,364,200,0,TOON_HORN_SND_UP,0,0,0);
+HSD_C(horn_sound_dwn_bttn,hnh3,&hnh2,TOON_HORN,307,196,367,257,0,TOON_HORN_SND_DOWN,0,0,0);
+HSD_C(horn_chanel_up_bttn,hnh4,&hnh3,TOON_HORN,376,284,453,337,0,TOON_HORN_CHNL_UP,0,0,0);
+HSD_C(horn_chanl_dwn_bttn,hnh5,&hnh4,TOON_HORN,303,284,384,340,0,TOON_HORN_CHNL_DOWN,0,0,0);
+HSD_C(horn_hammer_bttn,   hnh6,&hnh5,TOON_HORN,261,11,456,138,0,TOON_HORN_HAMMER,0,0,0);
+HOT_SPOT *toon_horn_hot_spots = &hnh6;
+
+#endif
+
+/* * * * *
+*
+*  RUN TOON HOT SPOTS
+*
+* * * * */
+HSD_C(run,rnh1,0,TM_RUN,0,0,639,399,0,TOON_EDIT,0,0,0);
+HOT_SPOT *run_toon_hot_spots = &rnh1;
+
+#if ALL
+
+/* * * * *
+*
+*  TOON NUKE HOT SPOTS
+*
+* * * * */
+HSD_C(nuke_yes_bttn,nuh1,0,    TOON_NUKE,271,145,340,195,0,TOON_NUKE_YES,0,0,0);
+HSD_C(nuke_no_bttn, nuh2,&nuh1,TOON_NUKE,218,226,302,287,0,TOON_NUKE_NO,0,0,0);
+HOT_SPOT *toon_nuke_hot_spots = &nuh2;
+
+/* * * * *
+*
+*  TOON PIG HOT SPOTS
+*
+* * * * */
+HSD_C(cake_walk_bttn,  pih1,0,    TOON_PIG,148,64,224,124,0,TOON_PIG_CAKE_WALK,0,0,0);
+HSD_C(all_braun_bttn,  pih2,&pih1,TOON_PIG,228,24,304,84,0,TOON_PIG_ALL_BRAUN,0,0,0);
+HSD_C(really_hard_bttn,pih3,&pih2,TOON_PIG,309,26,385,86,0,TOON_PIG_REALLY_HARD,0,0,0);
+HSD_C(LOONEY_BIN_bttn, pih4,&pih3,TOON_PIG,397,22,473,82,0,TOON_PIG_LOONEY_BIN,0,0,0);
+HSD_C(HOME_TOONS_bttn, pih5,&pih4,TOON_PIG,481,51,552,114,0,TOON_PIG_HOME_TOONS,0,0,0);
+HSD_C(UP_bttn,         pih6,&pih5,TOON_PIG,518,157,563,283,0,TOON_PIG_UP,0,0,0);
+HSD_C(DOWN_bttn,       pih7,&pih6,TOON_PIG,524,235,560,283,0,TOON_PIG_DOWN,0,0,0);
+HSD_C(LOAD_bttn,       pih8,&pih7,TOON_PIG,155,331,240,372,0,TOON_PIG_LOAD,0,0,0);
+HSD_C(CANCEL_bttn,     pih9,&pih8,TOON_PIG,458,335,547,375,0,TOON_PIG_CANCEL,0,0,0);
+HOT_SPOT *toon_pig_hot_spots = &pih9;
+
+/* * * * *
+*
+*  TOONBOX HOT SPOTS
+*
+* * * * */
+HSD_C(toonbox_up_bttn, tbh1,0,    TOONBOX,558,199,607,260,0,TOONBOX_UP,0,0,0);
+HSD_C(toonbox_dwn_bttn,tbh2,&tbh1,TOONBOX,561,263,598,315,0,TOONBOX_DOWN,0,0,0);
+HSD_C(toonbox_lft_bttn,tbh3,&tbh2,TOONBOX,5,350,43,384,0,TOONBOX_LEFT,0,0,0);
+HSD_C(toonbox_rght_btn,tbh4,&tbh3,TOONBOX,48,345,91,394,0,TOONBOX_RIGHT,0,0,0);
+HSD_C(toonbox_ok_bttn, tbh5,&tbh4,TOONBOX,533,318,601,375,0,TOONBOX_OK,0,0,0);
+HOT_SPOT *toonbox_hot_spots = &tbh5;
+
+/* * * * *
+*
+*  TOON_LOADSAVE hotspots.
+*
+* * * * */
+HSD2_C(lsh0,     0, TOON_LOADSAVE, TOON_LOADSAVE_LOAD,  218,190,79,39,  0);
+HSD2_C(lsh1, &lsh0, TOON_LOADSAVE, TOON_LOADSAVE_SAVE,  352,199,86,41,  0);
+HOT_SPOT *loadsave_hot_spots = &lsh1;
+
+/* * * * *
+*
+*  TOON_OVERRITE hotspots.
+*
+* * * * */
+HSD2_C(ovh0,     0, TOON_OVERRITE, TOON_OVERRITE_OK,     220,198,114,42,  0);
+HSD2_C(ovh1, &ovh0, TOON_OVERRITE, TOON_OVERRITE_CANCEL, 373,199, 60,42,  0);
+HOT_SPOT *overrite_hot_spots = &ovh1;
+
+#endif
+
+/* * * * *
+*
+*  void init_hs(void);
+*
+* * * * */
+void init_hs(void)
+{
+}
+
+
+/* * * * *
+*
+*  void process_hs(HOT_SPOT *hot_spot_list);
+*
+* * * * */
+void process_hs(HOT_SPOT *hot_spot_list)
+{
+#if ENABLE
+   HOT_SPOT *hs;
+
+   hs = hot_spot_list;
+   while (hs)
+   {
+      if (hs->active & tim_mode)
+      {
+         if ((cursorx>=hs->upper_left.x) && (cursorx<=hs->lower_right.x) &&
+             (cursory>=hs->upper_left.y) && (cursory<=hs->lower_right.y))
+         {
+            if (hs->over_func)
+               hs->over_func(hs);
+            change_mouse_icon(hs->icon_num);
+            if (SYS_JoyHit && (SYS_JoyTable[JOY_A]))
+            {
+					/* debounce joystick */
+			    	SYS_JoyHit = FALSE;
+               if (hs->click_func)
+                  hs->click_func(hs);
+               tim_mode = hs->new_mode;
+            }
+            hs = 0;
+         }
+      }
+      if (hs)
+         if (!(hs=hs->next))
+         {
+/*            change_mouse_icon(0); */
+         }
+   }
+#else
+	if (SYS_JoyHit && (SYS_JoyTable[JOY_A])) {
+		/* debounce joystick */
+		SYS_JoyHit = FALSE;
+		if (hs->click_func)
+			hs->click_func(hs);
+		tim_mode = hs->new_mode;
+	}
+#endif
+}
+
+

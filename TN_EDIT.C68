@@ -1,0 +1,467 @@
+/* * * * *
+*
+*  TN_EDIT.C
+*
+*  This module contains the code for the edit puzzle part of toons.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/09/93 ChrisC   File created
+*
+* * * * */
+#include <ctype.h>
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "tim_text.h"
+#include "toons.h"
+
+extern void vm_rope_line(short x1, short y1, short x2, short y2); /* drawing.c */
+
+
+extern UBYTE numbers;
+UBYTE is_partbin;
+short num_pb_slots;
+UBYTE power_buttons;
+extern UBYTE pbicons;
+
+/* * * * *
+*
+*  static functions
+*
+* * * * */
+
+
+
+/* * * * *
+*
+*  static variables
+*
+* * * * */
+static short prev_over_playfield = 0;
+
+
+
+/* * * * *
+*
+*  void init_toon_machine(void);
+*
+*  This function initializes the editor for toons.
+*
+* * * * */
+void init_toon_machine(void)
+{
+   redraw_rbi = redraw_tb = redraw_bb = redraw_lb =
+      redraw_rb = redraw_ai = 0;
+   tim_sub_mode = 0;
+	old_tim_mode = 0;
+   active_part = 0;
+
+   /* draws the currently loaded puzzle onto the screen. */
+   set_game_scrn_clip();
+   init_draw_list();
+   reinit_parts();
+	/* for sega clear screen(s) */
+	ClearMapBuff(&MapABuff);
+	SYS_DMA(ScrAAddr, 64*2*28, &MapABuff);
+	SYS_DMA(ScrBAddr, 64*2*28, &MapABuff);
+   draw_gp_screen();
+   set_full_scrn_clip();
+}
+
+
+
+/* * * * *
+*
+*  void set_toon_clip(short x, short y, short w, short h);
+*
+*  This function will set the clipping window to the specified rectangle.
+*
+* * * * */
+void set_toon_clip(short x, short y, short w, short h)
+{
+   /* set up byte boundaries. */
+   w += (x%8);
+   x -= (x%8);
+   w += 8-(w%8);
+
+   if (x+w<0)
+      vm_rclip = 0;
+   else
+      if (x+w>vm_width)
+         vm_rclip = vm_width-1;
+      else
+         vm_rclip = x+w-1;
+
+   if (y+h<0)
+      vm_bclip = 0;
+   else
+      if (y+h>vm_height)
+         vm_bclip = vm_height-1;
+      else
+         vm_bclip = y+h-1;
+
+   if (x<0)
+      x = 0;
+   else if (x>vm_width)
+      x = vm_width;
+   vm_lclip = x;
+   
+   if (y<0)
+      y = 0;
+   else if (y>vm_height)
+      y = vm_height;
+   vm_tclip = y;
+
+}
+
+
+/* * * * *
+*
+*  void reset_game_screen(void);
+*
+*  This function will reset the game screen.
+*
+* * * * */
+void reset_game_screen(void)
+{
+   set_game_scrn_clip();
+   draw_gp_screen();
+   set_full_scrn_clip();
+   my_flip(1);
+
+}
+
+
+
+/* * * * *
+*
+*  void init_toon_level(void);
+*
+*  This function is intended to take the place of init_level in T.I.M.
+*
+* * * * */
+void init_toon_level(void)
+{
+   old_old_tedge = old_tedge = tedge = 0;
+   old_old_ledge = old_ledge = ledge = -16<<VIRTUALCOORDS;
+
+   my_heapcheck();
+
+   reset_level();
+   if (freeform_mode)
+   {
+      static_list.next = static_list.prev = 0;
+      move_list.next = move_list.prev = 0;
+      avail_list.next = avail_list.prev = 0;
+      make_free_form();
+   }
+   else
+   {
+      toon_clear_chklist = 1;
+      load_next_puzzle();
+   }
+
+   reinit_parts();
+   cur_level.max_ledge = -16<<VIRTUALCOORDS;
+   cur_level.max_tedge = 0;
+   mouse_clear_buttons();
+}
+
+
+
+/* * * * *
+*
+*  void draw_toon_bin_icons(short x, short y);
+*
+*  This function will draw all the toon bin icons and the number of them. It
+*  take the place of the draw_rb_icons function defined for T.I.M.
+*
+* * * * */
+void draw_toon_bin_icons(short x, short y)
+{
+   short x_loc,y_loc,type,count;
+   PART *work_ptr;
+	PART *pptr;
+	short w1,w2,h;
+	SSHAPE_C *ssptr;
+	UCHAR plane;
+	short tx;
+	short pbnum;
+	short frame;
+	short xend;
+
+	globPriority = 0xfe;
+
+	is_partbin = TRUE;
+	/* starting place in the parts bin */
+	pbnum = 0;
+   /* set work pointer to the parts bin parts list. */
+   work_ptr = pb_part->next;
+   
+   /* set the initial vertical line */
+   y_loc = Y_START_OF_BIN+vscrollValue;
+	x_loc = X_START_OF_BIN+hscrollValue;
+	xend = X_END_OF_BIN+hscrollValue;
+   
+   /* main drawing loop will terminate at the end of parts or the end of the  */
+   /* panel. */
+   while (work_ptr)
+   {
+      /* count the number of inactive part of the same type. */
+      type = work_ptr->type;
+      if (work_ptr == active_part)
+         count = 0;
+      else
+         count = 1;
+		pptr = work_ptr;
+      work_ptr = work_ptr->next;
+      while (work_ptr && (type == work_ptr->type))
+      {
+         if (work_ptr != active_part)
+            count++;
+         work_ptr = work_ptr->next;
+      }
+      
+      /* draw the icon of any part with at least one inactive part. */
+      if (count != 0)
+      {
+         
+			tx = x_loc;
+			tx += pptr->base_size.x;
+
+         /* draw number of inactive parts. */
+			if (count > 9)
+				{
+				GetFrameWH(0, count/10, &numbers, &w1, &h);
+				tx += w1<<VIRTUALCOORDS;
+				}
+
+			GetFrameWH(0, count%10, &numbers, &w2, &h);
+			tx += w2<<VIRTUALCOORDS;
+
+			tx += 4<<VIRTUALCOORDS;						/* distance from item to count sprite */
+			if (tx>=xend)
+				{
+				num_pb_slots = pbnum;
+
+				while (pbnum < 10)
+					pb_hs[pbnum++].ix = 0xffff;				/* disable part bin hotspot */
+
+				is_partbin = FALSE;
+				globPriority = 0xbf;
+				return;
+				}
+
+			remapOffset = 0xe000;			/* remap sprite palette to user 
+														interface palette and set
+														priority of sprite to on. */
+			plane = pptr->plane_num;
+			if (pptr->flags2 & F2_SUPERSHAPE)
+				{
+		      ssptr = *(prop[type].super_shapes);
+				plane = ssptr->plane_num;
+				}
+
+			switch (type)
+				{
+				case PT_MESSAGER:
+					frame = 0;
+					break;
+				case PT_SHOOT_SWTCH:
+					frame = 1;
+					break;
+				case PT_TRANS_ROT:
+					frame = 2;
+					break;
+				case PT_UD_COUNTER:
+					frame = 3;
+					break;
+				case PT_INCR_DECR:
+					frame = 4;
+					break;
+				case PT_ROT_TRANS:
+					frame = 5;
+					break;
+				case PT_PIANO:
+					frame = 6;
+					break;
+            case PT_PBELT:
+					frame = 7;
+					break;
+            case PT_ROPE:
+					frame = 8;
+					break;
+				case PT_HC_BELT:
+					frame = 9;
+					break;
+				case PT_CATAPULT:
+					frame = 10;
+					break;
+				case PT_VACUUM:
+					frame = 11;
+					break;
+				case PT_HANDGUN:
+					frame = 12;
+					break;
+
+            default:
+					pptr->scrn_loc.x = x_loc;
+					pptr->scrn_loc.y = y_loc+(((48<<VIRTUALCOORDS)-pptr->base_size.y)>>1);
+					pb_hs[pbnum].ix = (pptr->scrn_loc.x-ledge)>>VIRTUALCOORDS;
+					pb_hs[pbnum].iy = (pptr->scrn_loc.y)>>VIRTUALCOORDS;
+					pb_hs[pbnum].iw = pptr->base_size.x>>VIRTUALCOORDS;
+					pb_hs[pbnum++].ih = pptr->base_size.y>>VIRTUALCOORDS;
+			      draw_part(pptr, 0,0, plane);
+					/* a little gap between number */
+					x_loc += pptr->base_size.x+(4<<VIRTUALCOORDS);		
+					frame = -1;
+               break;
+				}
+
+			if (frame >= 0)
+				{
+				GetFrameWH(0, frame, &pbicons, &w1, &h);
+				pptr->scrn_loc.x = x_loc;
+				pptr->scrn_loc.y = y_loc+(((48<<VIRTUALCOORDS)-w1)>>1);
+				pb_hs[pbnum].ix = (pptr->scrn_loc.x-ledge)>>VIRTUALCOORDS;
+				pb_hs[pbnum].iy = (pptr->scrn_loc.y)>>VIRTUALCOORDS;
+				pb_hs[pbnum].iw = w1<<VIRTUALCOORDS;
+				pb_hs[pbnum++].ih = h<<VIRTUALCOORDS;
+				draw_bitmap(&pbicons, pptr->scrn_loc.x-ledge, pptr->scrn_loc.y, 
+									0, frame);
+				x_loc += w1<<VIRTUALCOORDS;
+				}
+				
+			if (!freeform_mode)
+				{
+				if (count > 9)
+					{
+					draw_bitmap(&numbers, x_loc-ledge, y_loc-tedge, 0, 
+								count/10);
+					x_loc += w1<<VIRTUALCOORDS;
+					}
+
+				draw_bitmap(&numbers, x_loc-ledge, y_loc-tedge, 0, count%10);
+				/* gap between number and next item */
+				}
+
+			x_loc += (w2<<VIRTUALCOORDS)+(12<<VIRTUALCOORDS);
+
+			remapOffset = 0;					/* turn off remapping of sprites */
+      }
+   }
+
+	num_pb_slots = pbnum;
+
+	while (pbnum < 10)
+		pb_hs[pbnum++].ix = 0xffff;				/* disable part bin hotspot */
+
+	is_partbin = FALSE;
+	globPriority = 0xbf;
+
+}
+
+/* * * * *
+*
+*  void edit_toon_machine(void);
+*
+*  This function replaces edit_machine in T.I.M. It is designed to work in the
+*  new Toons structure.
+*
+* * * * */
+void edit_toon_machine(void)
+{
+   hilite_color = line_color = -1;
+
+   if (mouse_over_playfield())
+   {
+      /* process the power buttons. */
+      do_edit_modes();
+      prev_over_playfield = 0;
+   }
+
+   /* If there is an active part, check for smart ends */
+   if(active_part)
+   {
+      determine_smart_ends(0);
+      determine_smart_ends(active_part);
+
+		if ((SYS_JoyHit) && (SYS_JoyTable[JOY_B]))
+			{
+			SYS_JoyHit = FALSE;
+			power_buttons = TRUE;
+			}
+
+   }
+
+   /* draw the highlight around the selected part. */
+   if (active_part && (hilite_color!=-1))
+   {
+      hilite_part(active_part,hilite_color,ER_FILL,1);
+      if ((active_part->type == PT_TUNNEL) && active_part->toon_link &&
+         !(active_part->flags3 & F3_LOCKED))
+         hilite_part(active_part->toon_link,hilite_color,ER_FILL,0);
+   }
+
+   if (line_color != -1)
+   {
+      vm_lcolor = line_color;
+      if(active_part->type == PT_PBELT)
+         vm_line(line_pt1.x-ledge,line_pt1.y-tedge,
+            line_pt2.x-ledge,line_pt2.y-tedge);
+      else
+         vm_rope_line(line_pt1.x-ledge,line_pt1.y-tedge,
+            line_pt2.x-ledge,line_pt2.y-tedge);
+
+   }
+
+   save_old_part_info();
+
+}
+
+
+
+/* * * * *
+*
+*  void setup_toon_edit(void);
+*
+*  This function sets up the edit mode.
+*
+* * * * */
+void setup_toon_edit(void)
+{
+   prev_over_playfield = 0;
+   init_toon_machine();
+}
+
+
+
+
+/* * * * *
+*
+*  void reset_toon_edit(void);
+*
+*  This function recycles and reset the edit mode.
+*
+* * * * */
+void reset_toon_edit(void)
+{
+   if (active_part && (active_part->flags1&F1_AVAIL_L))
+   {
+      if ((active_part->type==PT_PBELT) && active_part->belt->link1)
+         recycle_a_part();
+      else
+         if ((active_part->type==PT_ROPE) && active_part->rope_tie[0]->link1)
+            recycle_a_part();
+         else
+            finish_removal();
+   }
+}
+
+
+
+
+

@@ -1,0 +1,201 @@
+/* * * * *
+*
+*  GUN.C
+*
+*  This file contains the hand gun routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/02/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                     GUN                                    *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+   The gun fires. Supershape #1 is the resting state. The sequence is:
+   2,2,2,3,3,2,2,3,2,3,4,5,4,5,4,5,1
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C gun1 = {0, GUN_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C gun2 = {0, GUN_PLANE, {1,255,255,255},
+   {{-7,-7},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C gun3 = {0, GUN_PLANE, {1,255,255,255},
+   {{-7,-8},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C gun4 = {0, GUN_PLANE, {2,3,255,255},
+   {{0,0},{45,5},{0,0},{0,0}}};
+static F_SSHAPE_C gun5 = {0, GUN_PLANE, {4,2,255,255},
+   {{45,5},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far gun_ss_tab[GUN_NUM_STATES] = 
+   {&gun1,&gun2,&gun3,&gun4,&gun5};
+
+/* size. */
+TIM_VEC_C far gun_size[GUN_NUM_STATES] = 
+   {{34,27},{40,34},{41,35},{50,27},{50,27}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far gun_os[GUN_NUM_STATES] = 
+   {{0,0},{-13,-15},{-14,-16},{0,0},{0,0}};
+
+/* border definitions. */
+static PART_BORDER_C far gun1_bord[GUN_BORDERS] =
+   {{3,1,0},{26,1,0},{30,0,0},{33,0,0},
+    {33,10,0},{24,26,0},{13,26,0},{0,22,0},
+    {0,16,0},{6,7,0},{0,2,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far gun_bord_tab[GUN_NUM_STATES] =
+   {gun1_bord,gun1_bord,gun1_bord,gun1_bord,
+    gun1_bord};
+static P_PART_BORDER far gun_fbord_tab[GUN_NUM_STATES];
+
+/* Rope tie locations */
+static far TIM_VEC_C rope_ties[GUN_NUM_STATES] =
+{
+   {16,18}, {9,16}, {9,16}, {16,18}, {16,18}
+};
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void gun_reinit(PART *gun)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!gun)
+   {
+      set_border_table_slopes(PT_HANDGUN, 1, gun_bord_tab, gun_fbord_tab,
+         GUN_NUM_STATES);
+      return;
+   }
+
+   if (gun->flags2 & F2_FLIP_H_DRAW)
+   {
+      gun->rope_loc[0].x = gun->base_size.x - rope_ties[gun->state].x;
+      gun->border = gun_fbord_tab[gun->state];
+   }
+   else
+   {
+      gun->rope_loc[0].x = rope_ties[gun->state].x;
+      gun->border = gun_bord_tab[gun->state];
+   }
+    gun->rope_loc[0].y = rope_ties[gun->state].y;
+
+   set_adjusted_loc_size(gun);
+}
+
+void gun_internal(PART *gun)
+{
+   static char far state_array[] =
+   {
+      1,2,2,2,3,3,2,2,3,2,3,4,5,4,5,4,5,1
+   };
+   #define GUN_ANIM_NUM    (sizeof(state_array)/sizeof(char))
+
+   if (gun->memory && gun->sub_state &&
+      (gun->toon_state < GUN_ANIM_NUM))
+   {
+      gun->state = state_array[++gun->toon_state] - 1;
+      
+      /* check if the gun has animated its shot */
+      if (gun->toon_state == GUN_ANIM_NUM)
+      {
+         gun->sub_state = gun->toon_state = gun->state = 0;
+         gun->memory--;
+      }  
+
+      gun_reinit(gun);
+
+      switch (gun->toon_state)
+      {
+         case 1:
+            jtp_sx_play(SX_GUN_SPIT,1,0);
+            break;
+         case 12:
+            /* create the bullet to be shot out of the gun */
+            if (gun->flags2 & F2_FLIP_H_DRAW)
+               create_part(PT_BULLET,
+                  gun->scrn_loc.x + 5,
+                  gun->scrn_loc.y + 7,
+                  gun->scrn_loc.x + 5,
+                  gun->scrn_loc.y + 7,
+                  -BULLET_SPEED,0,0,F2_FLIP_H_DRAW);
+            else
+               create_part(PT_BULLET,
+                  gun->scrn_loc.x + 35,
+                  gun->scrn_loc.y + 7,
+                  gun->scrn_loc.x + 35,
+                  gun->scrn_loc.y + 7,
+                  BULLET_SPEED,0,0,0);
+            break;
+      }
+   }
+}
+
+#pragma argsused
+void gun_flip(PART *gun,short flip_mode)
+{
+   gun->flags2 ^= F2_FLIP_H_DRAW;
+   gun_reinit(gun);
+   sub_parts_to_er(gun,1|2);
+   part_to_er(gun,1|2);
+   set_redraw(gun,2);
+}
+
+#pragma argsused
+short gun_rope(PART *from_part,PART *gun,short tie_num,short rope_type,short mass,long force)
+{
+   short work_rt;
+   ROPE *rptr;
+
+   rptr = gun->rope_tie[0];
+
+   if (rope_type == RP_SLACK)
+   {
+      rptr->slack++;
+      return(0);
+   }
+
+   rope_type &= (RP_JUST_CHECK|RP_PULL_LEFT|RP_PULL_RIGHT);
+   work_rt = rope_type & (RP_JUST_CHECK^0xffff);
+
+   if (gun->flags2 & F2_FLIP_H_DRAW)
+   {
+      if (work_rt == RP_PULL_LEFT)
+         return(1);
+
+      if (rope_type == RP_PULL_RIGHT)
+         if (!gun->sub_state)
+            gun->sub_state = 1;
+   }
+   else
+   {
+      if (work_rt == RP_PULL_RIGHT)
+         return(1);
+
+      if (rope_type == RP_PULL_LEFT)
+         if (!gun->sub_state)
+            gun->sub_state = 1;
+   }
+
+   return(0);
+}
+
+ 

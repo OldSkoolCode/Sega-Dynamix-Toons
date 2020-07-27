@@ -1,0 +1,270 @@
+/* * * * *
+*
+*  TN_EAT.C
+*
+*  This file contains all the code associated with the treadmill motor.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  09/06/93 ChrisC   File created
+*
+* * * * */
+#include "defs.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  EATMOTOR                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+   Supershape #1 is the root shape.
+   The pulley's center is at a (24,47) offset from the root with a diameter
+     of 4.
+   The food should disappear at supershape #3.
+   The converyor belt starts moving at supershape #6.
+   Eat-motor-man eats any food on his plate. The sequence is:
+   2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,6,6,6,5,5,6,7,8,
+   5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8,5,6,
+   7,8,9,10,11,12,9,10,11,12,9,10,11,12,9,10,11,12,9,10,11,12,9,10,11,12,9,
+   10,11,12,9,10,11,12,13,14,15,16,13,14,15,16,13,14,15,16,13,14,15,16,13,
+   14,15,16
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C eatmotor1_2 = {0, EATMOTOR_PLANE1, {9,18,255,255},
+   {{22,8},{19,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor1 = {&eatmotor1_2, EATMOTOR_PLANE, {1,0,8,10},
+   {{6,20},{0,12},{16,13},{19,7}}};
+static F_SSHAPE_C eatmotor2_2 = {0, EATMOTOR_PLANE1, {19,255,255,255},
+   {{5,4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor2 = {&eatmotor2_2, EATMOTOR_PLANE, {1,0,8,16},
+   {{6,20},{0,12},{16,13},{15,8}}};
+static F_SSHAPE_C eatmotor3_2 = {0, EATMOTOR_PLANE1, {20,255,255,255},
+   {{6,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor3 = {&eatmotor3_2, EATMOTOR_PLANE, {1,0,8,16},
+   {{6,20},{0,12},{16,13},{15,8}}};
+static F_SSHAPE_C eatmotor4_2 = {0, EATMOTOR_PLANE1, {18,9,255,255},
+   {{18,0},{21,9},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor4 = {&eatmotor4_2, EATMOTOR_PLANE, {1,0,8,15},
+   {{6,20},{0,12},{16,13},{15,6}}};
+static F_SSHAPE_C eatmotor5_2 = {0, EATMOTOR_PLANE1, {17,255,255,255},
+   {{16,-1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor5 = {&eatmotor5_2, EATMOTOR_PLANE, {1,0,15,5},
+   {{6,20},{0,12},{14,4},{15,5}}};
+static F_SSHAPE_C eatmotor6_2 = {0, EATMOTOR_PLANE1, {0,18,255,255},
+   {{0,12},{15,-1},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor6 = {&eatmotor6_2, EATMOTOR_PLANE, {11,2,15,6},
+   {{8,8},{6,20},{12,5},{9,8}}};
+static F_SSHAPE_C eatmotor7_2 = {0, EATMOTOR_PLANE1, {18,255,255,255},
+   {{16,-1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor7 = {&eatmotor7_2, EATMOTOR_PLANE, {3,15,7,0},
+   {{6,20},{13,5},{15,7},{0,12}}};
+static F_SSHAPE_C eatmotor8_2 = {0, EATMOTOR_PLANE1, {0,17,255,255},
+   {{0,12},{16,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor8 = {&eatmotor8_2, EATMOTOR_PLANE, {12,2,15,4},
+   {{19,9},{7,20},{13,5},{10,7}}};
+static F_SSHAPE_C eatmotor9_2 = {0, EATMOTOR_PLANE1, {17,255,255,255},
+   {{17,-1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor9 = {&eatmotor9_2, EATMOTOR_PLANE, {1,13,5,0},
+   {{7,20},{16,4},{15,5},{0,12}}};
+static F_SSHAPE_C eatmotor10_2 = {0, EATMOTOR_PLANE1, {18,0,255,255},
+   {{16,-1},{0,12},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor10 = {&eatmotor10_2, EATMOTOR_PLANE, {11,2,13,6},
+   {{8,7},{7,20},{14,6},{8,7}}};
+static F_SSHAPE_C eatmotor11_2 = {0, EATMOTOR_PLANE1, {18,255,255,255},
+   {{17,-1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor11 = {&eatmotor11_2, EATMOTOR_PLANE, {3,13,7,0},
+   {{7,20},{15,6},{15,7},{0,12}}};
+static F_SSHAPE_C eatmotor12_2 = {0, EATMOTOR_PLANE1, {0,18,255,255},
+   {{0,12},{17,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor12 = {&eatmotor12_2, EATMOTOR_PLANE, {12,2,13,4},
+   {{19,9},{6,20},{15,7},{9,7}}};
+static F_SSHAPE_C eatmotor13_2 = {0, EATMOTOR_PLANE1, {18,255,255,255},
+   {{16,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor13 = {&eatmotor13_2, EATMOTOR_PLANE, {1,10,5,0},
+   {{6,20},{16,4},{14,6},{0,12}}};
+static F_SSHAPE_C eatmotor14_2 = {0, EATMOTOR_PLANE1, {0,17,255,255},
+   {{0,12},{17,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor14 = {&eatmotor14_2, EATMOTOR_PLANE, {11,2,10,6},
+   {{11,8},{6,20},{17,7},{10,8}}};
+static F_SSHAPE_C eatmotor15_2 = {0, EATMOTOR_PLANE1, {17,255,255,255},
+   {{14,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor15 = {&eatmotor15_2, EATMOTOR_PLANE, {3,10,7,0},
+   {{7,19},{15,7},{13,7},{0,12}}};
+static F_SSHAPE_C eatmotor16_2 = {0, EATMOTOR_PLANE1, {18,0,255,255},
+   {{16,0},{0,12},{0,0},{0,0}}};
+static F_SSHAPE_C eatmotor16 = {&eatmotor16_2, EATMOTOR_PLANE, {12,2,10,4},
+   {{19,8},{6,20},{17,7},{10,7}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far eatmotor_ss_tab[EATMOTOR_NUM_STATES] = 
+   {&eatmotor1,&eatmotor2,&eatmotor3,&eatmotor4,&eatmotor5,&eatmotor6,
+    &eatmotor7,&eatmotor8,&eatmotor9,&eatmotor10,&eatmotor11,&eatmotor12,
+    &eatmotor13,&eatmotor14,&eatmotor15,&eatmotor16};
+
+/* size. */
+TIM_VEC_C far eatmotor_size[EATMOTOR_NUM_STATES] = 
+   {{28,30},{28,28},{28,29},{28,30},{28,31},{29,31},
+    {28,31},{30,30},{28,31},{30,31},{28,31},{29,30},
+    {28,32},{30,29},{29,29},{29,30}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far eatmotor_os[EATMOTOR_NUM_STATES] = 
+   {{0,0},{0,4},{0,2},{0,-1},{0,-3},{0,-3},{0,-3},{0,0},
+    {0,-3},{0,-2},{0,-2},{0,-1},{0,-4},{0,1},{0,1},{0,0}};
+
+/* border definitions. */
+static PART_BORDER_C far eatmotor1_bord[EATMOTOR_BORDERS] =
+   {{27,27,0},{10,29,0},{5,18,0},{19,18,0},
+    {20,2,0},{25,3,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far eatmotor_bord_tab[EATMOTOR_NUM_STATES] =
+   {eatmotor1_bord,eatmotor1_bord,eatmotor1_bord,eatmotor1_bord,
+    eatmotor1_bord,eatmotor1_bord,eatmotor1_bord,eatmotor1_bord,
+    eatmotor1_bord,eatmotor1_bord,eatmotor1_bord,eatmotor1_bord,
+    eatmotor1_bord,eatmotor1_bord,eatmotor1_bord,eatmotor1_bord};
+static P_PART_BORDER far eatmotor_fbord_tab[EATMOTOR_NUM_STATES];
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void eatmotor_reinit(PART *fat_man)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!fat_man)
+   {
+      set_border_table_slopes(PT_FAT_MAN, 1, eatmotor_bord_tab,
+         eatmotor_fbord_tab, EATMOTOR_NUM_STATES);
+      return;
+   }
+
+   if (fat_man->flags2 & F2_FLIP_H_DRAW)
+   {
+      fat_man->border = eatmotor_fbord_tab[fat_man->state];
+      fat_man->belt_loc.x = (56-30)-4;
+   }
+   else
+   {
+      fat_man->border = eatmotor_bord_tab[fat_man->state];
+      fat_man->belt_loc.x = 30-4;
+   }
+
+   fat_man->belt_loc.y = 50-4;
+   fat_man->belt_size = 4;
+
+   set_adjusted_loc_size(fat_man);
+}
+
+short eatmotor_bounce(PART *cur_part)
+{
+   #define FAT_MAN_TRAY    2
+   #define FAT_MAN_FTRAY   1
+
+   PART *fat_man;
+
+   fat_man = cur_part->col_info.part;
+
+   /* check if the fat man is currently working */
+   if (!fat_man->state && !fat_man->toon_link)
+   {
+      switch (cur_part->type)
+      {
+         case PT_GUM:
+         case PT_EGG:
+         case PT_FISH:
+         case PT_CHEESE:
+         case PT_PEANUT:
+         case PT_BANANA:
+         case PT_HAIR_BALL:
+         case PT_DUSTBUNNY:
+            /* check if the correct border has been hit. */
+            if (  ((fat_man->flags2 & F2_FLIP_H_DRAW) 
+               && ((cur_part->col_info.border_num == FAT_MAN_FTRAY)
+               || (cur_part->col_info.border_num == FAT_MAN_FTRAY + 1)))
+               || (!(fat_man->flags2 & F2_FLIP_H_DRAW) 
+               && ((cur_part->col_info.border_num == FAT_MAN_TRAY)
+               || (cur_part->col_info.border_num == FAT_MAN_TRAY + 1))))
+            {
+               fat_man->toon_link = cur_part;
+               cur_part->speed.x = cur_part->speed.y = 0;
+               if (fat_man->flags2 & F2_FLIP_H_DRAW)
+                  fat_man->sub_state = 1;
+               else
+                  fat_man->sub_state = -1;
+            }
+            break;
+      }
+   }
+
+   return(1);
+}
+
+void eatmotor_internal(PART *fat_man)
+{
+   PART *pptr;
+   static const char far state_array[] =
+   {
+      1,1,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,6,6,6,5,5,6,7,8,
+      5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8,5,6,
+      7,8,9,10,11,12,9,10,11,12,9,10,11,12,9,10,11,12,9,10,11,12,9,10,11,12,9,
+      10,11,12,9,10,11,12,13,14,15,16,13,14,15,16,13,14,15,16,13,14,15,16,13,
+      14,15,16
+   };
+   #define FAT_MAN_NUM_STATES  (sizeof(state_array)/sizeof(char))
+
+   if (fat_man->state > 4)
+      jtp_sx_play(SX_FATMAN_WALK, 1, 0);
+
+   /* check if the belt is attached to anything and if the belt is turning. */
+   if (((pptr=get_belt_link(fat_man)) != 0) && (fat_man->state > 4))
+      if (!(pptr->flags2 & F2_ROT_PROVIDE))
+         pptr->sub_state = fat_man->sub_state;
+
+   /* check if the fat man has some food. */
+   if (fat_man->sub_state)
+   {
+      /* check if the link is ok */
+      if ((pptr = fat_man->toon_link) != 0)
+      {
+         pptr->speed.x = pptr->speed.y = 0;
+
+         /* check if the food should disappear */
+         if (fat_man->state == 1)
+         {
+            jtp_sx_play(SX_FATMAN_EAT, 1, 0);
+            kill_character(pptr);
+            fat_man->toon_link = 0;
+         }
+      }
+
+      /* animate the fat man */
+      fat_man->state = state_array[++fat_man->toon_state] - 1;
+      if (fat_man->toon_state >= FAT_MAN_NUM_STATES)
+      {
+         fat_man->sub_state = fat_man->toon_state = 0;
+         fat_man->state = state_array[0] - 1;
+      }
+
+      eatmotor_reinit(fat_man);
+   }
+}
+
+#pragma argsused
+void eatmotor_flip(PART *fat_man,short flip_mode)
+{					 
+   fat_man->flags2 ^= F2_FLIP_H_DRAW;
+   eatmotor_reinit(fat_man);
+   sub_parts_to_er(fat_man,1|2);
+   part_to_er(fat_man,1|2);
+   set_redraw(fat_man,2);
+}
+

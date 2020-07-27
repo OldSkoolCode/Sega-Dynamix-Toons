@@ -1,0 +1,215 @@
+/* * * * *
+*
+*  TN_DRYER.C
+*
+*  This file contains all the code associated with the hair dryer.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/24/93 ChrisC   File created
+*
+* * * * */
+#include "defs.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  HAIRDRYER                                 *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* Constant data */
+#define HAIRDRYER_NUM_STATES  4
+
+/*
+*  This is the hairdryer part52.it
+*  The sequence is 1,2,3,4,2,3,4,2,3,4...etc. until it is shut off.
+*  Frame #1 is the resting state for the dryer.
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C hairdryer1 = {0, HAIRDRYER_PLANE, {0,1,2,255},
+   {{1,0},{0,1},{4,1},{0,0}}};
+static F_SSHAPE_C hairdryer2 = {0, HAIRDRYER_PLANE, {0,5,8,3},
+   {{1,0},{4,1},{15,1},{-1,1}}};
+static F_SSHAPE_C hairdryer3 = {0, HAIRDRYER_PLANE, {0,6,9,4},
+   {{1, 0},{4,1},{15,1},{0,1}}};
+static F_SSHAPE_C hairdryer4 = {0, HAIRDRYER_PLANE, {0,7,10,3},
+   {{1,0},{4,1},{15,2},{0,1}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far hairdryer_ss_tab[HAIRDRYER_NUM_STATES] = 
+   {&hairdryer1,&hairdryer2,&hairdryer3,&hairdryer4};
+
+/* size. */
+TIM_VEC_C far hairdryer_size[HAIRDRYER_NUM_STATES] = 
+   {{11,8},{15,8},{15,8},{15,8}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far hairdryer_os[HAIRDRYER_NUM_STATES] = 
+   {{0,0},{0,0},{0,-1},{0,0}};
+
+/* border definitions. */
+static PART_BORDER_C far hairdryer1_bord[HAIRDRYER_BORDERS] =
+   {{0,1,0x0BD0},{2,0,0xF8F0},{5,0,0xEB40},{11,1,0x90D0},
+    {11,3,0x9400},{5,4,0xA200},{4,7,0x58D0},{2,7,0x55A0},
+    {2,4,0x5AA0},{0,2,0x2000}};
+static PART_BORDER far hairdryer1_fbord[HAIRDRYER_BORDERS];
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void hairdryer_reinit(PART *hairdryer)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!hairdryer)
+   {
+      set_border_slopes(PT_HAIRDRYER,1,hairdryer1_bord, hairdryer1_fbord, 0);
+      return;
+   }
+
+   if (hairdryer->flags2 & F2_FLIP_H_DRAW)
+      hairdryer->border = hairdryer1_fbord;
+   else
+      hairdryer->border = hairdryer1_bord;
+   
+   set_adjusted_loc_size(hairdryer);
+}
+
+#pragma argsused
+void hairdryer_flip(PART *hairdryer,short flip_mode)
+{
+   hairdryer->flags2 ^= F2_FLIP_H_DRAW;
+   hairdryer_reinit(hairdryer);
+   part_to_er(hairdryer,1|2);
+   set_redraw(hairdryer,2);
+}
+
+void hairdryer_internal(PART *hairdryer)
+{
+   PART *pptr;
+   short old_speed_x;
+
+   static const far char state_array[] =
+   {
+      2,3,4
+   };
+   #define DRYER_NUM_STATES   (sizeof(state_array)/sizeof(char))
+   #define Q_W                60
+   #define Q_H                15
+
+   /* check if the hairdryer is on */
+   if (hairdryer->sub_state)
+   {
+      jtp_sx_play(SX_HAIRDRYER,0,0);
+
+      /* animate hair dryer */
+      hairdryer->state = state_array[hairdryer->toon_state] - 1;
+      hairdryer_reinit(hairdryer);
+
+      if (++hairdryer->toon_state == DRYER_NUM_STATES)
+         hairdryer->toon_state = 0;
+
+      hairdryer->sub_state = 0;
+
+      if (hairdryer->flags2  & F2_FLIP_H_DRAW)
+         tn_query_dist(hairdryer,F1_STATIC_L|F1_MOVE_L,-Q_W,0,Q_W,Q_H);
+      else
+         tn_query_dist(hairdryer,F1_STATIC_L|F1_MOVE_L,
+            hairdryer->size.x,0,Q_W,Q_H);
+
+      pptr = hairdryer->qptr;
+      while (pptr)
+      {
+         if (pptr->flags1 & F1_MOVE_L)
+         {
+            /* remember the old speed in case it is needed below */
+            old_speed_x = pptr->speed.x;
+
+            /* adjust the speed of the moving objects */
+            if (hairdryer->flags2 & F2_FLIP_H_DRAW)
+            {
+               pptr->speed.x -= TWO_PIX;
+            }
+            else
+            {
+               pptr->speed.x += TWO_PIX;
+            }
+
+            check_term_velocity(pptr);
+            switch (pptr->type)
+            {
+               case PT_SID_MOUSE:
+                  if (abs(pptr->speed.y) < TWO_PIX)
+                  {
+                     if (hairdryer->scrn_loc.x < pptr->scrn_loc.x)
+                     {
+                        if (pptr->flags2 & F2_FLIP_H_DRAW)
+                           sid_flip(pptr, F2_FLIP_H_DRAW);
+                     }
+                     else
+                     {
+                        if (!(pptr->flags2 & F2_FLIP_H_DRAW))
+                           sid_flip(pptr, F2_FLIP_H_DRAW);
+                     }
+                     pptr->sub_state = SID_HDRYR_INDEX;
+                     pptr->speed.x = old_speed_x;
+                     pptr->toon_link = hairdryer;
+                  }
+                  break;
+               case PT_AL_CAT:
+                  if (abs(pptr->speed.y) < TWO_PIX)
+                  {
+                     if (hairdryer->scrn_loc.x > pptr->scrn_loc.x)
+                     {
+                        if (pptr->flags2 & F2_FLIP_H_DRAW)
+                           cat_flip(pptr, F2_FLIP_H_DRAW);
+                     }
+                     else
+                     {
+                        if (!(pptr->flags2 & F2_FLIP_H_DRAW))
+                           cat_flip(pptr, F2_FLIP_H_DRAW);
+                     }
+                     pptr->sub_state = CAT_HAIRDRYER_INDEX;
+                     pptr->toon_link = hairdryer;
+                  }
+                  pptr->speed.x = old_speed_x;
+                  break;
+            }
+         }
+         else
+         {
+            switch (pptr->type)
+            {
+               case PT_TEAPOT:
+                  pptr->sub_state = 1;
+                  pptr->speed.x = old_speed_x;
+                  break;
+               case PT_ANT:
+                  startle_ant(pptr);
+                  break;
+               case PT_ELEPHANT:
+                  pptr->sub_state = 3;
+                  break;
+            }
+         }
+         pptr = pptr->qptr;
+      }
+   }
+   else
+   {
+      /* turn hair dryer off */
+/*      jtp_sx_stop(SX_HAIRDRYER); */
+      hairdryer->state = hairdryer->toon_state = 0;
+      hairdryer_reinit(hairdryer);
+   }
+}
+
+
+
+

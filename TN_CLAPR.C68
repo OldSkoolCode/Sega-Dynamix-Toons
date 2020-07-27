@@ -1,0 +1,148 @@
+/* * * * *
+*
+*  TN_CLAPR.C
+*
+*  This module contains all the code associated with the clapper requester.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/11/93 ChrisC   File created
+*
+* * * * */
+#include <string.h>
+#include <ctype.h>
+#include "vm.h"
+#include "tim.h"
+
+
+
+/* * * * *
+*
+*  local function to this module
+*
+* * * * */
+extern UBYTE clapper;
+void set_up_clapper(char count);
+
+
+
+#define CLAP_TITLE_X          238
+#define CLAP_TITLE_Y          192
+#define CLAP_TITLE_WIDTH      263
+#define CLAP_TITLE_HEIGHT     25
+#define CLAP_DESC_X           232
+#define CLAP_DESC_Y           231
+#define CLAP_DESC_WIDTH       270
+#define CLAP_DESC_HEIGHT      148
+#define CLAP_FORE             10
+#define CLAP_BACK             4
+#define CLAP_SHADE            1
+
+
+
+/* * * * *
+*
+*  void do_toon_clapper(void);
+*
+*  This function manages the interface and functionallity of the clapper
+*  button.
+*
+* * * * */
+void do_toon_clapper(void)
+{
+	UWORD clapChars;
+	short i;
+
+	cursoractive = FALSE;
+	SYS_LastChar = spriteChar;
+	ClearMapBuff(&MapABuff);
+	clapChars = DLFPCChars(&clapper) | CHARPRIORITY;
+	ClearMapBuff(&MapABuff);
+	DrawAnimMapFrame(0,0,0, &clapper, &MapABuff, clapChars);
+	addDMAQueue(ScrBAddr, 64*2*21, &MapABuff);
+	waitDMAQueue();
+	SYS_JoyHit = FALSE;
+	while ((!SYS_JoyHit) || (!SYS_JoyTable[JOY_A]));
+	SYS_JoyHit = FALSE;
+	DrawAnimMapFrame(0,0,1, &clapper, &MapABuff, clapChars);
+	addDMAQueue(ScrBAddr, 64*2*21, &MapABuff);
+	waitDMAQueue();
+	SYS_LastChar = clapChars;
+	wait(60);
+	ClearMapBuff(&MapABuff);
+	addDMAQueue(ScrBAddr, 64*2*21, &MapABuff);
+	waitDMAQueue();
+	cursoractive = TRUE;
+
+}
+
+
+
+
+/* * * * *
+*
+*  void set_up_clapper(char count);
+*
+*  This function will draw the clapper initially on the screen.
+*
+* * * * */
+void set_up_clapper(char count)
+{
+}
+
+
+/* * * * *
+*
+*  void draw_toon_clapper(char button, short x, short y);
+*
+*  This function will handle all the drawing and animation of the clapper
+*  button.
+*
+*  if
+*     button = 0, then draw button off.
+*     button = 1, then draw button on.
+*     button = 2, then toggle button from off to on to off.
+*
+*  This function will draw all shapes to vm_dstptr = vm_buffptr.
+*
+*  NOTE - This function gets called from the draw_control_panel()
+*  and the do_toon_edit_panel() functions.
+*
+* * * * */
+void draw_toon_clapper(char button, short x, short y)
+{
+}
+
+
+/* * * * *
+*
+*  void draw_clapper(char button, short x, short y);
+*
+*  This function will draw all the cells of the clapper requester.
+*
+*  If button
+*     =  0,  then draw background.
+*     =  1,  then draw clap up.
+*     =  2,  then draw clapper down.
+*     =  3,  then draw body of camera.
+*     =  4,  then draw body of camera 2.
+*     =  5,  then draw wheels of camera.
+*     =  6,  then draw wheels of camera 2.
+*     =  7,  then draw wheels 3.
+*     =  8,  then draw wheels 4.
+*     =  9,  then draw wheels 5.
+*     = 10,  then draw wheels 6.
+*     = 11,  then draw film.
+*     = 12,  then draw film 2.
+*     = 13,  then draw Clap !!!!.
+*  
+*  This function assumes that the shape tables are loaded into memory.
+*
+* * * * */
+void draw_clapper(char button, short x, short y)
+{
+}
+
+

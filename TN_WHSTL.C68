@@ -1,0 +1,181 @@
+/* * * * *
+*
+*  TN_WHSTL.C
+*
+*  This file contains all the code associated with the noon whistle.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/25/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 NOONWHISTLE                                *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        This is the noonwhistle.  The resting state is supershape #1.
+   The anim sequence is 1,2,3,4,4,5,6,7,8,9,10,11 (all doubled). The rope-
+   ties are offset from supershape #1: 
+        Supershapes #1-4        ( 5,36)
+        Supershapes #5-11       (44,34)
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C noonwhistle1 = {0, NOONWHISTLE_PLANE, {0,1,2,255},
+   {{0,0},{6,17},{5,20},{0,0}}};
+static F_SSHAPE_C noonwhistle2 = {0, NOONWHISTLE_PLANE, {3,2,255,255},
+   {{-2,2},{3,17},{0,0},{0,0}}};
+static F_SSHAPE_C noonwhistle3 = {0, NOONWHISTLE_PLANE, {3,2,255,255},
+   {{0,3},{4,18},{0,0},{0,0}}};
+static F_SSHAPE_C noonwhistle4 = {0, NOONWHISTLE_PLANE, {3,2,255,255},
+   {{1,4},{6,19},{0,0},{0,0}}};
+static F_SSHAPE_C noonwhistle5 = {0, NOONWHISTLE_PLANE, {4,6,8,255},
+   {{-11,2},{17,17},{-18,7},{0,0}}};
+static F_SSHAPE_C noonwhistle6 = {0, NOONWHISTLE_PLANE, {5,7,9,255},
+   {{-11,3},{19,15},{-29,4},{0,0}}};
+static F_SSHAPE_C noonwhistle7 = {0, NOONWHISTLE_PLANE, {4,6,10,255},
+   {{-11,2},{17,17},{-31,2},{0,0}}};
+static F_SSHAPE_C noonwhistle8 = {0, NOONWHISTLE_PLANE, {5,7,11,255},
+   {{-11,3},{19,15},{-36,0},{0,0}}};
+static F_SSHAPE_C noonwhistle9_2 = {0, NOONWHISTLE_PLANE1, {14,255,255,255},
+   {{-29,15},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C noonwhistle9 = {&noonwhistle9_2, NOONWHISTLE_PLANE, {4,6,12,13},
+   {{-11,2},{17,17},{-40,-6},{-41,6}}};
+static F_SSHAPE_C noonwhistle10_2 = {0, NOONWHISTLE_PLANE1, {17,18,255,255},
+   {{-46,14},{-32,19},{0,0},{0,0}}};
+static F_SSHAPE_C noonwhistle10 = {&noonwhistle10_2, NOONWHISTLE_PLANE, {5,7,15,16},
+   {{-11,3},{19,15},{-43,-7},{-52,2}}};
+static F_SSHAPE_C noonwhistle11_2 = {0, NOONWHISTLE_PLANE1, {21,22,23,24},
+   {{-47,2},{-49,8},{-49,13},{-37,21}}};
+static F_SSHAPE_C noonwhistle11 = {&noonwhistle11_2, NOONWHISTLE_PLANE, {4,6,19,20},
+   {{-11,2},{17,17},{-43,-9},{-49,-5}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far noonwhistle_ss_tab[NOONWHISTLE_NUM_STATES] = 
+   {&noonwhistle1,&noonwhistle2,&noonwhistle3,&noonwhistle4,&noonwhistle5,&noonwhistle6,
+    &noonwhistle7,&noonwhistle8,&noonwhistle9,&noonwhistle10,&noonwhistle11};
+
+/* size. */
+TIM_VEC_C far noonwhistle_size[NOONWHISTLE_NUM_STATES] = 
+   {{11,23},{17,23},{17,23},{18,23},{45,23},{55,23},
+    {58,23},{62,24},{68,29},{78,31},{76,32}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far noonwhistle_os[NOONWHISTLE_NUM_STATES] = 
+   {{0,0},{-3,0},{0,0},{0,0},{-35,0},{-57,0},{-62,0},{-71,-1},
+    {-81,-12},{-104,-15},{-97,-18}};
+
+/* border definitions. */
+static PART_BORDER_C far noonwhistle1_bord[NOONWHISTLE_BORDERS] =
+   {{0,5,0},{6,0,0},{11,5,0},{8,23,0},
+    {5,23,0}};
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void whistle_reinit(PART *whistle)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!whistle)
+   {
+      set_border_slopes(PT_WHISTLE,0,noonwhistle1_bord,0,0);
+      return;
+   }
+
+   whistle->border = noonwhistle1_bord;
+
+   if (whistle->state < 4)
+   {
+      whistle->rope_loc[0].x = 14;
+      whistle->rope_loc[0].y = 43;
+   }
+   else
+   {
+      whistle->rope_loc[0].x = 53;
+      whistle->rope_loc[0].y = 41;
+   }
+
+   set_adjusted_loc_size(whistle);
+}
+
+
+#pragma argsused
+short whistle_rope(PART *from_part,PART *whistle,short tie_num,short rope_type,short mass,long force)
+{
+   rope_type &= (/*RP_JUST_CHECK|RP_SLACK|RP_PULL_UP|*/RP_PULL_DOWN);
+
+   if (rope_type == RP_PULL_DOWN)
+      whistle->sub_state = 1;
+
+   return(0);
+}
+
+
+void whistle_internal(PART *whistle)
+{
+   PART *pptr;
+
+   static const far char state_array[] =
+   {
+      1,2,3,4,4,5,6,7,8,5,6,7,8,5,6,7,8,9,10,11,1
+   };
+   #define NUM_STATES         (sizeof(state_array)/sizeof(char))
+   #define WHISTLE_RATE       3
+
+   /* check if the whistle is on */
+   if (whistle->sub_state)
+   {
+      /* animate whistle */
+      if (!(++whistle->work_var % WHISTLE_RATE))
+      {
+         if (++whistle->toon_state >= NUM_STATES)
+         {
+            whistle->toon_state--;
+            whistle->state = 0;
+         }
+         else
+         {
+            whistle->state = state_array[whistle->toon_state] - 1;
+            whistle_reinit(whistle);
+         }
+      }
+
+      if (  (whistle->state == 4)
+         && (whistle->old_state == 3))
+         jtp_sx_play(SX_NOONWHISTLE,10,0);
+
+      /* tell Al and Sid it's lunch time. */
+      if (  (whistle->state == 4)
+         && (whistle->old_state == 7))
+      {
+         pptr = get_first_part(F1_MOVE_L);
+         while (pptr)
+         {
+            switch (pptr->type)
+            {
+               case PT_AL_CAT:
+                  pptr->sub_state = CAT_LUNCH_INDEX;
+                  break;
+               case PT_SID_MOUSE:
+                  pptr->sub_state = SID_LUNCH_INDEX;
+                  break;
+            }
+            pptr = get_next_part(pptr, F1_MOVE_L);
+         }
+      }
+   }
+}
+
+
+

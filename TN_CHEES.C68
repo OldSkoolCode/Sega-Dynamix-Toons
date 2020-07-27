@@ -1,0 +1,42 @@
+/* * * * *
+*
+*  TN_CHEES.C
+*
+*  This file contains all the code associated with the cheese.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/13/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void cheese_reinit(PART *cheese)
+{
+   static PART_BORDER_C far part57_1_bord[CHEESE_BORDERS] =
+      {{0,3,0},{11,0,0},{18,2,0},{18,7,0},{15,9,0},{9,10,0},
+      {4,10,0},{0,6,0}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!cheese)
+   {
+      set_border_slopes(PT_CHEESE, 0, part57_1_bord, 0, 0);
+      return;
+   }
+
+   cheese->border = part57_1_bord;
+   set_adjusted_loc_size(cheese);
+}
+
+
+

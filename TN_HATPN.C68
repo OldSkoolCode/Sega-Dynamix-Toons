@@ -1,0 +1,115 @@
+/* * * * *
+*
+*  TN_HATPN.C
+*
+*  This file contains all the code associated with the hatpin.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/13/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void hatpin_reinit(PART *hatpin)
+{
+   /* border definitions. */
+   static PART_BORDER_C far hatpin1_bord[HATPIN_BORDERS] =
+      {{2,0},{2,14},{3,19},{0,19},{1,14}};
+   static PART_BORDER_C far hatpin2_bord[HATPIN_BORDERS] =
+      {{0,0},{8,1},{19,1},{6,2},{0,3}};
+   static PART_BORDER hatpin1_fbord[HATPIN_BORDERS];
+   static PART_BORDER hatpin2_fbord[HATPIN_BORDERS];
+
+   void *shape;
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!hatpin)
+   {
+      set_border_slopes(PT_HATPIN, 2, hatpin1_bord, hatpin1_fbord, 0);
+      set_border_slopes(PT_HATPIN, 1, hatpin2_bord, hatpin2_fbord, 0);
+      return;
+   }
+
+   switch (hatpin->state)
+   {
+      case 0:
+         /* check if the borders should be flipped vertically. */
+         if (hatpin->flags2 & F2_FLIP_V_DRAW)
+            hatpin->border = hatpin1_fbord;
+         else
+            hatpin->border = hatpin1_bord;
+
+         if ((shape = prop[PT_HATPIN].part_shapes) != 0)
+         {
+				GetFrameWH(0,0,shape,&hatpin->base_size.x, &hatpin->base_size.y);
+				hatpin->base_size.x <<= VIRTUALCOORDS;
+				hatpin->base_size.y <<= VIRTUALCOORDS;
+         }
+         break;
+      case 1:
+         /* check if the borders should be flipped vertically. */
+         if (hatpin->flags2 & F2_FLIP_H_DRAW)
+            hatpin->border = hatpin2_fbord;
+         else
+            hatpin->border = hatpin2_bord;
+
+         if ((shape = prop[PT_HATPIN].part_shapes) != 0)
+         {
+				GetFrameWH(0,1,shape,&hatpin->base_size.x, &hatpin->base_size.y);
+				hatpin->base_size.x <<= VIRTUALCOORDS;
+				hatpin->base_size.y <<= VIRTUALCOORDS;
+         }
+         break;
+   }
+   set_adjusted_loc_size(hatpin);
+}
+
+void hatpin_flip(PART *hatpin,short flip_mode)
+{
+   /* check for a horizontal flip */
+   if (flip_mode == TSM_FLIP_LR)
+   {
+      /* check if the hatpin is already in the horizontal orientation. */
+      if (hatpin->state)
+         hatpin->flags2 ^= F2_FLIP_H_DRAW;
+      else
+      {
+         hatpin->state = 1;
+         hatpin->flags2 &= (F2_FLIP_V_DRAW ^ 0xffff);
+      }
+   }
+   
+   /* check for a vertical flip */
+   if (flip_mode == TSM_FLIP_TB)
+   {
+      /* check if the hatpin is already in the vertical orientation. */
+      if (!hatpin->state)
+         hatpin->flags2 ^= F2_FLIP_V_DRAW;
+      else
+      {
+         hatpin->state = 0;
+         hatpin->flags2 &= (F2_FLIP_H_DRAW ^ 0xffff);
+      }
+   }
+
+   hatpin->start_state = hatpin->state;
+
+   hatpin_reinit(hatpin);
+   set_adjusted_loc_size(hatpin);
+   part_to_er(hatpin,1|2);
+   set_redraw(hatpin,2);
+}
+
+
+

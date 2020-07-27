@@ -1,0 +1,144 @@
+/* * * * *
+*
+*  DYNAMITE.C
+*
+*  This file contains the dynamite routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/01/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                     BOMB                                    *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* supershape structure definition */
+static F_SSHAPE_C bomb1 = {0, BOMB_PLANE, {0,2,255,255},
+   {{1,6},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C bomb2 = {0, BOMB_PLANE, {0,2,4,7},
+   {{1,6},{0,0},{-1,-4},{-8,-14}}};
+static F_SSHAPE_C bomb3 = {0, BOMB_PLANE, {0,2,3,6},
+   {{1,6},{0,0},{0,-2},{-7,-10}}};
+static F_SSHAPE_C bomb4 = {0, BOMB_PLANE, {0,2,4,5},
+   {{1,6},{0,0},{0,-1},{-6,-8}}};
+static F_SSHAPE_C bomb5 = {0, BOMB_PLANE, {0,2,3,7},
+   {{1,6},{0,0},{-1,0},{-8,-10}}};
+static F_SSHAPE_C bomb6 = {0, BOMB_PLANE, {0,4,6,255},
+   {{1,6},{-1,2},{-11,-7},{0,0}}};
+static F_SSHAPE_C bomb7 = {0, BOMB_PLANE, {0,3,5,255},
+   {{1,6},{-1,3},{-7,-3},{0,0}}};
+static F_SSHAPE_C bomb8 = {0, BOMB_PLANE, {0,255,255,255},
+   {{1,6},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C bomb9 = {0, BOMB_PLANE, {1,255,255,255},
+   {{-1,12},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far bomb_ss_tab[BOMB_NUM_STATES] = 
+   {&bomb1,&bomb2,&bomb3,&bomb4,&bomb5,&bomb6,
+    &bomb7,&bomb8,&bomb9};
+
+/* size. */
+TIM_VEC_C far bomb_size[BOMB_NUM_STATES] = 
+   {{19,24},{26,38},{25,34},{25,32},{27,34},{30,31},
+    {25,27},{19,24},{24,26}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far bomb_os[BOMB_NUM_STATES] = 
+   {{0,0},{-15,-29},{-13,-21},{-12,-17},{-16,-20},{-22,-15},{-13,-6},{0,0},
+    {-2,0}};
+
+/* border definitions. */
+static PART_BORDER_C far bomb1_bord[BOMB_BORDERS] =
+   {{0,0,0},{4,0,0},{4,5,0},{13,6,0},
+    {18,12,0},{18,19,0},{13,23,0},{6,23,0},
+    {1,18,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far bomb_bord_tab[BOMB_NUM_STATES] =
+   {bomb1_bord,bomb1_bord,bomb1_bord,bomb1_bord,
+    bomb1_bord,bomb1_bord,bomb1_bord,bomb1_bord,
+    bomb1_bord};
+
+static P_PART_BORDER far bomb_fbord_tab[BOMB_NUM_STATES];
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void dynamite_reinit(PART *d_part)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!d_part)
+   {
+      set_border_table_slopes(PT_BOMB, 1, bomb_bord_tab, bomb_fbord_tab, BOMB_NUM_STATES);
+      return;
+   }
+
+   if (d_part->flags2 & F2_FLIP_H_DRAW)
+      d_part->border = bomb_fbord_tab[d_part->state];
+   else
+      d_part->border = bomb_bord_tab[d_part->state];
+   set_adjusted_loc_size(d_part);
+}
+
+short dynamite_bounce(PART *cur_part)
+{
+   PART *d_part;
+
+   d_part = cur_part->col_info.part;
+   if (cur_part->type == PT_BULLET)
+      explode(d_part,-15,-19);
+
+   return(1);
+}
+
+void dynamite_internal(PART *d_part)
+{
+   static const char far state_array[] =
+   {
+      1,1,2,2,3,3,4,4,5,5,6,6,7,7,7,7,8,8,8,8,8
+   };
+   #define NUM_STATES   (sizeof(state_array)/sizeof(char))
+
+   /* wait for fuse to catch on fire */
+   if ((!d_part->sub_state) && (d_part->work_var1 > 20))
+         d_part->sub_state = 1;
+
+   if (d_part->sub_state)
+   {
+      if (!d_part->toon_state)
+         jtp_sx_play(SX_BOMB,3,0);
+
+      if (d_part->toon_state == (NUM_STATES-1))
+         explode(d_part,-15,-19);
+      else
+      {
+         /* burn fuse */
+         d_part->state = state_array[++d_part->toon_state];
+         dynamite_reinit(d_part);
+      }
+   }
+}
+
+
+#pragma argsused
+void dynamite_flip(PART *d_part,short flip_mode)
+{
+   d_part->flags2 ^= F2_FLIP_H_DRAW;
+   dynamite_reinit(d_part);
+
+   part_to_er(d_part,1|2);
+   set_redraw(d_part,2);
+}
+
+

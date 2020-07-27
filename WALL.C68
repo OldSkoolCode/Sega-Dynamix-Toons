@@ -1,0 +1,102 @@
+/* * * * *
+*
+*  WALL.C
+*
+*  This file contains wall routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/01/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "simlib.h"
+#include "tim.h"
+
+
+
+
+void wall_reinit(PART *w_part)
+{
+   P_PART_BORDER border_ptr;
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!w_part)
+      return;
+
+   border_ptr = w_part->border;
+   border_ptr->x = 0;
+   border_ptr->y = 3;
+   border_ptr++;
+   border_ptr->x = w_part->size.x-1;
+   border_ptr->y = 3;
+   border_ptr++;
+   border_ptr->x = w_part->size.x-1;
+   border_ptr->y = w_part->size.y-1;
+   border_ptr++;
+   border_ptr->x = 0;
+   border_ptr->y = w_part->size.y-1;
+   set_border_slope(w_part);
+}
+
+
+
+void wall_resize(PART *wall_part)
+{
+   P_PART_BORDER point1,point2,point3;
+
+   switch(tim_sub_mode)
+   {
+      case TSM_RESIZING|TSM_SIZE_L:
+      case TSM_RESIZING|TSM_SIZE_R:
+         wall_part->place_size.y = 8<<VIRTUALCOORDS;
+         break;
+
+      case TSM_RESIZING|TSM_SIZE_T:
+      case TSM_RESIZING|TSM_SIZE_B:
+         wall_part->place_size.x = 8<<VIRTUALCOORDS;
+         break;
+   }
+
+   wall_part->size.x = wall_part->place_size.x;
+   wall_part->size.y = wall_part->place_size.y;
+
+   point1 = wall_part->border + 1;
+   point2 = point1+1;
+   point3 = point2+1;
+
+   point1->x = point2->x = wall_part->size.x-1;
+   point2->y = point3->y = wall_part->size.y - 1;
+}
+
+
+/* * * * *
+*
+*  short wall_bounce(PART *cur_part);
+*
+* * * * */
+short wall_bounce(PART *cur_part)
+{
+   short bord_num;
+
+   bord_num = cur_part->col_info.border_num;
+   switch (cur_part->type)
+   {
+      case PT_BASEBALL:
+      case PT_SOCCER:
+         if (((bord_num == 0) || (bord_num == 2)) &&
+            ((cur_part->speed.y  < -EIGHT_PIX) ||
+            (cur_part->speed.y > EIGHT_PIX)))
+            cur_part->sub_state = cur_part->work_var = 1;
+         else
+            if ((cur_part->speed.x < -EIGHT_PIX) ||
+               (cur_part->speed.x > EIGHT_PIX))
+            cur_part->sub_state = cur_part->work_var = 2;
+   }
+   return(1);
+}
+
+

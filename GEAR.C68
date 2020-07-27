@@ -1,0 +1,287 @@
+/* * * * *
+*
+*  GEAR.C
+*
+*  This file contains gear routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  05/18/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "simlib.h"
+
+
+
+/*local defs */
+#define GEAR_SAME       1
+#define GEAR_OPPOSITE   2
+
+
+/*local routines */
+void add_to_x_speed( PART *, short);
+void sub_from_x_speed( PART *, short);
+void add_to_y_speed( PART *, short);
+void sub_from_y_speed( PART *, short);
+short test_gear_frozen( PART *, PART *, short, short);
+void move_gears( PART *, short);
+
+static PART_BORDER_C far bord0[8] = {{4,0,0},{11,0,0},{15,4,0},{15,11,0},
+      {11,15,0},{4,15,0},{0,11,0},{0,4,0}};
+
+
+
+
+void add_to_x_speed(PART *pptr,short speed)
+{
+   if ((pptr->speed.x+=speed) > speed)
+      pptr->speed.x = speed;
+}
+
+void sub_from_x_speed(PART *pptr,short speed)
+{
+   if ((pptr->speed.x-=speed) < speed)
+      pptr->speed.x = 0-speed;
+}
+
+void add_to_y_speed(PART *pptr,short speed)
+{
+   if ((pptr->speed.y+=speed) > speed)
+      pptr->speed.y = speed;
+}
+
+void sub_from_y_speed(PART *pptr,short speed)
+{
+   if ((pptr->speed.y-=speed) < speed)
+      pptr->speed.y = 0-speed;
+}
+
+
+
+short gear_bounce(PART *cur_part)
+{
+   short speed,hspeed;
+   short cur_sub_state,bord_num;
+   PART *gear_part;
+
+   gear_part = cur_part->col_info.part;
+
+   cur_sub_state = gear_part->state - gear_part->old_state;
+   if (cur_sub_state > 1)
+      cur_sub_state = -1;
+   else
+      if (cur_sub_state < -1)
+         cur_sub_state = 1;
+
+   if (cur_sub_state)
+   {
+      if (cur_part->type == PT_BALLOON)
+      {
+         cur_part->sub_state = 1;
+         return(1);
+      }
+
+      if (cur_sub_state > 0)
+         bord_num = cur_part->col_info.border_num;
+      else
+         bord_num = (cur_part->col_info.border_num+4) & 0x7;
+
+      speed = (8<<SCALE_SHIFT);
+      hspeed = speed>>1;
+      switch (bord_num)
+      {
+         case 0:
+            add_to_x_speed(cur_part,speed);
+            break;
+
+         case 1:
+            add_to_x_speed(cur_part,hspeed);
+            add_to_y_speed(cur_part,hspeed);
+            break;
+
+         case 2:
+            add_to_y_speed(cur_part,speed);
+            break;
+
+         case 3:
+            sub_from_x_speed(cur_part,hspeed);
+            add_to_y_speed(cur_part,hspeed);
+            break;
+
+         case 4:
+            sub_from_x_speed(cur_part,speed);
+            break;
+
+         case 5:
+            sub_from_x_speed(cur_part,hspeed);
+            sub_from_y_speed(cur_part,hspeed);
+            break;
+
+         case 6:
+            sub_from_y_speed(cur_part,speed);
+            break;
+
+         case 7:
+            add_to_x_speed(cur_part,hspeed);
+            sub_from_y_speed(cur_part,hspeed);
+            break;
+      }
+   }
+
+   return(1);
+}
+
+
+
+void gear_reinit(PART *g_part)
+{
+   short delt_x,delt_y,i;
+   PART *pptr;
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!g_part)
+   {
+      set_border_slopes(PT_GEAR, 0, bord0, 0, 0);
+      return;
+   }
+
+   g_part->border = bord0;
+
+   for (i=0;i<4;i++)
+      g_part->wpptr[i] = 0;
+
+   pptr = static_list.next;
+   while (pptr != 0)
+   {
+      if ((pptr != g_part) && (pptr->type == PT_GEAR))
+      {
+         delt_x = g_part->start_scrn_loc.x - pptr->start_scrn_loc.x;
+         delt_y = g_part->start_scrn_loc.y - pptr->start_scrn_loc.y;
+         if (delt_y == 0)
+         {
+            if (delt_x == 32)
+               g_part->wpptr[GN_LEFT] = pptr;
+            else
+               if (delt_x == -32)
+                  g_part->wpptr[GN_RIGHT] = pptr;
+         }
+         else
+            if (delt_x == 0)
+            {
+               if (delt_y == 32)
+                  g_part->wpptr[GN_TOP] = pptr;
+               else
+                  if (delt_y == -32)
+                     g_part->wpptr[GN_BOTTOM] = pptr;
+            }
+      }
+
+      pptr = pptr->next;
+   }
+}
+
+
+
+void gear_internal(PART *gear_part)
+{
+   short frozen,i;
+   PART *pptr;
+
+   if (gear_part->sub_state)
+   {
+      gear_part->flags2 |= F2_INTERNAL;
+
+      frozen = 0;
+      for (i=0;i<4;i++)
+         if ((pptr=gear_part->wpptr[i]) != 0)
+            frozen = test_gear_frozen(gear_part,pptr,GEAR_OPPOSITE,frozen);
+
+      if (frozen)
+         gear_part->sub_state = 0;
+      move_gears(gear_part,frozen);
+   }
+}
+
+
+
+short test_gear_frozen(PART *from_gear,PART *to_gear,short direction,short frozen)
+{
+   short i,next_direction;
+   PART *pptr;
+
+   if (to_gear->sub_state)
+   {
+      if ((direction==GEAR_SAME) && (to_gear->sub_state!=from_gear->sub_state))
+         frozen = 1;
+      else
+         if ((direction==GEAR_OPPOSITE) && (to_gear->sub_state==from_gear->sub_state))
+            frozen = 1;
+   }
+   else
+   {
+      if (direction == GEAR_SAME)
+         to_gear->sub_state = from_gear->sub_state;
+      else
+         to_gear->sub_state = 0 - from_gear->sub_state;
+   }
+
+   if ((to_gear->type==PT_GEAR) && (!(to_gear->flags2&F2_INTERNAL)))
+   {
+      to_gear->flags2 |= F2_INTERNAL;
+
+      for (i=0;i<5;i++)
+      {
+         if (i==4)
+         {
+            pptr = get_belt_link(to_gear);
+            next_direction = GEAR_SAME;
+         }
+         else
+         {
+            pptr = to_gear->wpptr[i];
+            next_direction = GEAR_OPPOSITE;
+         }
+
+         if (pptr && (!(pptr->flags2 & F2_ROT_PROVIDE)))
+            frozen = test_gear_frozen(to_gear,pptr,next_direction,frozen);
+      }
+   }
+
+   return(frozen);
+}
+
+
+
+void move_gears( PART *gear_part, short frozen)
+{
+   short i;
+   PART *pptr;
+
+   gear_part->state += gear_part->sub_state;
+   if (gear_part->state == -1)
+      gear_part->state = 3;
+   else
+      if (gear_part->state == 4)
+         gear_part->state = 0;
+   gear_part->sub_state = 0;
+
+   for (i=0;i<5;i++)
+   {
+      if (i==4)
+         pptr = get_belt_link(gear_part);
+      else
+         pptr = gear_part->wpptr[i];
+
+      if (pptr && pptr->sub_state && !(pptr->flags2&F2_ROT_PROVIDE))
+      {
+         if (frozen)
+            pptr->sub_state = 0;
+         if (pptr->type == PT_GEAR)
+            move_gears(pptr,frozen);
+      }
+   }
+}

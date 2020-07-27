@@ -1,0 +1,202 @@
+/* * * * *
+*
+*  TN_SOUND.C
+*
+*  This module contains all the code used in the interface and functionality
+*  of the sounds and music.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/10/93 ChrisC   File created
+*
+* * * * */
+#include <string.h>
+#include <ctype.h>
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "tim_text.h"
+
+
+#define JTP_SX_SFX      -3    /* Only the sound effects */
+
+/* * * * *
+*
+*  local variables to this module
+*
+* * * * */
+static signed char volume;
+static signed char music;
+static signed char mute = -1;
+
+#define MAX_SONGS                (NUM_MUSIC_SONGS - 1)
+#define MAX_VOL                  7
+#define scale_volume_up(x)       ((x)*100/7) 
+#define scale_volume_down(x)     ((x)*7/100)
+ 
+
+/* * * * *
+*
+*  local function to this module
+*
+* * * * */
+void process_sound_meter(void);
+void draw_horn_numbers(char number, char operation, short x, short y);
+
+
+
+/* * * * *
+*
+*  void do_toon_horn(void);
+*
+*  This function manages the interface and functionality of the horn button.
+*  It assumes that tim_mode = TOON_HORN.
+*
+* * * * */
+void do_toon_horn(void)
+{
+}
+
+
+
+/* * * * *
+*
+*  short get_button_sound(void);
+*
+*  This function will return (pseudo randomly) the sound id of a button.
+*
+* * * * */
+short get_button_sound(void)
+{
+}
+
+
+
+/* * * * *
+*
+*  void process_sound_meter(void);
+*
+*  This function will emulate a sound meter.
+*
+* * * * */
+void process_sound_meter(void)
+{
+}
+
+
+
+/* * * * *
+*
+*  void draw_horn_numbers(char number, char operation, short x, short y);
+*
+*  This function will draw the specified number and operation at the specified
+*  location.
+*
+*  If operation =
+*
+*     0,    then simply draw the number.
+*     1,    then increment the number.
+*     2,    then decrement the number.
+*
+* * * * */
+void draw_horn_numbers(char number, char operation, short x, short y)
+{
+}
+
+
+
+/* * * * *
+*
+*  void draw_toon_horn(char button, short x, short y);
+*
+*  This function will handle all the drawing and animation of the load arrow
+*  button.
+*  if
+*     button = 0, then draw button off.
+*     button = 1, then draw button on.
+*     button = 2, then toggle button from off to on to off.
+*
+*  This function will draw all shapes to vm_dstptr = vm_buffptr.
+*
+* * * * */
+void draw_toon_horn(char button, short x, short y)
+{
+}
+
+
+
+/* * * * *
+*
+*  void draw_horn(char button, short x, short y);
+*
+*  This function will draw all the cells of the horn requester.
+*
+*  If button
+*     =  0,  then draw background.
+*     =  1,  then draw lights all off.
+*     =  2,  then draw one light on.
+*     =  3,  then draw two lights on.
+*     =  4,  then draw three lights on.
+*     =  5,  then draw four lights on.
+*     =  6,  then draw five lights on.
+*     =  7,  then draw six lights on.
+*     =  8,  then draw all lights on.
+*     =  9,  then draw number bar erase.
+*     = 10,  then draw erase all.
+*     = 11,  then draw top vol buttn up.
+*     = 12,  then draw top vol butn down.
+*     = 13,  then draw bottom vol butn up.
+*     = 14,  then draw bottom vol button dn.
+*     = 15,  then draw speaker norm.
+*     = 16,  then draw speaker smashed.
+*     = 17,  then draw left button up.
+*     = 18,  then draw left button down.
+*     = 19,  then draw right button up.
+*     = 20,  then draw right button down.
+*     = 21,  then draw never mind up.
+*     = 22,  then draw never mind down.
+*     = 23,  then draw zero.
+*     = 24,  then draw 0 to 1 frame1.
+*     = 25,  then draw 0 to 1 frame 2.
+*     = 26,  then draw one.
+*     = 27,  then draw 1 to 2 frame1.
+*     = 28,  then draw 1 to 2 frame2.
+*     = 29,  then draw two.
+*     = 30,  then draw 2 to 3 frame1.
+*     = 31,  then draw 2 to 3 frame2.
+*     = 32,  then draw three.
+*     = 33,  then draw 3 to 4 frame1.
+*     = 34,  then draw 3 to 4 frame2.
+*     = 35,  then draw four.
+*     = 36,  then draw 4 to 5 frame1.
+*     = 37,  then draw 4 to 5 frame2.
+*     = 38,  then draw five.
+*     = 39,  then draw 5 to 6 frame1.
+*     = 40,  then draw 5 to 6 frame2.
+*     = 41,  then draw six.
+*     = 42,  then draw 6 to 7 frame1.
+*     = 43,  then draw 6 to 7 frame2.
+*     = 44,  then draw seven.
+*     = 45,  then draw 7 to 8 frame1.
+*     = 46,  then draw 7 to 8 frame2.
+*     = 47,  then draw eight.
+*     = 48,  then draw 8 to 9 frame1.
+*     = 49,  then draw 8 to 9 frame2.
+*     = 50,  then draw nine.
+*     = 51,  then draw 9 to 0 frame1.
+*     = 52,  then draw 9 to 0 frame2.
+*     = 53,  then draw R corner Redraw.
+*     = 54,  then draw upper hammer Erase.
+*     = 55,  then draw xtra speaker erase.
+*  
+*  This function assumes that the shape tables are loaded into memory.
+*
+* * * * */
+void draw_horn(char button, short x, short y)
+{
+}
+
+
+

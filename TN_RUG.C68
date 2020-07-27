@@ -1,0 +1,104 @@
+/* * * * *
+*
+*  TN_RUG.C
+*
+*  This file contains all the code associated with the rug.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  08/08/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void rug_reinit(PART *rug)
+{
+   /* border definitions. */
+   static PART_BORDER_C far rug1_bord[RUG_BORDERS] =
+      {{0,2,0},{31,2,0},{31,7,0},{0,7,0}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!rug)
+   {
+      set_border_slopes(PT_RUG,0,rug1_bord,0,0);
+      return;
+   }
+
+   rug->border = rug1_bord;
+   set_adjusted_loc_size(rug);
+}
+
+ 
+/* * * * *
+*
+*  short rug_collide(PART *cur_part);
+*
+* * * * */
+short rug_collide(PART *cur_part)
+{
+   PART *rug;
+   short cat_mid_x, rug_mid_x;
+
+   /* assigns the pointers to the correct parts. */
+   if (cur_part->type == PT_PIANO)
+   {
+      rug = cur_part;
+      cur_part = cur_part->col_info.part;
+   }
+   else
+      rug = cur_part->col_info.part;
+   
+   /* check if the cat has collided with the rug */
+   if (cur_part->type == PT_AL_CAT)
+   {
+      /* calculate the midpoints of the two parts */
+      if (cur_part->flags2&F2_FLIP_H_DRAW)
+         cat_mid_x = cur_part->scrn_loc.x + cur_part->base_size.x -
+            (cur_part->offset.x + (cur_part->size.x>>1));
+      else
+         cat_mid_x = cur_part->scrn_loc.x +
+            (cur_part->offset.x + (cur_part->size.x>>1));
+      rug_mid_x = rug->scrn_loc.x + rug->offset.x + (rug->size.x>>1);
+   
+      /* check if the cat is in the correct location on the rug */
+      if ((cat_mid_x > rug_mid_x-5) && (cat_mid_x < rug_mid_x+5))
+      {
+         cur_part->sub_state = CAT_RUG_INDEX;
+         rug->sub_state = 1;
+      }
+   }
+   return(1);
+}
+
+
+void rug_internal(PART *rug)
+{
+   if (rug->sub_state)
+   {
+      if (!rug->state)
+      {
+         /* reset the states */
+         rug->state = 1;
+         character_from_static_to_move(rug);
+         
+         /* relocate to fit the animation */
+         rug->loc.x = rug->scrn_loc.x += 13;
+         rug->loc.y = rug->scrn_loc.y -= 20;
+         rug->loc.x <<= SCALE_SHIFT;
+         rug->loc.y <<= SCALE_SHIFT;
+         rug_reinit(rug);
+      }
+      rug->border = 0;
+   }
+}
+
+

@@ -1,0 +1,55 @@
+/* * * * *
+*
+*  TN_MY_VM.C
+*
+*  This module contains the remapping of the vm function calls.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/15/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+
+
+/* * * * *
+*
+*  void vm_my_line(short x1, short y1, short x2, short y2);
+*
+*  This function will add the global offsets to the coordinates.
+*
+* * * * */
+void vm_my_line(short x1, short y1, short x2, short y2)
+{
+   vm_line(x1+x_offset, y1+y_offset, x2+x_offset, y2+y_offset);
+}
+
+
+
+
+/* * * * *
+*
+*  void vm_my_rect(short x, short y, short w, short h);
+*
+*  This function will add the global offsets to the coordinates.
+*
+* * * * */
+void vm_my_rect(short x, short y, short w, short h)
+{
+}
+
+
+
+
+
+
+
+
+
+

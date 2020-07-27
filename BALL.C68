@@ -1,0 +1,205 @@
+/* * * * *
+*
+*  BALL.C
+*
+*  This file contains the bowling ball, basketball, tennis ball,
+*  baseball, and gear border routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/18/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                  BASEBALL                                  *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* Constant data */
+#define BASEBALL_PLANE       BALL_PLANE
+#define BASEBALL_PLANE1      BALL_PLANE1
+#define BASEBALL_BORDERS     BALL_BORDERS
+#define BASEBALL_NUM_STATES  3
+
+/* supershape structure definition */
+static F_SSHAPE_C baseball1 = {0, BASEBALL_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C baseball2 = {0, BASEBALL_PLANE, {1,255,255,255},
+   {{-3,4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C baseball3 = {0, BASEBALL_PLANE, {2,255,255,255},
+   {{2,-5},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far baseball_ss_tab[BASEBALL_NUM_STATES] = 
+   {&baseball1,&baseball2,&baseball3};
+
+/* size. */
+TIM_VEC_C far baseball_size[BASEBALL_NUM_STATES] = 
+   {{16,17},{19,17},{16,24}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far baseball_os[BASEBALL_NUM_STATES] = 
+   {{0,0},{-6,0},{0,-11}};
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   SOCCER                                   *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* Constant data */
+#define SOCCER_PLANE       BALL_PLANE
+#define SOCCER_PLANE1      BALL_PLANE1
+#define SOCCER_BORDERS     BALL_BORDERS
+#define SOCCER_NUM_STATES  3
+
+/* supershape structure definition */
+static F_SSHAPE_C soccer1 = {0, SOCCER_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C soccer2 = {0, SOCCER_PLANE, {1,255,255,255},
+   {{-5,4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C soccer3 = {0, SOCCER_PLANE, {2,255,255,255},
+   {{4,-3},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far soccer_ss_tab[SOCCER_NUM_STATES] = 
+   {&soccer1,&soccer2,&soccer3};
+
+/* size. */
+TIM_VEC_C far soccer_size[SOCCER_NUM_STATES] = 
+   {{18,18},{27,18},{18,26}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far soccer_os[SOCCER_NUM_STATES] = 
+   {{0,0},{-9,0},{0,-7}};
+
+/* * * * *
+*
+*  void ball_reinit(PART *ball);
+*
+*  This function will reinit the ball depending on the type of the ball.
+*
+* * * * */
+void ball_reinit(PART *ball)
+{
+   static PART_BORDER_C far dustbunny[8] = {{10,2,0},{17,2,0},{20,6,0},{20,11,0},{11,13,0},{2,11,0},{2,8,0},{9,5,0}};
+   static PART_BORDER_C far rock[8] = {{4,0,0},{13,0,0},{18,5,0},{18,15,0},{10,18,0},{3,18,0},{0,12,0},{0,5,0}};
+   static PART_BORDER_C far yarnball[8] = {{3,0,0},{10,0,0},{13,4,0},{13,10,0},{9,13,0},{2,13,0},{0,10,0},{0,3,0}};
+   static PART_BORDER_C far baseball[8] = {{9,0,0},{16,0,0},{16,5,0},{11,17,0},{2,17,0},{0,11,0},{0,7,0},{2,2,0}};
+   static PART_BORDER_C far soccerball[8] = {{4,0,0},{14,0,0},{17,6,0},{17,13,0},{12,17,0},{4,17,0},{0,12,0},{0,4,0}};
+   static PART_BORDER_C far beachball[8] = {{4,0,0},{13,0,0},{17,4,0},{17,13,0},{13,17,0},{4,17,0},{0,13,0},{0,4,0}};
+   static PART_BORDER_C far cat_eye_marble[8] = {{1,0,0},{5,0,0},{7,2,0},{7,6,0},{5,7,0},{1,7,0},{0,6,0},{0,2,0}};
+   static PART_BORDER_C far steely_marble[8] = {{1,0,0},{5,0,0},{7,1,0},{7,5,0},{5,7,0},{1,7,0},{0,4,0},{0,2,0}};
+   static PART_BORDER_C far boulder_marble[8] = {{1,0,0},{6,0,0},{8,2,0},{8,6,0},{6,8,0},{2,8,0},{0,6,0},{0,2,0}};
+   static PART_BORDER_C far pee_wee_marble[8] = {{0,0,0},{4,0,0},{4,1,0},{4,4,0},{3,4,0},{1,4,0},{0,4,0},{0,2,0}};
+   static PART_BORDER_C far stripe_marble[8] = {{1,0,0},{5,0,0},{6,2,0},{6,5,0},{4,6,0},{1,6,0},{0,5,0},{0,2,0}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!ball)
+   {
+      set_border_slopes(PT_DUSTBUNNY,  0, dustbunny,        0, 0);
+      set_border_slopes(PT_ROCK,       0, rock,             0, 0);
+      set_border_slopes(PT_YARNBALL,   0, yarnball,         0, 0);
+      set_border_slopes(PT_BASEBALL,   0, baseball,         0, 0);
+      set_border_slopes(PT_SOCCER,     0, soccerball,       0, 0);
+      set_border_slopes(PT_BEACHBALL,  0, beachball,        0, 0);
+      set_border_slopes(PT_CAT_EYE_M,  0, cat_eye_marble,   0, 0);
+      set_border_slopes(PT_STEELY_M,   0, steely_marble,    0, 0);
+      set_border_slopes(PT_BOULDER_M,  0, boulder_marble,   0, 0);
+      set_border_slopes(PT_PEE_WEE_M,  0, pee_wee_marble,   0, 0);
+      set_border_slopes(PT_STRIPE_M,   0, stripe_marble,    0, 0);
+      return;
+   }
+
+   switch (ball->type)
+   {
+      case PT_DUSTBUNNY:
+         ball->speed.x = ball->speed.y = TWO_PIX;
+         ball->border = dustbunny;
+         break;
+      case PT_ROCK:
+         ball->border = rock;
+         break;
+      case PT_YARNBALL:
+         ball->border = yarnball;
+         break;
+      case PT_BASEBALL:
+         ball->border = baseball;
+         break;
+      case PT_SOCCER:
+         ball->border = soccerball;
+         break;
+      case PT_BEACHBALL:
+         ball->border = beachball;
+         break;
+      case PT_CAT_EYE_M:
+         ball->border = cat_eye_marble;
+         break;
+      case PT_STEELY_M:
+         ball->border = steely_marble;
+         break;
+      case PT_BOULDER_M:
+         ball->border = boulder_marble;
+         break;
+      case PT_PEE_WEE_M:
+         ball->border = pee_wee_marble;
+         break;
+      case PT_STRIPE_M:
+         ball->border = stripe_marble;
+         break;
+      default:
+         ball->border = soccerball;
+         break;
+   }
+   set_adjusted_loc_size(ball);
+}
+
+
+/* * * * *
+*
+*  void ball_internal(PART *ball);
+*
+* * * * */
+void ball_internal(PART *ball)
+{
+   #define BALL_NUM_ANIM 5
+   static const char far state_array1[BALL_NUM_ANIM] = {2,2,1,1,1};
+   static const char far state_array2[BALL_NUM_ANIM] = {1,1,2,2,2};
+
+   switch (ball->type)
+   {
+      case PT_BASEBALL:
+      case PT_SOCCER:
+         if (ball->sub_state)
+         {
+            if (ball->type == PT_BASEBALL)
+               jtp_sx_play(SX_BASEBALL, 2, 0);
+            else
+               jtp_sx_play(SX_SOCCER, 2, 0);
+
+            ball->toon_state = BALL_NUM_ANIM;
+            ball->state = ball->sub_state;
+            ball->sub_state = 0;
+         }
+
+         if (ball->toon_state)
+         {
+            ball->toon_state--;
+            if (ball->work_var == 1)
+               ball->state = state_array1[ball->toon_state];
+            else
+               ball->state = state_array2[ball->toon_state];
+         }
+         else
+            ball->state = 0;
+         break;
+   }
+}
+
+

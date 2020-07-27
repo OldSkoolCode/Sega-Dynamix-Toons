@@ -1,0 +1,507 @@
+/* * * * *
+*
+*  PHYSICS.C
+*
+*  This file contains routines to handle parts' physics.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  02/14/92 Kevin Ryan  File created
+*
+* * * * */
+
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "simlib.h"
+
+
+
+/*local routines */
+/*static void do_bounce_sound( PART *); */
+
+
+
+
+void init_prop_physics()
+{
+   short i;
+   short a,dp,dl,grav;
+   long work_dl;
+   P_PART_ELEMENTS elements;
+
+   grav = cur_level.gravity;
+   if (grav < 140)
+   {
+      grav >>= 2;
+      grav++;
+   }
+   else
+      if (grav > 278)
+         grav <<= 1;
+
+   dl = cur_level.density;
+   if (dl < 70)
+      dl >>= 1;
+   else
+      dl <<= 4;
+
+   for (i=0;i<TN_NUM_PARTS;i++)
+   {
+      elements = &prop[i];
+
+      dp = elements->density;
+
+      if (dp == dl)
+         a = 0;
+      else
+         if (dp > dl)
+         {
+            work_dl = smuls(dl,grav);
+            work_dl = work_dl/dp;
+            a = (short) work_dl;
+            a = grav - a;
+         }
+         else
+         {
+            work_dl = smuls(dp,grav);
+            work_dl = work_dl/dl;
+            a = (short) work_dl;
+            a -= grav;
+         }
+
+      elements->acel = a;
+
+      if ((i == PT_BULLET) || (i == PT_CANNON_B))
+      {
+         elements->terminal_velocity = EIGHT_PIX + FOUR_PIX;
+         if (i == PT_BULLET)
+            elements->acel = 0;
+      }
+      else
+      {
+         if (i == PT_EIGHTBALL)
+            elements->acel = 0;
+
+         elements->terminal_velocity = EIGHT_PIX + TWO_PIX - dl;
+
+         if (i == PT_DUSTBUNNY)
+         {
+            elements->terminal_velocity = TWO_PIX;
+            elements->acel = 0;
+         }
+      }
+   }
+}
+
+
+
+void check_term_velocity(PART *pptr)
+{
+   P_PART_ELEMENTS elements;
+
+   elements = &prop[pptr->type];
+
+   if (pptr->speed.y > elements->terminal_velocity)
+      pptr->speed.y = elements->terminal_velocity;
+   else
+      if (pptr->speed.y < (-elements->terminal_velocity))
+         pptr->speed.y = (-elements->terminal_velocity);
+
+   if (pptr->speed.x > elements->terminal_velocity)
+      pptr->speed.x = elements->terminal_velocity;
+   else
+      if (pptr->speed.x < (-elements->terminal_velocity))
+         pptr->speed.x = (-elements->terminal_velocity);
+}
+
+
+
+void adjust_falling(PART *cur_part)
+{
+   P_PART_ELEMENTS elements;
+
+   elements = &prop[cur_part->type];
+
+   cur_part->speed.y += elements->acel;
+   check_term_velocity(cur_part);
+
+   cur_part->force = smuls(abs(cur_part->speed.x)+abs(cur_part->speed.y),
+      cur_part->mass);
+}
+
+
+
+void adjust_rolling(PART *cur_part)
+{
+   cur_part->speed.y++;
+/*   cur_part->speed.y--; */
+}
+
+
+
+void move_part(PART *cur_part)
+{
+   cur_part->loc.x += cur_part->speed.x;
+   cur_part->loc.y += cur_part->speed.y;
+   if (cur_part->flags1 & F1_ROLLING)
+   {
+      if (prop[cur_part->type].acel > 0)
+         cur_part->loc.y += TWO_PIX;
+      else
+         cur_part->loc.y -= TWO_PIX;
+   }
+   cur_part->scrn_loc.x = cur_part->loc.x >> SCALE_SHIFT;
+   cur_part->scrn_loc.y = cur_part->loc.y >> SCALE_SHIFT;
+
+   /* check for out of bounds. */
+/*
+   if (cur_part->scrn_loc.x < -1000)
+   {
+      cur_part->loc.x = cur_part->scrn_loc.x = -1000;
+      cur_part->loc.x <<= SCALE_SHIFT;
+   }
+   else if (cur_part->scrn_loc.x > 6000)
+   {
+      cur_part->loc.x = cur_part->scrn_loc.x = 6000;
+      cur_part->loc.x <<= SCALE_SHIFT;
+   }
+
+   if (cur_part->scrn_loc.y < -1000)
+   {
+      cur_part->loc.y = cur_part->scrn_loc.y = -1000;
+      cur_part->loc.y <<= SCALE_SHIFT;
+   }
+   else if (cur_part->scrn_loc.y > 6000)
+   {
+      if (cur_part->flags1 & F1_CREATED)
+         cur_part->flags2 |= F2_INACTIVE;
+      else
+      {
+         cur_part->loc.y = cur_part->scrn_loc.y = 6000;
+         cur_part->loc.y <<= SCALE_SHIFT;
+      }
+   }
+*/
+
+   if (  (cur_part->scrn_loc.x < -1000)
+      || (cur_part->scrn_loc.x > 2000)
+      || (cur_part->scrn_loc.y < -1000)
+      || (cur_part->scrn_loc.y > 2000))
+      cur_part->flags2 |= F2_INACTIVE;
+
+   set_adjusted_loc_size(cur_part);
+}
+
+
+
+void roll_part(PART *cur_part)
+{
+   short slope,x,new_x,friction;
+   short cos_ang,sin_ang;
+   short acel,abs_acel;
+   short N1,N2,Ff,Ff_x,a_xy,a_x;
+   long ly,work_long;
+   PART *col_part;
+   COLLIDE_INFO *ci_ptr;
+   P_PART_ELEMENTS elements1,elements2;
+
+   ci_ptr = &cur_part->col_info;
+   col_part = ci_ptr->part;
+   elements1 = &prop[cur_part->type];
+   elements2 = &prop[col_part->type];
+   acel = elements1->acel;
+
+   slope = ci_ptr->slope;
+   if ((slope==0x0000) || (slope==(short)0x8000))
+   {
+      if (!ci_ptr->left_of_cog_supported)
+         slope += 0x1000;
+      else
+         if (!ci_ptr->right_of_cog_supported)
+            slope -= 0x1000;
+   }
+
+   x = cur_part->speed.x;
+
+   if ((col_part->type==PT_HC_BELT) && (col_part->sub_state != 0))
+      friction = F_MAX;
+   else
+      friction = max(elements1->friction,elements2->friction);
+/*   friction = 16; */
+
+   cos_ang = ts_cos(-slope);
+   sin_ang = ts_sin(-slope);
+   abs_acel = abs(acel);
+
+   N1  = (short) (smuls(cos_ang,abs_acel)>>TRIGSHIFT);
+   if ( ((x>0)&&(slope>0)) || ((x<0)&&(slope<0)) )
+      N2 = (short) (smuls(sin_ang,x)>>TRIGSHIFT);
+   else
+      N2 = 0;
+
+   work_long = smuls(abs(N1)+abs(N2),friction);
+   Ff = (short) (work_long>>F_SHIFT);
+   Ff_x = (short) (smuls(cos_ang,Ff)>>TRIGSHIFT);
+   if (cur_part->flags1 & F1_SLIDES)
+      Ff_x = abs(Ff_x) + SLIDING_DAMPER;
+   else
+      Ff_x = abs(Ff_x) + ROLLING_DAMPER;
+
+   a_xy = (short) (smuls(sin_ang,abs_acel)>>TRIGSHIFT);
+   a_x =  (short) (smuls(abs(cos_ang),a_xy)>>TRIGSHIFT);
+
+   x += a_x;
+
+   if (x < 0)
+   {
+      new_x = x + Ff_x;
+      if (new_x < 0)
+         x = new_x;
+      else
+         x = 0;
+   }
+   else
+   {
+      new_x = x - Ff_x;
+      if (new_x > 0)
+         x = new_x;
+      else
+         x = 0;
+   }
+
+   cur_part->speed.x = x;
+/*   cur_part->speed.x = 0 - (ONE_PIX>>2); */
+
+   if ((slope+0x4000) & 0x8000)
+      cur_part->speed.y = (short) (smuls(ts_sin(-slope),-x)>>TRIGSHIFT);
+   else
+      cur_part->speed.y = (short) (smuls(ts_sin(-slope),x)>>TRIGSHIFT);
+
+   check_term_velocity(cur_part);
+
+   ly = (long) cur_part->scrn_loc.y;
+   if (acel >= 0)
+      cur_part->loc.y = ((ly+1)<<SCALE_SHIFT) -1;
+   else
+      cur_part->loc.y = ly<<SCALE_SHIFT;
+}
+
+
+void bounce(PART * cur_part)
+{
+   short slope,x,y,new_y,elast;
+   long lx,ly;
+   PART *col_part;
+   COLLIDE_INFO *ci_ptr;
+   P_PART_ELEMENTS elements1,elements2;
+
+   ci_ptr = &cur_part->col_info;
+   col_part = ci_ptr->part;
+   elements1 = &prop[cur_part->type];
+   elements2 = &prop[col_part->type];
+
+   slope = ci_ptr->slope;
+   if ((slope==0x0000) || (slope==(short)0x8000))
+   {
+      if (!ci_ptr->left_of_cog_supported)
+         slope += 0x1000;
+      else
+         if (!ci_ptr->right_of_cog_supported)
+            slope -= 0x1000;
+   }
+
+   x = cur_part->speed.x;
+   y = cur_part->speed.y;
+   rotate2d(&x,&y,slope);
+
+   elast = min(elements1->elasticity,elements2->elasticity);
+
+   if (elements1->friction != 0)
+   {
+      ly = smuls(y,elast);
+      y = (short) (ly>>E_SHIFT);
+      y = -y;
+      if (y < 0)
+      {
+         new_y = y + BOUNCE_DAMPER;
+         if (new_y < 0)
+            y = new_y;
+         else
+            y = 0;
+      }
+      else
+      {
+         new_y = y - BOUNCE_DAMPER;
+         if (new_y > 0)
+            y = new_y;
+         else
+            y = 0;
+      }
+   }
+   else
+      y = -y;
+
+   rotate2d(&x,&y,-slope);
+
+   cur_part->speed.x = x;
+   cur_part->speed.y = y;
+
+   check_term_velocity(cur_part);
+
+   lx = (long) cur_part->scrn_loc.x;
+   if (x>=0)
+      cur_part->loc.x = ((lx+1)<<SCALE_SHIFT) - 1;
+   else
+      cur_part->loc.x = lx<<SCALE_SHIFT;
+
+   ly = (long) cur_part->scrn_loc.y;
+   if (elements1->acel >= 0)
+      cur_part->loc.y = ((ly+1)<<SCALE_SHIFT) -1;
+   else
+      cur_part->loc.y = ly<<SCALE_SHIFT;
+}
+
+
+
+void impact(PART * cur_part)
+{
+   short ang1;
+   short m1,m2;
+   long m1_m2;
+   short x1,y1,x2,y2;
+   short center_x1,center_x2,sa_speed;
+   short special_adjust;
+/*   short new_x1,new_y1,new_x2,new_y2; */
+   long m1x1,m2x2,m2x1,m1x2;
+/*   long m1y1,m2y2,m2y1,m1y2; */
+   long lx,ly;
+   PART *col_part;
+   P_PART_ELEMENTS elements1,elements2;
+
+   col_part = cur_part->col_info.part;
+
+   cur_part->flags1 |= F1_DID_IMPACT;
+   col_part->flags1 |= F1_DID_IMPACT;
+
+   elements1 = &prop[cur_part->type];
+   elements2 = &prop[col_part->type];
+
+/*   elast = min(elements1->elasticity,elements2->elasticity); */
+
+   m1 = elements1->mass;
+   m2 = elements2->mass;
+
+   x1 = cur_part->speed.x;
+   y1 = cur_part->speed.y;
+   x2 = col_part->speed.x;
+   y2 = col_part->speed.y;
+
+   ang1 = angle_to_centers(cur_part,col_part);
+   ang1 -= 0x4000;
+
+   rotate2d(&x1,&y1,ang1);
+   rotate2d(&x2,&y2,ang1);
+
+   m1_m2 = (long) m1;
+   m1_m2 += (long) m2;
+
+   m1x1 = smuls(m1,x1);
+   m2x2 = smuls(m2,x2);
+   m2x1 = smuls(m2,x1);
+   m1x2 = smuls(m1,x2);
+
+/*   m1y1 = smuls(m1,y1); */
+/*   m2y2 = smuls(m2,y2); */
+/*   m2y1 = smuls(m2,y1); */
+/*   m1y2 = smuls(m1,y2); */
+
+   x1 = (short) ((m1x1+m2x2+m2x2-m2x1)/(m1_m2));
+/*   y1 = (short) ((m1y1+m2y2+m2y2-m2y1)/(m1_m2)); */
+   x2 = (short) ((m1x1+m1x1+m2x2-m1x2)/(m1_m2));
+/*   y2 = (short) ((m1y1+m1y1+m2y2-m1y2)/(m1_m2)); */
+
+   rotate2d(&x1,&y1,-ang1);
+   rotate2d(&x2,&y2,-ang1);
+
+/*   lx = smuls(x1,elast); */
+/*   x1 = (short) (lx>>E_SHIFT); */
+/*   lx = smuls(x2,elast); */
+/*   x2 = (short) (lx>>E_SHIFT); */
+/*   ly = smuls(y1,elast); */
+/*   y1 = (short) (ly>>E_SHIFT); */
+/*   ly = smuls(y2,elast); */
+/*   y2 = (short) (ly>>E_SHIFT); */
+
+   cur_part->speed.x = x1>>1;
+   cur_part->speed.y = y1>>1;
+   col_part->speed.x = x2>>1;
+   col_part->speed.y = y2>>1;
+
+   special_adjust = 0;
+   if ((abs(cur_part->speed.x)<256) && (abs(col_part->speed.x)<256))
+      special_adjust = 1;
+   if (cur_part->flags1 & F1_ROLLING)
+      special_adjust = 1;
+   if (cur_part->flags3 & F3_INSIDE)
+      special_adjust = 1;
+   if (special_adjust)
+   {
+/*      sa_speed = ONE_PIX; */
+      sa_speed = THREE_PIX;
+
+      center_x1 = cur_part->scrn_loc.x + cur_part->offset.x +
+         (cur_part->size.x>>1);
+      center_x2 = col_part->scrn_loc.x + col_part->offset.x +
+         (col_part->size.x>>1);
+
+      if (center_x1 < center_x2)
+      {
+         if (cur_part->speed.x > -sa_speed)
+            cur_part->speed.x = -sa_speed;
+         if ((cur_part->flags3 & F3_INSIDE) == 0)
+            if (col_part->speed.x < sa_speed)
+               col_part->speed.x = sa_speed;
+      }
+      else
+      {
+         if (cur_part->speed.x < sa_speed)
+            cur_part->speed.x = sa_speed;
+         if ((cur_part->flags3 & F3_INSIDE) == 0)
+            if (col_part->speed.x > -sa_speed)
+               col_part->speed.x = -sa_speed;
+      }
+   }
+
+   check_term_velocity(cur_part);
+   check_term_velocity(col_part);
+
+   lx = (long) cur_part->scrn_loc.x;
+   if (cur_part->speed.x>=0)
+      cur_part->loc.x = ((lx+1)<<SCALE_SHIFT) - 1;
+   else
+      cur_part->loc.x = lx<<SCALE_SHIFT;
+
+   ly = (long) cur_part->scrn_loc.y;
+   if (prop[cur_part->type].acel >= 0)
+      cur_part->loc.y = ((ly+1)<<SCALE_SHIFT) -1;
+   else
+      cur_part->loc.y = ly<<SCALE_SHIFT;
+
+
+   lx = (long) col_part->scrn_loc.x;
+   if (col_part->speed.x>=0)
+      col_part->loc.x = ((lx+1)<<SCALE_SHIFT) - 1;
+   else
+      col_part->loc.x = lx<<SCALE_SHIFT;
+
+   ly = (long) col_part->scrn_loc.y;
+   if (prop[col_part->type].acel >= 0)
+      col_part->loc.y = ((ly+1)<<SCALE_SHIFT) -1;
+   else
+      col_part->loc.y = ly<<SCALE_SHIFT;
+}
+
+

@@ -1,0 +1,120 @@
+/* * * * *
+*
+*  TN_TNBOX.C
+*
+*  This module contain code associated with the toon box requester.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/26/93 ChrisC   File created
+*
+* * * * */
+#include <stdlib.h>
+#include <stdio.h>
+#include <alloc.h>
+#include <string.h>
+#include "vm.h"
+#include "tim.h"
+
+
+/* * * * *
+*
+*  void do_toonbox(char mode);
+*
+*  This function manages the interface and functionallity of the toonbox
+*  requester.
+*
+* * * * */
+void do_toonbox(void)
+{
+}
+
+
+
+/* * * * *
+*
+*  char find_new_index(signed char index);
+*
+*  This function will return the index number of the part referenced relative
+*  to toon_box_index.
+*
+* * * * */
+char find_new_index(signed char index)
+{
+}
+
+
+
+/* * * * *
+*
+*  void draw_toon_box_icons(short start_num, short x, short y);
+*
+* * * * */
+void draw_toon_box_icons(short start_num, short x, short y)
+{
+}
+
+
+
+/* * * * *
+*
+*  void bring_up_toonbox_title(void);
+*
+*  This function will animate the title of the toon box.
+*
+* * * * */
+void bring_up_toonbox_title(void)
+{
+}
+
+
+
+/* * * * *
+*
+*  void push_button(char button, short x, short y, short w, short h);
+*
+*  This function will generically push the specified button on the toonbox.
+*
+* * * * */
+void push_button(char button, short x, short y, short w, short h)
+{
+}
+
+
+
+/* * * * *
+*
+*  void draw_toonbox(char button, short x, short y);
+*
+*  This function will draw all the cells of the toonbox requester.
+*
+*  If button
+*     =  0,  then draw background.
+*     =  1,  then draw top arrow up.
+*     =  2,  then draw top arrow down.
+*     =  3,  then draw bottom arrow up.
+*     =  4,  then draw bottom arrow down.
+*     =  5,  then draw t.
+*     =  6,  then draw o #1.
+*     =  7,  then draw o #2.
+*     =  8,  then draw n.
+*     =  9,  then draw b.
+*     = 10,  then draw o #3.
+*     = 11,  then draw x.
+*     = 12,  then draw left arrow up.
+*     = 13,  then draw left arrow down.
+*     = 14,  then draw right arrow up.
+*     = 15,  then draw right button down.
+*     = 16,  then draw angle arrow up.
+*     = 17,  then draw agle arrow down.
+*  
+*  This function assumes that the shape tables are loaded into memory.
+*
+* * * * */
+void draw_toonbox(char button, short x, short y)
+{
+}
+
+

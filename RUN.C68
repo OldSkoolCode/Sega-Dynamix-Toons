@@ -1,0 +1,153 @@
+/* * * * *
+*
+*  RUN.C
+*
+*  This file contains routines to run a machine.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/21/92 Kevin Ryan  File created
+*
+* * * * */
+#include <ctype.h>
+#include "vm.h"
+#include "tim.h"
+#include "toons.h"
+
+extern UBYTE numbers;
+/*local routines */
+static void pause_game( void);
+
+void run_machine()
+{
+	ULONG old_SYSVcount;
+	short i;
+	char tempfr[3];
+	ULONG fps;
+
+   init_run_machine();
+   tim_timing = 0;
+/*   vm_countdown = 10000; */
+	old_SYSVcount = SYS_VCount;		/* 40 seconds */
+
+	runfirsttime = TRUE;
+   while (tim_mode == TM_RUN)
+   {
+      process_hs(run_toon_hot_spots);
+      interactions();
+      set_redraw_from_er();
+      process_er();
+      draw_parts(1);
+/*      draw_panels_using_erase(); */
+      free_er_processed();
+
+/*      if(vm_timer_on)
+         while ((10000-vm_countdown) < 8)
+            ;
+      tim_timing += (10000-vm_countdown);
+      vm_countdown = 10000; */
+
+		while (SYS_VCount < (old_SYSVcount+3));
+
+		fps = (SYS_VCount-old_SYSVcount);
+		if (fps > 0)
+			i = 60/fps;
+		else
+			i = 60;
+
+		if (i > 9)
+			draw_bitmap(&numbers, 288, 0, 0, i/10);
+
+		draw_bitmap(&numbers, 296, 0, 0, i%10);
+
+      my_flip(1);
+		
+		runfirsttime = FALSE;
+
+      save_old_part_info();
+
+      if (!freeform_mode && !home_toon_puzzle)
+      {
+         if (victory_count < 0)
+	         check_victory();
+
+         if (!victory_count)
+            tim_mode = TM_VICTORY;
+         else if (victory_count > 0)
+            victory_count--;
+      }
+
+		if (SYS_JoyTable[JOY_START])
+			{
+			SYS_JoyTable[JOY_START] = 0;
+         pause_game();
+			}
+
+      run_count++;
+		/* Don't run forever? */
+		if ((SYS_JoyTable[JOY_C]) && (SYS_JoyTable[JOY_B]))
+			tim_mode = TM_VICTORY;
+
+		old_SYSVcount = SYS_VCount;
+   }
+   reset_run_machine();
+}
+
+
+void init_run_machine()
+{
+   reinit_parts();
+   
+   /* This sound initiallization really does not belong here. It should be  */
+   /* located just after the puzzle is loaded into memory. It should also be */
+   /* noted that the function is really just a stub. Furthermore there is a  */
+   /* sound reset function in reset_run_machine which also eventually needs to */
+   /* be moved. */
+   reinit_sounds();
+
+	/* reset sprite pageing system */
+	resetPaging();
+
+   change_mouse_icon(0);
+
+   active_part = 0;
+   run_count = 0;
+   victory_count = -1;
+   tim_timing = 0;
+/*   vm_countdown = 10000; */
+}
+
+
+void reset_run_machine()
+{
+   clear_ft();
+   reinit_parts();
+   
+   /* This is a stub see the comments in init_run_machine */
+   reset_sounds();
+
+	old_tim_mode = 0;
+
+}
+
+
+static void pause_game()
+{
+   choose_pause_icon();
+
+   while (!(SYS_JoyTable[JOY_START]))
+   {
+/*      while ((10000-vm_countdown) < 8)
+         ;
+      tim_timing += (10000-vm_countdown);
+      vm_countdown = 10000; */
+   }
+	SYS_JoyTable[JOY_START] = 0;
+
+
+   restore_icon();
+}
+
+

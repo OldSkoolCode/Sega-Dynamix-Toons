@@ -1,0 +1,190 @@
+/* * * * *
+*
+*  TN_ANT.C
+*
+*  This file contains ant generator routines.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  08/17/93 ChrisC   File created
+*
+* * * * */
+#include "defs.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                 ANT_ERNATOR                                *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ANIMATION
+        The ant cranks away. The root is supershape #1 with its eyes open or
+   supershape #2 with its eyes closed. The sequence for the ant is:
+   3,3,3,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,4,4,5,5,6,6,7,7,8,8,9,9,10,10,
+   4,4,5,5,6,6,7,7,8,8,9,9,10,10,4,4,5,5,6,6,7,7,8,8,9,9,10,10,4,4,5,5,6,6,
+   7,7,8,8,9,9,10,10.
+        The ramp should start moving at supershape #4 (after supershape #3).
+*/
+
+/* Constant data */
+#define ANT_ERNATOR_NUM_STATES  10
+
+/* supershape structure definition */
+static F_SSHAPE_C ant_ernator1 = {0, ANT_ERNATOR_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ant_ernator2 = {0, ANT_ERNATOR_PLANE, {0,9,255,255},
+   {{0,0},{7,4},{0,0},{0,0}}};
+static F_SSHAPE_C ant_ernator3 = {0, ANT_ERNATOR_PLANE, {1,255,255,255},
+   {{-4,-2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ant_ernator4 = {0, ANT_ERNATOR_PLANE, {2,255,255,255},
+   {{0,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ant_ernator5 = {0, ANT_ERNATOR_PLANE, {3,255,255,255},
+   {{3,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ant_ernator6 = {0, ANT_ERNATOR_PLANE, {4,255,255,255},
+   {{7,2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ant_ernator7 = {0, ANT_ERNATOR_PLANE, {5,255,255,255},
+   {{7,4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ant_ernator8 = {0, ANT_ERNATOR_PLANE, {6,255,255,255},
+   {{5,4},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ant_ernator9 = {0, ANT_ERNATOR_PLANE, {7,255,255,255},
+   {{3,3},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C ant_ernator10 = {0, ANT_ERNATOR_PLANE, {8,255,255,255},
+   {{1,2},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far ant_ernator_ss_tab[ANT_ERNATOR_NUM_STATES] = 
+   {&ant_ernator1,&ant_ernator2,&ant_ernator3,&ant_ernator4,&ant_ernator5,
+    &ant_ernator6,&ant_ernator7,&ant_ernator8,&ant_ernator9,&ant_ernator10};
+
+/* size. */
+TIM_VEC_C far ant_ernator_size[ANT_ERNATOR_NUM_STATES] = 
+   {{26,24},{26,24},{29,26},{26,22},{27,23},{31,22},
+    {35,22},{34,22},{29,22},{26,22}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far ant_ernator_os[ANT_ERNATOR_NUM_STATES] = 
+   {{0,0},{0,0},{-7,-5},{0,3},{0,1},{0,3},{0,3},{0,3},
+    {0,3},{0,3}};
+
+/* border definitions. */
+static PART_BORDER_C far ant_ernator1_bord[ANT_ERNATOR_BORDERS] =
+   {{0,17,0},{7,1,0},{25,11,0},{25,19,0},
+    {19,23,0},{12,23,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far ant_ernator_bord_tab[ANT_ERNATOR_NUM_STATES] =
+   {ant_ernator1_bord,ant_ernator1_bord,ant_ernator1_bord,ant_ernator1_bord,
+    ant_ernator1_bord,ant_ernator1_bord,ant_ernator1_bord,ant_ernator1_bord,
+    ant_ernator1_bord,ant_ernator1_bord};
+static P_PART_BORDER far ant_ernator_fbord_tab[ANT_ERNATOR_NUM_STATES];
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void ant_reinit(PART *ant)
+{
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!ant)
+   {
+      set_border_table_slopes(PT_ANT, 1, ant_ernator_bord_tab,
+         ant_ernator_fbord_tab, ANT_ERNATOR_NUM_STATES);
+      return;
+   }
+
+   if (ant->flags2 & F2_FLIP_H_DRAW)
+   {
+      ant->border = ant_ernator_fbord_tab[ant->state];
+      ant->belt_loc.x = (52-38)-12;
+   }
+   else
+   {
+      ant->border = ant_ernator_bord_tab[ant->state];
+      ant->belt_loc.x = 38-12; /* 24; */
+   }
+   ant->belt_loc.y = 35-12; /* 35; */
+   ant->belt_size = 24; /* 8; */
+
+   set_adjusted_loc_size(ant);
+}
+
+
+
+short ant_bounce(PART *cur_part)
+{
+   startle_ant(cur_part->col_info.part);
+   return(1);
+}
+
+
+
+void ant_internal(PART *ant)
+{
+   PART *pptr;
+   static const char far state_array[] =
+   {
+      1,2,2,2,2,
+      3,3,3,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10
+   };
+   #define ANT_NUM_STATES  (sizeof(state_array)/sizeof(char))
+   #define ANT_START_CYCLE 10
+
+   if (((pptr=get_belt_link(ant)) != 0) && (ant->state > 2))
+      if (!(pptr->flags2 & F2_ROT_PROVIDE))
+         pptr->sub_state = ant->sub_state;
+
+   if (ant->sub_state)
+   {
+      ant->state = state_array[++ant->toon_state] - 1;
+      if (ant->toon_state == ANT_NUM_STATES - 1)
+      {
+         ant->toon_state = ANT_START_CYCLE;
+         jtp_sx_play(SX_ANT_GRUNT,0,0);
+      }
+
+      if (!--ant->work_var)
+      {
+         ant->sub_state = 0;
+         ant->state = state_array[ant->toon_state = 0] - 1;
+      }
+
+      ant_reinit(ant);
+   }
+}
+
+
+
+#pragma argsused
+void ant_flip(PART *ant,short flip_mode)
+{
+   ant->flags2 ^= F2_FLIP_H_DRAW;
+
+   if (ant->flags2 & F2_FLIP_H_DRAW)
+      ant->belt_loc.x = 28;
+   else
+      ant->belt_loc.x = 24;
+
+   ant_reinit(ant);
+   sub_parts_to_er(ant,1|2);
+   part_to_er(ant,1|2);
+   set_redraw(ant,2);
+}
+
+
+
+void startle_ant(PART *ant)
+{
+   if (ant->flags2 & F2_FLIP_H_DRAW)
+      ant->sub_state = -1;
+   else
+      ant->sub_state = 1;
+   ant->work_var = 100;
+}
+
+

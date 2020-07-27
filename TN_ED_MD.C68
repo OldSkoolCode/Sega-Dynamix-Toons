@@ -1,0 +1,336 @@
+/* * * * *
+*
+*  TN_ED_MD.C
+*
+*  This module manages the toon puzzle editor mode.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  03/04/93 ChrisC   File created
+*
+* * * * */
+#include <string.h>
+#include <ctype.h>
+#include <math.h>
+#include "vm.h"
+#include "vm_mylib.h"
+#include "tim.h"
+#include "tim_text.h"
+#include "toons.h"
+
+
+
+/* * * * *
+*
+*  local function to this module
+*
+* * * * */
+
+
+
+
+/* * * * *
+*
+*  void do_toon_edit_panel(void);
+*
+*  This function handles all the edit panel interface.
+*
+* * * * */
+void do_toon_edit_panel(void)
+{
+   char exit_edit_panel = 0;
+	short redraw;
+	SSHAPE_C *ssptr;
+	UCHAR plane;
+	UWORD temp;
+
+   puzzle_edit_button = freeform_mode;
+
+	power_buttons = FALSE;
+   /* restore mouse icon */
+   setup_toon_edit();
+	/* make all current parts static on the screen */
+	makeTempStatic(FALSE);
+
+	FPCStorePal(&catroot);
+	FPCStorePal(&cursors);
+	FadeIn(30);
+
+   /* Display the initial goal and title  */
+   if(!freeform_mode)
+      do_toon_clapper();
+
+   /* control loop */
+   while (!exit_edit_panel)
+   {
+      icon_changed = 0;
+      tim_mode = TOON_EDIT;
+		if (partbin_active)
+			{
+	      if ((tim_sub_mode!=TSM_PLACE) && !(tim_sub_mode&TSM_RESIZING)) 
+				{
+			   redraw_panels();
+				do_partbin();
+				}
+			}
+
+		if ((SYS_JoyHit) && (SYS_JoyTable[JOY_START]))
+			{
+			SYS_JoyHit = FALSE;
+			makeTempStatic(TRUE);
+			do_speed_select();
+			}
+
+		if ((SYS_JoyHit) && (SYS_JoyTable[JOY_C]))
+			{
+			SYS_JoyHit = FALSE;
+			active_part = 0;
+			partbin_active ^= 1;
+			makeTempStatic(TRUE);
+			}
+
+      switch (tim_mode)
+      {
+         case TOON_GO:
+				cursoractive = FALSE;
+            jtp_sx_play(SX_GO,0,0);
+            reset_toon_edit();
+            determine_smart_ends(0);
+            tim_mode = TM_RUN;
+            run_machine();
+            /* check for a victory of the puzzle */
+            if (tim_mode == TM_VICTORY)
+               do_toon_rip();
+            tim_mode = TOON_EDIT;
+            setup_toon_edit();
+				/* make all current parts static on the screen */
+				makeTempStatic(FALSE);
+            mouse_clear_buttons();
+				cursoractive = TRUE;
+            break;
+         case TOON_CONTROL:
+            control_button ^= 1;
+            jtp_sx_play(SX_CONTROL,0,0);
+            break;
+			case TOON_STOP:
+				reset_level();
+				static_list.next = static_list.prev = move_list.next = move_list.prev =
+				avail_list.next = avail_list.prev = 0;
+				pb_part = &avail_list;
+            unique_pb = 0;
+				return;
+#if SAVERAM
+			case TOON_TEMPSAVE:
+				if (freeform_mode)
+					{
+					makeTempStatic(TRUE);
+					save_level("");
+					}
+				else
+					{
+               load_puzzle("", EDIT_PUZZLE);
+					ClearMapBuff(&MapABuff);
+					addDMAQueue(ScrAAddr, 64*2*28, &MapABuff);
+					waitDMAQueue();
+					makeTempStatic(FALSE);
+					}
+				break;
+#endif
+      }
+   
+      /* check if control panel submode is active. */
+      if (  control_button
+         && (tim_sub_mode!=TSM_PLACE)
+         && !(tim_sub_mode&TSM_RESIZING))
+      {
+         if (!puzzle_edit_button)
+         {
+            tim_mode = TOON_PUZZLE_MODE;
+            process_hs(edit_panel_hot_spots);
+            switch (tim_mode)
+            {
+               case TOON_FAIRY:
+               case TOON_PUZZLE:
+                  jtp_sx_play(SX_FAIRY,0,0);
+                  draw_toon_fairy(1, 0, 0);
+
+                  /* toggle between puzzle play mode and puzzle edit mode. */
+                  toggle_toon_edit_play();
+               
+                  /* set up the free form mode. */
+                  reset_level();
+                  static_list.next = static_list.prev = move_list.next = move_list.prev =
+                     avail_list.next = avail_list.prev = 0;
+                  make_free_form();
+                  pb_part = &avail_list;
+                  reinit_parts();
+                  unique_pb = 0;
+                  redraw_rbi = 2;
+
+                  /* refresh play screen. */
+                  vm_dstptr = vm_buffptr;
+                  vm_dstptr = vm_buffptr;
+                  vm_srcptr = vm_scrnptr;
+                  break;
+               case TOON_LOAD_ARROW:
+                  jtp_sx_play(SX_LOAD_ARROW,0,0);
+                  draw_toon_load_arrow(2, 0, 0);
+                  grey_panels();
+                  do_toon_pig(tim_mode);
+                  break;
+               case TOON_PIG:
+                  jtp_sx_play(SX_PIG,0,0);
+                  grey_panels();
+                  do_toon_pig(tim_mode);
+                  break;
+               case TOON_CLAPPER:
+                  jtp_sx_play(SX_CLAPPER,0,0);
+                  draw_toon_clapper(2, 0, 0);
+                  do_toon_clapper();
+                  break;
+               case TOON_HORN:
+                  jtp_sx_play(SX_HORN,0,0);
+                  draw_toon_horn(2, 0, 0);
+                  grey_panels();
+                  do_toon_horn();
+                  break;
+               case TOON_NUKE:
+                  jtp_sx_play(SX_NUKE,0,0);
+                  grey_panels();
+                  do_toon_nuke();
+                  break;
+            }
+         }
+         else
+         {
+            tim_mode = TOON_FREE_FORM;
+            process_hs(edit_panel_hot_spots);
+            switch (tim_mode)
+            {
+               case TOON_PUZZLE:
+                  jtp_sx_play(SX_PUZZLE,0,0);
+                  draw_toon_puzzle(1, 0, 0);
+
+                  /* toggle between puzzle edit mode and puzzle play mode. */
+                  toggle_toon_edit_play();
+
+                  /* set up the puzzle mode. */
+                  reset_level();
+                  freeform_mode = 0;
+                  load_next_puzzle();
+                  redraw_rbi = 2;
+
+                  /* Show the title and description */
+                  do_toon_clapper();
+                  break;
+
+               case TOON_LOAD_ARROW:
+                  jtp_sx_play(SX_LOAD_ARROW,0,0);
+                  draw_toon_load_arrow(2, 0, 0);
+                  grey_panels();
+                  do_toon_pig(tim_mode);
+                  break;
+               case TOON_SAVE_ARROW:
+                  jtp_sx_play(SX_SAVE_ARROW,0,0);
+                  draw_toon_save_arrow(2, 0, 0);
+                  grey_panels();
+                  do_toon_pig(tim_mode);
+                  break;
+               case TOON_PIG:
+                  jtp_sx_play(SX_PIG,0,0);
+                  draw_toon_pig(2, 0, 0);
+                  grey_panels();
+                  do_toon_pig(tim_mode);
+                  break;
+               case TOON_CLAPPER:
+                  jtp_sx_play(SX_CLAPPER,0,0);
+                  draw_toon_clapper(2, 0, 0);
+                  do_toon_clapper();
+                  break;
+               case TOON_HORN:
+                  jtp_sx_play(SX_HORN,0,0);
+                  draw_toon_horn(2, 0, 0);
+                  grey_panels();
+                  do_toon_horn();
+                  break;
+               case TOON_NUKE:
+                  jtp_sx_play(SX_NUKE,0,0);
+                  grey_panels();
+                  do_toon_nuke();
+                  break;
+               case TOON_CHKLIST_BUTTON:
+                  jtp_sx_play(SX_CHKLIST,0,0);
+                  draw_toon_chklist(1, 0, 0);
+                  do_toon_chklist();
+                  break;
+            }
+         }
+
+         /* Debounce the buttons */
+         if((tim_mode != TOON_FREE_FORM) && (tim_mode != TOON_PUZZLE_MODE))
+				SYS_JoyHit = 0;
+      }
+		/******************************************************************/
+		/* if active part then needs to be on top, so priority gets set	*/
+		/*	it actually needs to be last to be drawn so it can be 			*/
+		/*	manipulated	without haveing to redraw everything else 			*/
+		/* this was taken out of drawing.c68 so that the active_part		*/
+		/* will get redrawn every time												*/
+		/******************************************************************/
+
+	   if (active_part)
+		   {
+			SYS_ScrollUpdate = FALSE;
+			plane = active_part->plane_num;
+			if (active_part->flags2 & F2_SUPERSHAPE)
+				{
+		      ssptr = *(prop[active_part->type].super_shapes);
+				plane = ssptr->plane_num;
+				}
+
+//			spriteChar |= 0x8000;
+			temp = globPriority;
+			globPriority = 0xc0;
+			/* put characters in sprites for now */
+	      is_partbin = TRUE;
+			redraw = active_part->redraw;
+         draw_part(active_part,0,0,plane);
+         active_part->redraw = ((redraw & 0x7f) - 1) | (redraw & 0x80);
+//			spriteChar &= ~0x8000;
+			globPriority = temp;
+	      is_partbin = FALSE;
+      	}
+
+      freeform_mode = puzzle_edit_button;
+      tim_mode = TM_EDIT;
+      edit_toon_machine();
+      reset_mouse_icon();
+		SYS_ScrollUpdate = TRUE;
+		my_flip(1);
+		
+   	change_mouse_icon(get_sub_mode_icons());
+   }
+}
+
+
+
+
+/* * * * *
+*
+*  void toggle_toon_edit_play(void);
+*
+*  This function manages the toggling of the two modes. It frees up memory as
+*  required, loads in bmp and sound files as needed, and flushes the screen.
+*
+* * * * */
+void toggle_toon_edit_play(void)
+{
+   puzzle_edit_button ^= 1;
+}
+
+
+
+
+

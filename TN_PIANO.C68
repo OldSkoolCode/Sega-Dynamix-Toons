@@ -1,0 +1,219 @@
+/* * * * *
+*
+*  TN_PIANO.C
+*
+*  This file contains all the code associated with the piano.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  06/28/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                    PIANO                                   *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+   ANIMATION
+   The resting state of the piano (part60) is shape #1. The falling state
+   of the piano is now shape #1. The crash animation sequence of the piano 
+   is 3,4,5,6,7,8. Frame #8 is the crashed piano without any clouds of smoke.
+
+   ROPE TIES
+   The piano with the rope around it is shape #2 (previously it was the
+   falling piano).
+   The offset if from the root supershape #1.
+        Supershape #    Offset
+        2               (27,-5)
+        3-8             (27,24)
+*/
+
+/* supershape structure definition */
+static F_SSHAPE_C piano1 = {0, PIANO_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C piano2 = {0, PIANO_PLANE, {0,7,1,255},
+   {{0,0},{29,0},{4,0},{0,0}}};
+static F_SSHAPE_C piano3 = {0, PIANO_PLANE, {2,3,255,255},
+   {{-7,10},{0,3},{0,0},{0,0}}};
+static F_SSHAPE_C piano4_2 = {0, PIANO_PLANE1, {4,255,255,255},
+   {{0,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C piano4 = {&piano4_2, PIANO_PLANE, {2,3,4,4},
+   {{-7,10},{0,3},{29,1},{11,25}}};
+static F_SSHAPE_C piano5_2 = {0, PIANO_PLANE1, {4,4,2,255},
+   {{37,0},{-10,-2},{-7,10},{0,0}}};
+static F_SSHAPE_C piano5 = {&piano5_2, PIANO_PLANE, {5,5,5,4},
+   {{-13,-3},{44,-2},{10,34},{8,28}}};
+static F_SSHAPE_C piano6_2 = {0, PIANO_PLANE1, {6,6,6,255},
+   {{-23,-7},{49,-8},{13,40},{0,0}}};
+static F_SSHAPE_C piano6 = {&piano6_2, PIANO_PLANE, {2,5,5,5},
+   {{-7,10},{-19,-2},{44,-4},{13,35}}};
+static F_SSHAPE_C piano7 = {0, PIANO_PLANE, {2,6,6,6},
+   {{-7,10},{-32,-7},{52,-7},{10,42}}};
+static F_SSHAPE_C piano8 = {0, PIANO_PLANE, {2,255,255,255},
+   {{-7,10},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far piano_ss_tab[PIANO_NUM_STATES] = 
+   {&piano1,&piano2,&piano3,&piano4,&piano5,&piano6,
+    &piano7,&piano8};
+
+/* size. */
+TIM_VEC_C far piano_size[PIANO_NUM_STATES] = 
+   {{38,25},{38,25},{55,30},{55,37},{68,46},{82,56},
+    {94,57},{55,14}};
+
+/* erase rectangle coordinate */
+TIM_SCVEC_C far piano_os[PIANO_NUM_STATES] = 
+   {{0,0},{0,0},{-14,7},{-14,2},{-25,-7},{-45,-16},{-63,-14},{-14,20}};
+
+/* border definitions. */
+static PART_BORDER_C far piano1_bord[PIANO_BORDERS] =
+   {{7,0,0},{37,0,0},{33,11,0},{34,17,0},
+    {26,24,0},{5,24,0},{1,13,0},{6,10,0},
+    {0,4,0}};
+static PART_BORDER_C far piano3_bord[PIANO_BORDERS] =
+   {{26,24,0},{5,24,0},{1,13,0},{13,11,0},
+    {33,14,0},{34,16,0},{26,24,0},{26,24,0},
+    {26,24,0}};
+
+/* border tables */
+static PC_PART_BORDER_C far piano_bord_tab[PIANO_NUM_STATES] =
+   {piano1_bord,piano1_bord,piano3_bord,piano3_bord,
+    piano3_bord,piano3_bord,piano3_bord,piano3_bord};
+
+/* * * * *
+*
+*  void piano_reinit(PART *piano);
+*
+*  This function will reinitiallize the borders of the piano character.
+*
+* * * * */
+void piano_reinit(PART *piano)
+{
+   static const char far rope_array[PIANO_NUM_STATES][2] =
+   {  
+      {35,7},
+      {35,7},
+      {35,35},
+      {35,35},
+      {35,35},
+      {35,35},
+      {35,35},
+      {35,35}
+   };
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!piano)
+   {
+      set_border_table_slopes(PT_PIANO, 0, piano_bord_tab, 0, PIANO_NUM_STATES);
+      return;
+   }
+
+   /* check if there is a rope attached to the piano */
+   if (piano->state < 2)
+   {
+      if (piano->rope_tie[0])
+         piano->state = 1;
+      else
+         piano->state = 0;
+   }
+
+   piano->rope_loc[0].x = rope_array[piano->state][0];
+   piano->rope_loc[0].y = rope_array[piano->state][1];
+   piano->border = piano_bord_tab[piano->state];
+   set_adjusted_loc_size(piano);
+}
+
+
+/* * * * *
+*
+*  short piano_collide(PART *cur_part);
+*
+* * * * */
+short piano_collide(PART *cur_part)
+{
+   PART *piano;
+
+   /* assigns the pointers to the correct parts. */
+   if (cur_part->type == PT_PIANO)
+   {
+      piano = cur_part;
+      cur_part = cur_part->col_info.part;
+   }
+   else
+      piano = cur_part->col_info.part;
+   
+   /* check if the piano is falling */
+   if (piano->speed.y - cur_part->speed.y > PIANO_FALL_THRESHOLD) 
+   {
+      switch (cur_part->type)
+      {
+         case PT_HC_BELT:
+         case PT_WALL0:
+         case PT_WALL1:
+         case PT_WALL2:
+         case PT_WALL3:
+         case PT_WALL4:
+         case PT_WALL5:
+         case PT_AL_CAT:
+         case PT_SID_MOUSE:
+         case PT_MESSAGER:
+         case PT_RUG:
+         case PT_TRAP_DOOR:
+            /* kill the bounce */
+            piano->speed.y = piano->speed.x = 0;
+            piano->sub_state = 1;
+            break;
+      }
+   }
+   return(1);
+}
+
+
+/* * * * *
+*
+*  void piano_internal(PART *piano);
+*
+* * * * */
+void piano_internal(PART *piano)
+{
+   static const char far state_array[] =
+   {
+      2,3,4,5,6,7,8
+   };
+   #define FALL_NUM_STATES    (sizeof(state_array)/sizeof(char))
+   #define FALL_RATE          2
+
+   /* check if the piano has hit any thing yet. */
+   if (piano->sub_state)
+   {
+      if (!piano->work_var)
+         jtp_sx_play(SX_PIANO, 2, 0);
+
+      if (piano->work_var >= 0)
+      {
+         if (!(++piano->work_var % FALL_RATE))
+         {
+            if (piano->work_var < FALL_NUM_STATES * FALL_RATE)
+            {
+               piano->state = state_array[piano->work_var / FALL_RATE] - 1;
+               piano_reinit(piano);
+            }
+            else
+               piano->work_var = -1;
+         }
+      }
+   }
+}
+
+
+
+

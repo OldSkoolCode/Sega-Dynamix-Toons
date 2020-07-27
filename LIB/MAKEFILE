@@ -1,0 +1,28 @@
+#****************************************************************************
+#				 SEGA CD TOONS
+#				   MAKEFILE
+#
+# We use Borland Make version 3.1.
+#****************************************************************************
+
+.silent
+
+# These are the C files
+COFILES=
+
+ASMFILES=dmaqueue.o fastmul.o fastdiv.o vdplib.o puts.o scroll.o
+
+ASMFILES2=maps.o sprites.o general.o wrom.o
+
+.c68.o :
+	echo Compiling $*.c68
+	com68 -g1 -Q $*.c68 $(.path.o)\tmpxxx.s
+	asm68 -AQkl -o $(.path.o)\$*.o $(.path.o)\tmpxxx.s
+
+.asm.o :
+	echo Macro Assembling $*.asm
+	asm68k -AQklCL -o $*.o $*.asm
+	lib68 -r segalib.lib $*.o
+	
+
+segalib.lib: $(COFILES) $(ASMFILES) $(ASMFILES2)

@@ -1,0 +1,30 @@
+MAKE Version 3.6  Copyright (c) 1992 Borland International
+
+Available memory 7282160 bytes
+
+        bcc -c -v -mm bmp2fpa.c
+Borland C++  Version 3.1 Copyright (c) 1992 Borland International
+bmp2fpa.c:
+Error bmp2fpa.c 417: ) expected
+Error bmp2fpa.c 542: Undefined symbol 'Cur_Char' in function Get_BRLELine
+Error bmp2fpa.c 619: Undefined symbol 'plane' in function Get_Sizes
+Warning bmp2fpa.c 620: Call to function 'BMP_Render' with no prototype in function Get_Sizes
+Warning bmp2fpa.c 667: Call to function 'BMP_Close' with no prototype in function Get_Sizes
+Error bmp2fpa.c 687: Undefined symbol 'Cur_Char' in function Get_Char
+Error bmp2fpa.c 717: Undefined symbol 'Cur_Char' in function Get_BMYLine
+Error bmp2fpa.c 746: Undefined symbol 'Cur_Char' in function Get_BMXLine
+Error bmp2fpa.c 771: Undefined symbol 'Cur_Char' in function Write_Chars
+Error bmp2fpa.c 783: Undefined symbol 'Cur_Char' in function Write_Scaled
+Error bmp2fpa.c 795: Undefined symbol 'Cur_Char' in function Write_Bitmaps
+Error bmp2fpa.c 810: Undefined symbol 'Cur_Char' in function Write_RLE
+Error bmp2fpa.c 884: Undefined symbol 'Cur_Char' in function findDupFrame
+Warning bmp2fpa.c 960: Call to function 'BMP_Close' with no prototype in function main
+Warning bmp2fpa.c 1096: Call to function 'BMP_Render' with no prototype in function main
+Error bmp2fpa.c 1137: Undefined symbol 'Cur_Char' in function main
+Error bmp2fpa.c 1277: Undefined symbol 'planes' in function main
+Warning bmp2fpa.c 1283: Call to function 'BMP_Close' with no prototype in function main
+*** 13 errors in Compile ***
+
+        Available memory 4017072
+
+** error 1 ** deleting bmp2fpa.obj

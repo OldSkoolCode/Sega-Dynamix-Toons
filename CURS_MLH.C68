@@ -1,0 +1,113 @@
+/* * * * *
+*
+*  CURS_MLH.C
+*
+*  This file contains the crawl routines for the dots around objects.
+*
+*  By Matthew Hubbard -- (c) 1993 Futurescape Productions.
+*
+*  Modification History:
+*  ---------------------
+*  12/09/93 mlh   File created
+*
+* * * * */
+
+
+/************************************************************************/
+/* Include files 																			*/
+/************************************************************************/
+#include "vm.h"
+#include "tim.h"
+
+extern UWORD SYS_SprAvail;
+extern UBYTE crawl;
+UWORD volatile crawlChars;
+
+short const crawl_offset[5] = {1, 1, 0, -1, -1};
+
+/************************************************************************/
+/* Function:		void put_crawl(x, y, width, height, anim)					*/
+/* Description:	put crawling dots around an object							*/
+/* Parameters:		(x,y) - upper left hand corner of rectangle				*/
+/* 					(width, height) - width and height of rectangle			*/
+/* 					(anim) - number between 0 and 4								*/
+/* Returns:			.																		*/
+/************************************************************************/
+void put_crawl(short x, short y, short width, short height, short anim, short color)
+{
+	short work_x, work_y, dot_width, dot_height;
+	short loop_x0, loop_y0;
+	short loop_x1, loop_y1;
+	short i, j, k;
+
+	if (!crawlChars)
+		return;
+
+	x -= hscrollValue;
+	y -= vscrollValue;
+	k= 0;
+	dot_width = (width + 2) / 5;
+	dot_height = (height + 2) / 5;
+	i = (width + 2) % 5;
+	work_x = x + crawl_offset[i];
+	i = (height + 2) % 5;
+	work_y = y + crawl_offset[i];
+	anim = anim % 5;			/* just making sure */
+
+	/* drawing the horizontal crawls */
+	loop_x0 = work_x + anim;
+	loop_y0 = work_y;
+	loop_x1 = work_x + 5 - anim;
+	loop_y1 = work_y + (dot_height * 5);
+
+	for (j = dot_width; j > 0; j -= 6) {
+		if (j >= 6) {
+			i = 0;
+		} else {
+			i = 6 - j;
+		}
+
+		if (color == GREEN_OUTLINE)
+			i += 11;
+
+			/* display frame i on both lines */
+		DispFrame(loop_x0, loop_y0, 0, i, crawlChars, &crawl, 0xfe);
+		DispFrame(loop_x1, loop_y1, 0, i, crawlChars, &crawl, 0xfe);
+		loop_x0 += 30;
+		loop_x1 += 30;
+		k += 2;
+	}
+
+	/* drawing the vertical crawls */
+	loop_x0 = work_x + (dot_width * 5);
+	loop_y0 = work_y + anim;
+	loop_x1 = work_x;
+	loop_y1 = work_y + 5 - anim;
+
+	for (j = dot_height; j > 0; j -= 6) {
+		if (j >= 6) {
+			i = 6;
+		} else {
+			i = 12 - j;
+			if (i == 11)
+				i = 5;
+		}
+
+
+		if (color == GREEN_OUTLINE)
+			i += 11;
+
+			/* display frame i on both lines */
+		DispFrame(loop_x0, loop_y0, 0, i, crawlChars, &crawl, 0xfe);
+
+		DispFrame(loop_x1, loop_y1, 0, i, crawlChars, &crawl, 0xfe);
+		loop_y0 += 30;
+		loop_y1 += 30;
+		k += 2;
+	}
+
+}
+
+
+
+

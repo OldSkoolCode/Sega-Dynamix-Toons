@@ -1,0 +1,428 @@
+/* * * * *
+*
+*  TN_MISC.C
+*
+*  This file contains the miscellaneous interfaces for the
+*  Incredible Toons.
+*
+*  By Rich Rayl -- (c) 1993 Dynamix, Inc.  (Jeff Tunnell Productions)
+*
+*  Modification History:
+*  ---------------------
+*  08/25/93 RichR    File created
+*
+* * * * */
+
+#include "tim.h"
+#include "vm.h"
+#include "mouse.h"
+#include "text_res.h"
+#include "hstring.h"
+
+/* Hotspot lists */
+extern HOT_SPOT *loadsave_hot_spots;
+extern HOT_SPOT *overrite_hot_spots;
+
+#define MAX_BUTTONS  2
+typedef struct generic_requester
+{
+   short text;          // Resource ID for text inside shell
+   RECT  shell;         // Location and size of the shell
+   char  font[13];      // Name of font to use
+   char  fcolor;        // Color for the text (0 is multicolor)
+   char  style;         // 0 is outlined  1 is shadowed
+   struct
+   {
+      short text;       // Resource ID for the text inside button
+      short x, y, w, h; // Location and size of the button (relative to shell)
+      char  up_shape;   // Bitmap offset for the up shapes
+      char  down_shape; // Bitmap offset for the down shapes
+      signed char dx;   // Amount the down state shifts left/right
+      signed char dw;   // Amount the down state shifts up/down
+      char  bcolor;     // Inside color of button
+      char  tcolor;     // Color for text (0 = multi-color)
+   } button[MAX_BUTTONS];
+} far GENERIC_REQUESTER;
+typedef GENERIC_REQUESTER * P_GENERIC_REQUESTER;
+static GENERIC_REQUESTER generic_requester;
+
+/* Define the local variables */
+static void *table0, *table1, *table2;
+static short  font0;
+static short draw_shadow_flag;
+static void *generic_shapes;
+static short generic_resource;
+
+/* Declare the local functions */
+static void draw_button(P_GENERIC_REQUESTER, short button, short state);
+static void read_generic_requester(short text);
+static void draw_loadsave_button(char button, short x, short y);
+static void draw_overrite_button(char button, short x, short y);
+
+/* * * * *
+*
+*  Syntax:
+*
+*     short    do_loadsave_interface(void);
+*
+*     This function will prompt the user for whether they
+*     want to load or save a puzzle.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     none
+*
+*  Return Value:
+*     Returns TRUE if the player want to SAVE a puzzle.
+*
+*  Comments:
+*     Function does not return until the user has decided
+*     whether they want to load or save a puzzle.
+*
+* * * * */
+short do_loadsave_interface(void)
+{
+}
+
+
+/* * * * *
+*
+*  Syntax:
+*
+*     short    do_toon_overrite(void);
+*
+*     This function will prompt the user for whether they
+*     want to save over the top of an existing puzzle.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     none
+*
+*  Return Value:
+*     Returns TRUE if the player want to SAVE over the puzzle.
+*
+*  Comments:
+*     Function does not return until the user has decided
+*     whether they want to load or save a puzzle.
+*
+* * * * */
+short do_toon_overrite(void)
+{
+}
+
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     do_generic_requster(requester);
+*
+*     This function will display a generic requester and will
+*     prompt the user for a responce.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     requester      short / The text resource number where the
+*                    requester data starts in the GENERIC.RES
+*                    file.  
+*
+*  Return Value:
+*     If a error occurs (bitmaps do not load), this function will
+*     return FALSE.  Otherwise, this function will return which
+*     button the player clicked (1 ... num_buttons).
+*
+*  Comments:
+*
+*     This function does not erase the generic requester when
+*     it is done.  The calling function MUST redraw the screen
+*     before the next call to my_flip().
+*
+* * * * */
+short do_generic_requester(short requester)
+{
+}
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     draw_shadow_text(string,x,y,multi_color);
+*     void     draw_outlined_text(string,x,y,multi_color);
+*
+*     This function will draw the specified string at the
+*     specified location and will outline it.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     string         P_TEXT / Pointer to the text that is to be drawn.
+*
+*     x,y            short / Location on the screen to draw the text.
+*
+*     multi_color    short / If TRUE, each character in the string will
+*                    be drawn in a different color.  If FALSE, the entire
+*                    string will be drawing using vm_fgcolor as the text
+*                    color and black as the outline color.
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*     The drawing is a lot slower when multi_color is TRUE and each
+*     character in the string is drawn in a different color.
+*
+* * * * */
+void draw_shadow_text(P_TEXT string, short x, short y, short multi_color)
+{
+   draw_shadow_flag = 1;
+   draw_outline_text(string,x,y,multi_color);
+   draw_shadow_flag = 0;
+}
+#pragma argsused
+void draw_indent_text(P_TEXT string, short x, short y, short multi_color)
+{
+   vm_mode = 1;
+   my_mouse_off();
+   vm_fgcolor = 1;
+   vm_hstr(string, x+1, y-1);
+   vm_fgcolor = 4;
+   vm_hstr(string, x-1, y+1);
+   vm_fgcolor = 2;
+   vm_hstr(string, x, y);
+   my_mouse_on();
+}
+void draw_outline_text(P_TEXT string, short x, short y, short multi_color)
+{
+   #define num_colors (sizeof(color_list)/sizeof(char))
+   static char color_list[] = { 4, 10, 14, 15, 12 };
+   char temp_string[2];
+   unsigned char fill;
+   short cl, temp;
+
+   /* Setup some misc. variables */
+   vm_mode = 1;
+   fill = vm_fgcolor;
+   my_mouse_off();
+
+   /* Draw outline and/or shadow for text */
+   vm_fgcolor = 0;
+   vm_hstr(string, x-1, y);
+   vm_hstr(string, x+1, y);
+   vm_hstr(string, x, y+1);
+   vm_hstr(string, x, y-1);
+   if(draw_shadow_flag)
+      vm_hstr(string, x-2, y+2);
+
+   /* If multi_color is FALSE, draw the entire string in one color */
+   if(!multi_color)
+   {
+      vm_fgcolor = fill;
+      vm_hstr(string, x, y);
+   }
+
+   /* If multi_color is TRUE, draw each character a different color */
+   else
+   {
+      cl  = -1;
+      temp_string[1] = 0;
+      while((temp_string[0] = *string++) != 0)
+      {
+         /* Semi-randomly choose a color */
+         temp = (temp_string[0] ^ x ^ y) % num_colors;
+         while((cl == temp) || (color_list[temp] == vm_bgcolor))
+            temp = (temp + 1) % num_colors;
+         cl = temp;
+
+         /* Draw one character */
+         vm_fgcolor = color_list[cl];
+         vm_hstr(temp_string, x, y);
+         x += vm_hstr_width(temp_string);// + 1;
+      }
+   }
+   vm_fgcolor = fill;
+   my_mouse_on();
+}
+
+
+/* * * * *
+*
+*  Syntax:
+*
+*     void     draw_text(text, x, y, w, h, style);
+*
+*     This function will draw the specified text inside of the
+*     specified box, word wrapping the text as necessary.
+*
+*     Parameters     Type/Description
+*     ----------     ----------------
+*     text           P_TEXT / Pointer to text that is to be drawn.
+*
+*     x,y,w,h        shorts / Location and size of rectangle text should
+*                    be drawn in.
+*
+*     style          short / Style for text to be drawn.
+*                       0 = Outline text
+*                       1 = Shadowed text
+*                       2 = Indented text
+*                    plus any combination of the following
+*                     0x10 = Center text left/right
+*                     0x20 = Center text up/down
+*
+*  Return Value:
+*     none
+*
+*  Comments:
+*     If vm_fgcolor is 0, then the text will be drawn multi-colored.
+*
+* * * * */
+void draw_text(P_TEXT text, short x, short y, short w, short h, short style)
+{
+   P_TEXT   ptr;
+   P_P_TEXT pptr;
+   unsigned char temp_char;
+   short i, dx;
+
+   /* Build a table of pointer that point to the beginning of each line */
+   build_text_ptrs(text, w, h, vm_fontheight(0));
+
+   /* Calculate where to put the text */
+   if(!(style & CENTER_TEXT_X))
+      x += (w - max_width - 1)/2;
+   if(style & CENTER_TEXT_Y)
+      y += (h - max_height- 1)/2 + 1;
+   dx = 0;
+
+   /* Draw all of the text */
+   pptr = text_ptrs;
+   i = num_text_ptrs;
+   while(*pptr && **pptr && i--)
+   {
+      /* Find last character on this line */
+      ptr = *(pptr+1) - 1;
+      while((ptr > *pptr) && (*ptr <= ' '))
+         ptr--;
+      ptr++;
+      temp_char = *ptr;
+      *ptr = 0;
+
+      /* If text is to be centered, calculate new position */
+      if(style & CENTER_TEXT_X)
+         dx = (w - vm_hstr_width(*pptr))/2;
+      
+      /* Draw text based on style */
+      switch(style & 0xf)
+      {
+         case OUTLINE_TEXT:
+            draw_outline_text(*pptr++, x+dx, y, (vm_fgcolor == 0));
+            break;
+         case SHADOW_TEXT:
+            draw_shadow_text(*pptr++, x+dx, y, (vm_fgcolor == 0));
+            break;
+         case INDENT_TEXT:
+            draw_indent_text(*pptr++, x+dx, y, (vm_fgcolor == 0));
+            break;
+         default:
+            vm_hstr(*pptr++, x+dx, y);
+            break;
+      }
+      *ptr = temp_char;
+      y += vm_fontheight(0);
+   }
+}
+
+/* * * * *
+*
+*  draw_button(text, ox, oy, rect, state);
+*
+*  Draw the button with the specified text at the specified offset.
+*  rect is location and size of the button.
+*  state is TRUE when the button should be drawn down.
+*
+* * * * */
+void draw_button(P_GENERIC_REQUESTER grptr, short button, short state)
+{
+   P_TEXT string;
+   short x, y, w, h, shape;
+   short dx,dw,tx;
+
+   /* Setup some misc.info */
+   string = text_get_string(generic_resource, grptr->button[button].text);
+   x = grptr->shell.x + grptr->button[button].x;
+   y = grptr->shell.y + grptr->button[button].y;
+   w = grptr->button[button].w;
+   h = grptr->button[button].h;
+
+   if(string)
+   {
+      /* Erase button first */
+      vm_lcolor = vm_fcolor = (x^y)&1 ? 0xc8 : 0x8c;
+      vm_fill = 1;
+      my_mouse_off();
+      vm_rect(x,y,w,h);
+      my_mouse_on();
+
+      /* Draw button */
+      if(state)
+      {
+         shape = grptr->button[button].down_shape;
+         dx = grptr->button[button].dx;
+         dw = grptr->button[button].dw;
+      }
+      else
+      {
+         shape = grptr->button[button].up_shape;
+         dx = dw = 0;
+      }
+      draw_box(generic_shapes+shape, x+dx, y, w+dw, h, grptr->button[button].bcolor);
+
+      /* Draw text */
+      vm_fgcolor = grptr->button[button].tcolor;
+      vm_bgcolor = grptr->button[button].bcolor;
+      tx = dx ? dx : dw;
+      draw_text(string, x+tx+4, y+4, w-8, h-8, CENTER_TEXT_Y | CENTER_TEXT_X | OUTLINE_TEXT );
+   }
+}
+
+/* * * * *
+*
+*  void draw_loadsave_button(char button, short x, short y);
+*
+*  This function will draw all the cells of the loadsave_button requester.
+*
+*  If button
+*     =  0,  then draw background.
+*     =  1,  then draw load button up.
+*     =  2,  then draw load button down.
+*     =  3,  then draw save button up.
+*     =  4,  then draw save button down.
+*  
+*  This function assumes that the shape tables are loaded into memory.
+*  This function also assumes that the fonts are loaded into memory.
+*
+* * * * */
+void draw_loadsave_button(char button, short x, short y)
+{
+}
+
+/* * * * *
+*
+*  void draw_overrite_button(char button, short x, short y);
+*
+*  This function will draw all the cells of the overrite requester.
+*
+*  If button
+*     =  0,  then draw background.
+*     =  1,  then draw text.
+*     =  2,  then draw initiate overrite-up.
+*     =  3,  then draw intiate overrid-down.
+*     =  4,  then draw no button-up.
+*     =  5,  then draw no button-down.
+*  
+*  This function assumes that the shape tables are loaded into memory.
+*  This function also assumes that the fonts are loaded into memory.
+*
+* * * * */
+void draw_overrite_button(char button, short x, short y)
+{
+}
+
+

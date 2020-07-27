@@ -1,0 +1,5 @@
+e:\turbo\lib\c0m.obj  bmp2cell.obj
+bmp2cell.exe
+bmp2cell.map
+tpacklib.lib vm.lib vm2.lib +
+e:\turbo\lib\cm.lib

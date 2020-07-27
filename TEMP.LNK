@@ -1,0 +1,43 @@
+-m
+-P
+MEMORY
+{
+    rom:  ORG(0x000000) LEN(0x200000)
+    ram:  ORG(0xFF0000) LEN(0x010000)
+}
+SECTIONS
+{
+    GROUP:
+    {
+	.text: {}
+	.graf {}
+	.levels {}
+	.sound: {}
+        .ld_tbl: {ld = ..;}
+    } > rom
+    .data: ALIGN(2) LOAD(ld) COPY {} > ram
+    .bss:
+    {
+	heap_org = ..;
+    } > ram
+}
+	heap_len = 0xFFF800 - heap_org;
+vectors.o segahdr.o icd_blk4.o startup.o
+main.o excptn.o tn_panel.o tn_chken.o tn_ant.o curs_mlh.o filesys.o
+vc.o tn_prop.o ball.o teapot.o scissors.o gun.o borders.o tn_free.o
+tn_egg1.o tn_edit.o tn_ed_md.o hot_spot.o support.o editor.o
+gameplay.o physics.o stub32.o tn_trot.o tn_char.o query.o tn_cat.o
+tn_sid.o tn_bana.o tn_ladr.o tim_glob.o m_glass.o tn_egg.o cat_def.o
+sid_def.o tn_cata.o dynamite.o ep.o hc_belt.o tn_tt.o tn_hair.o
+eyehook.o gear.o bullet.o balloon.o tramp.o tn_dragn.o tn_updwn.o
+tn_incre.o tn_shswt.o tn_mesg.o tn_rtrns.o incline.o tn_dryer.o
+tn_whstl.o tn_gum.o tn_fish.o tn_chees.o tn_nut.o tn_piano.o segadb.o
+tn_anvil.o tn_ww2.o tn_hatpn.o tn_pencl.o tn_mallt.o tn_eleph.o
+explosion.o tn_rug.o tn_trap.o tn_eat.o drawing.o collide.o wall.o
+tn_tunel.o smartend.o level.o tn_file.o tn_glob.o tn_rndom.o
+tn_clapr.o tn_rip.o tn_sound.o tn_htypt.o segartns.o strnicmp.o
+run.o interact.o victory.o vic_1.o bitmaps.o tn_flush.o vm_line.o
+scroll.o
+variable.o vm_init.o vm_globs.o graf.o
+levels.o gems.o
+-l c

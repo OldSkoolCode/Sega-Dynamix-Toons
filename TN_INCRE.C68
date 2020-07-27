@@ -1,0 +1,640 @@
+/* * * * *
+*
+*  TN_INCRE.C
+*
+*  This file contains the code associated with the incrementer/decrementer.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  07/13/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "tim.h"
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*                                                                            *
+*                                   INCDEC                                   *
+*                                                                            *
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+
+/*
+*  Pushing out anim sequence 1,2,3,4,5,6,7 Fast as possible
+*  Retracting sequence 7,4,3,2,1 doubled.
+*  For the pushing out anim the iron,arrow, or cone will use the 
+*  original x coordinate for frames 1 and 2.  For frames 3-6 you 
+*  will add 10 to x on each frame.  For frame 7 you will subtract 
+*  20 from x.  This is the resting state for the out position. 
+*  When the arm is retracting, the iron, arrow, or cone will
+*  be in the x+20 position for frames 7 and 4.  On frame 3 and 
+*  2 you will subtract 10 from the x coordinate.  This will put 
+*  it back in the original position for frame 1.  
+*  Top button up shape #0 at {0,0}
+*  Top button down shape #1 at {0,5}
+*  Bottom button out shape #7 at {19,82}
+*  Bottom button pressed shape #6 {21,82}
+*  Ice cream cone is shape #13 at {57,39}
+*  Arrow is shape #14 at {63,44}
+*  Iron is shape # 15 at {56,31}
+*  When the buttons are pressed they will stay down for the first 
+*  2 frames of each sequence, then pop back to their original position.
+*  If a second incdec is added on the bottom or top of the current one,
+*  it will have an offset of  y+or-65.  If the new incdec is added 
+*  to the top of the current one, then the top button ,must be 
+*  given an offset of y-65.  The flipped versions will use the same 
+*  offsets and coordinates multiplied by -1.  And the shapes will
+*  need to be flipped.
+*/
+
+/* Constant data */
+#define INCDEC_NUM_STATES     7
+
+/* supershape structure definition */
+static F_SSHAPE_C incdec1_2 = {0, INCDEC_PLANE1, {8,255,255,255},
+   {{5,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C incdec1 = {&incdec1_2, INCDEC_PLANE, {5,4,2,10},
+   {{6,16},{0,0},{3,21},{7,2}}};
+static F_SSHAPE_C incdec2_2 = {0, INCDEC_PLANE1, {9,255,255,255},
+   {{5,2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C incdec2 = {&incdec2_2, INCDEC_PLANE, {5,4,2,10},
+   {{6,16},{0,0},{3,21},{7,2}}};
+static F_SSHAPE_C incdec3_2 = {0, INCDEC_PLANE1, {3,255,255,255},
+   {{3,21},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C incdec3 = {&incdec3_2, INCDEC_PLANE, {5,4,11,9},
+   {{9,16},{0,0},{7,2},{5,2}}};
+static F_SSHAPE_C incdec4_2 = {0, INCDEC_PLANE1, {2,255,255,255},
+   {{3,21},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C incdec4 = {&incdec4_2, INCDEC_PLANE, {5,4,12,9},
+   {{14,16},{0,0},{7,2},{5,2}}};
+static F_SSHAPE_C incdec5_2 = {0, INCDEC_PLANE1, {3,255,255,255},
+   {{3,21},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C incdec5 = {&incdec5_2, INCDEC_PLANE, {5,4,10,9},
+   {{19,16},{0,0},{7,2},{5,2}}};
+static F_SSHAPE_C incdec6_2 = {0, INCDEC_PLANE1, {2,255,255,255},
+   {{3,21},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C incdec6 = {&incdec6_2, INCDEC_PLANE, {5,4,11,9},
+   {{24,16},{0,0},{7,2},{5,2}}};
+static F_SSHAPE_C incdec7_2 = {0, INCDEC_PLANE1, {8,255,255,255},
+   {{5,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C incdec7 = {&incdec7_2, INCDEC_PLANE, {5,4,12,2},
+   {{14,16},{0,0},{7,2},{3,21}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far incdec_ss_tab[INCDEC_NUM_STATES] = 
+   {&incdec1,&incdec2,&incdec3,&incdec4,&incdec5,&incdec6,
+    &incdec7};
+
+/* size. */
+TIM_VEC_C far incdec_size[INCDEC_NUM_STATES] = 
+   {{37,32},{37,32},{40,32},{45,32},{50,32},{55,32},
+    {45,32}};
+
+
+/* * * * *
+*
+*  incdec->memory: This is a short. It is broken up into bit fields.
+*
+*  bits 0-3:   active incrementer
+*  bits 4-7:   number of incrementers
+*  bits 8:     top button--0=up, 1=down
+*  bits 9:     bottom button--0=up, 1=down
+*  bits 10-12: state of active incrementer
+*
+* * * * */
+#define INC_MEM_ACTIVE     0x000f
+#define ACTIVE_SHIFT       0
+#define INC_MEM_NUM_INC    0x00f0
+#define NUM_INC_SHIFT      4
+#define INC_MEM_TBUT       0x0100
+#define TBUT_SHIFT         8
+#define INC_MEM_BBUT       0x0200
+#define BBUT_SHIFT         9
+#define INC_MEM_STATE      0x1c00
+#define STATE_SHIFT        10
+
+
+/* * * * *
+*
+*  Functions
+*
+* * * * */
+void incdec_reinit(PART *incdec)
+{
+   P_PART_BORDER border_ptr;
+   short i,j,memory,num_inc,active_state;
+   short num_borders,temp;
+
+   static const char far top_button_borders[6][2] =
+   {  
+      {0,13},{17,13},{17,8},{42,4},{42,13},{63,13}
+   };
+   static const char far bottom_button_borders[6][2] =
+   {  
+      {63,0},{42,0},{42,3},{19,7},{19,0},{0,0}
+   };
+   static const char far spike_borders[4][2] =
+   {  
+      {63,28},{95,28},{95,44},{63,44}
+   };
+
+   #define SPIKE_Y_START      17
+   #define SPIKE_EXTENDED_X   25
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!incdec)
+      return;
+
+   /* do bit masking to get pertinent values. */
+   memory = incdec->memory;
+   active_state = (memory & INC_MEM_STATE) >> STATE_SHIFT;
+   
+   /* check if the machine is not running */
+   if (tim_mode != TM_RUN)
+   {
+      /* do bit masking to get pertinent values. */
+      border_ptr = incdec->border;
+      num_inc = (memory & INC_MEM_NUM_INC) >> NUM_INC_SHIFT;
+
+      /* initialize the top button borders */
+      for (i=0; i<6; i++)
+      {
+         border_ptr->x = top_button_borders[i][0];
+         border_ptr->y = top_button_borders[i][1];
+         border_ptr++;
+      }
+
+      /* initiallize the spikes of the incrementer/decrementer. */
+      y_offset = SPIKE_Y_START;
+      for (j=0; j<INCDEC_MAX_NUM; j++)
+      {
+         for (i=0; i<4; i++)
+         {
+            if (j>=num_inc)
+            {
+               border_ptr->x = spike_borders[0][0];
+               border_ptr->y = y_offset;
+            }
+            else
+            {
+               border_ptr->x = spike_borders[i][0];
+               border_ptr->y = spike_borders[i][1] + y_offset;
+   /*            if (active_state && (j==active_inc) && ((i==1) || (i==2))) */
+   /*               border_ptr->x += SPIKE_EXTENDED_X; */
+            }
+
+            border_ptr++;
+         }
+         if (j<num_inc)
+            y_offset += INCDEC_MACHINE_SIZE_Y;
+      }
+   
+      /* initialize the bottom button borders */
+      for (i=0; i<6; i++)
+      {
+         border_ptr->x = bottom_button_borders[i][0];
+         border_ptr->y = bottom_button_borders[i][1] + y_offset;
+         border_ptr++;
+      }
+   
+      /* check if the border needs to be flipped. */
+      if (incdec->flags2 & F2_FLIP_H_DRAW)
+      {
+         border_ptr = incdec->border;
+         num_borders = incdec->num_borders;
+      
+         /* This loop flips the borders */
+         for (i=0; i<num_borders; i++)
+            border_ptr[i].x = INCDEC_SIZE_MIN_X - border_ptr[i].x;
+
+         /* This loop reorders the borders so that they go clockwise */
+         for (i=0; i<num_borders/2; i++)
+         {
+            temp = border_ptr[num_borders-1-i].x;
+            border_ptr[num_borders-1-i].x = border_ptr[i].x;
+            border_ptr[i].x = temp;
+            temp = border_ptr[num_borders-1-i].y;
+            border_ptr[num_borders-1-i].y = border_ptr[i].y;
+            border_ptr[i].y = temp;
+         }
+      }
+      set_border_slope(incdec);
+   }
+
+   set_adjusted_loc_size(incdec);
+
+   /* set the x size  */
+   if (active_state)
+      incdec->size.x = incdec->place_size.x = INCDEC_SIZE_MAX_X;
+   else
+      incdec->size.x = incdec->place_size.x = INCDEC_SIZE_MIN_X;
+
+   /* check if the incdec is flipped and a spike is out */
+   if ((incdec->flags2 & F2_FLIP_H_DRAW) && active_state)
+      incdec->offset.x = INCDEC_SIZE_MIN_X - INCDEC_SIZE_MAX_X;
+}
+
+#pragma argsused
+void incdec_flip(PART *incdec,short flip_mode)
+{
+   incdec->flags2 ^= F2_FLIP_H_DRAW;
+
+   incdec_reinit(incdec);
+   part_to_er(incdec,1|2);
+   set_redraw(incdec,2);
+}
+
+void incdec_resize(PART *incdec)
+{
+   short temp_y;
+   
+   /* fix place size y to fit correctly */
+   temp_y = incdec->place_size.y;
+   temp_y -= (INCDEC_TBUT_SIZE_Y + INCDEC_BBUT_SIZE_Y);
+   temp_y /= INCDEC_MACHINE_SIZE_Y;
+   incdec->size.y = incdec->place_size.y = temp_y * INCDEC_MACHINE_SIZE_Y +
+      INCDEC_TBUT_SIZE_Y + INCDEC_BBUT_SIZE_Y;
+
+   /* adjust the number of incdecs in the given machine. */
+   temp_y <<= NUM_INC_SHIFT;
+   incdec->start_memory &= 0xffff ^ INC_MEM_NUM_INC;
+   incdec->memory = incdec->start_memory |= temp_y;
+
+   /* reevaluate the borders */
+   incdec_reinit(incdec);
+}
+
+short incdec_bounce(PART *cur_part)
+{
+   short bord_num;
+   PART *incdec;
+
+   #define TOP_BUTTON_BORD_NUM         2
+   #define BOTTOM_BUTTON_BORD_NUM      (5+INCDEC_MAX_NUM*4+3) 
+   #define TOP_BUTTON_FBORD_NUM        (5+INCDEC_MAX_NUM*4+3) 
+   #define BOTTOM_BUTTON_FBORD_NUM     2
+
+   incdec = cur_part->col_info.part;
+   bord_num = cur_part->col_info.border_num;
+
+   if (!incdec->toon_state)
+      if (incdec->flags2 & F2_FLIP_H_DRAW)
+      {
+         if (bord_num==TOP_BUTTON_FBORD_NUM)
+            incdec->sub_state = 1;
+         else if (bord_num==BOTTOM_BUTTON_FBORD_NUM)
+            incdec->sub_state = -1;
+      }
+      else
+      {
+         if (bord_num==TOP_BUTTON_BORD_NUM)
+            incdec->sub_state = 1;
+         else if (bord_num==BOTTOM_BUTTON_BORD_NUM)
+            incdec->sub_state = -1;
+      }
+
+   return(1);
+}
+
+void incdec_internal(PART *incdec)
+{
+   short toon_state,memory,active_inc,num_inc,tbut,active_state,x,y;
+   short speed;
+   TIM_VEC loc,size;
+   PART *pptr;
+
+   static const char far out_seq[] =
+   {
+      0,1,2,3,4,5,6
+   };
+   #define OUT_NUM_STATES  (sizeof(out_seq)/sizeof(char))
+   static char far in_seq[] =
+   {
+      6,3,2,1,0
+   };
+   #define IN_NUM_STATES   (sizeof(in_seq)/sizeof(char))
+   #define NUM_STATES      (OUT_NUM_STATES + IN_NUM_STATES)
+
+   static const char far query_x_offset[] =
+   {
+      90,90,90,100,110,120,130
+   };
+
+   #define Q_W             4
+   #define Q_H             15
+   #define Q_Y             38
+   
+   /* do bit masking to get pertinent values. */
+   x = incdec->scrn_loc.x + incdec->offset.x;
+   y = incdec->scrn_loc.y + incdec->offset.y;
+   memory = incdec->memory;
+   active_inc = (memory & INC_MEM_ACTIVE) >> ACTIVE_SHIFT;
+   num_inc = (memory & INC_MEM_NUM_INC) >> NUM_INC_SHIFT;
+   tbut = (memory & INC_MEM_TBUT) >> TBUT_SHIFT;
+   active_state = (memory & INC_MEM_STATE) >> STATE_SHIFT;
+
+   if (incdec->toon_state)
+   {
+      toon_state = ++incdec->toon_state;
+   
+      /* check if the active incrementer is going out. */
+      if (toon_state < IN_NUM_STATES)
+         active_state = in_seq[toon_state];
+      else
+         active_state = out_seq[toon_state-IN_NUM_STATES];
+
+      /* set the active incrementers state. */
+      active_state <<= STATE_SHIFT;
+      incdec->memory &= 0xffff ^ INC_MEM_STATE;
+      incdec->memory |= active_state;
+         
+      /* animate the button to the off position. */
+      if (toon_state == IN_NUM_STATES)
+      {
+         if (tbut)
+         {
+            if (++active_inc == num_inc)
+               active_inc = 0;
+            loc.x = x;
+            loc.y = y + INCDEC_TBUT_START_Y;
+            size.x = incdec->size.x;
+            size.y = INCDEC_TBUT_SIZE_Y;
+            add_to_er(&loc,&size,ER_FILL,1,0);
+            add_to_er(&loc,&size,ER_FILL,2,0);
+         }
+         else
+         {
+            if (--active_inc < 0)
+               active_inc = num_inc - 1;
+            loc.x = x;
+            loc.y = y + INCDEC_TBUT_SIZE_Y + INCDEC_TBUT_START_Y +
+               num_inc * INCDEC_MACHINE_SIZE_Y + INCDEC_BBUT_START_Y;
+            size.x = incdec->size.x;
+            size.y = INCDEC_BBUT_SIZE_Y;
+            add_to_er(&loc,&size,ER_FILL,1,0);
+            add_to_er(&loc,&size,ER_FILL,2,0);
+         }
+
+         /* set the new active incrementer */
+         incdec->memory &= 0xffff ^
+            (INC_MEM_TBUT|INC_MEM_BBUT|INC_MEM_ACTIVE);
+         incdec->memory |= active_inc << ACTIVE_SHIFT;
+      }
+
+      /* force the drawing of the correct incrementer. */
+      loc.x = x;
+      loc.y = y + INCDEC_TBUT_SIZE_Y + active_inc * INCDEC_MACHINE_SIZE_Y;
+      size.x = incdec->size.x;
+      size.y = INCDEC_MACHINE_SIZE_Y;
+      add_to_er(&loc,&size,ER_FILL,1,0);
+      add_to_er(&loc,&size,ER_FILL,2,0);
+      
+      /* interact with the other parts */
+      if (toon_state >= IN_NUM_STATES)
+      {
+         active_state >>= STATE_SHIFT;
+         if (incdec->flags2 & F2_FLIP_H_DRAW)
+         {
+            /* note size.x is set directly above this. */
+            x = incdec->offset.x + size.x - query_x_offset[active_state];
+            speed = -FOUR_PIX;
+         }
+         else
+         {
+            x = query_x_offset[active_state];
+            speed = FOUR_PIX;
+         }
+         y = INCDEC_TBUT_START_Y + INCDEC_TBUT_SIZE_Y + Q_Y +
+            active_inc * INCDEC_MACHINE_SIZE_Y;
+         tn_query_dist(incdec,F1_MOVE_L|F1_STATIC_L,x,y,Q_W,Q_H);
+         pptr = incdec->qptr;
+         while (pptr)
+         {
+            if (pptr->flags1 & F1_MOVE_L)
+            {
+               pptr->speed.x += speed;
+               check_term_velocity(pptr);
+            }
+            else
+               generic_static_to_static_collide(incdec, pptr);
+
+            pptr = pptr->qptr;
+         }
+      }
+
+      incdec_reinit(incdec);
+
+      /* force the end of the cycle. */
+      if (toon_state == NUM_STATES - 1)
+      {
+         incdec->toon_state = incdec->sub_state = 0;
+         
+         /* set the debouncer by remembering the current substate */
+         incdec->work_var = 4;
+      }
+   }
+   else
+   {
+      /* check if a button has been pressed and it is ok to animate the  */
+      /* incrementer */
+      if (incdec->sub_state && !incdec->work_var)
+      {
+         jtp_sx_play(SX_INCRE_DECRE, 1, 0);
+         /* reset the buttons */
+         incdec->memory &= 0xffff ^ (INC_MEM_TBUT|INC_MEM_BBUT);
+
+         /* check if the bottom button has been pressed. */
+         if (incdec->sub_state < 0)
+         {
+            loc.x = x;
+            loc.y = y + INCDEC_TBUT_SIZE_Y + INCDEC_TBUT_START_Y +
+               num_inc * INCDEC_MACHINE_SIZE_Y + INCDEC_BBUT_START_Y;
+            size.x = incdec->size.x;
+            size.y = INCDEC_BBUT_SIZE_Y;
+            incdec->memory |= INC_MEM_BBUT;
+         }
+         else
+         {
+            loc.x = x;
+            loc.y = y + INCDEC_TBUT_START_Y;
+            size.x = incdec->size.x;
+            size.y = INCDEC_TBUT_SIZE_Y;
+            incdec->memory |= INC_MEM_TBUT;
+         }
+
+         /* force the redraw of the correct button. */
+         add_to_er(&loc,&size,ER_FILL,1,0);
+         add_to_er(&loc,&size,ER_FILL,2,0);
+
+         /* check if the active incrementer is out yet. */
+         if (!active_state)
+         {
+            incdec->toon_state = IN_NUM_STATES;
+
+            /* force a redraw of the buttons */
+            loc.x = x;
+            loc.y = y + INCDEC_TBUT_SIZE_Y + INCDEC_TBUT_START_Y +
+               num_inc * INCDEC_MACHINE_SIZE_Y + INCDEC_BBUT_START_Y;
+            size.x = incdec->size.x;
+            size.y = INCDEC_BBUT_SIZE_Y;
+            add_to_er(&loc,&size,ER_FILL,1,0);
+            add_to_er(&loc,&size,ER_FILL,2,0);
+            loc.x = x;
+            loc.y = y + INCDEC_TBUT_START_Y;
+            size.x = incdec->size.x;
+            size.y = INCDEC_TBUT_SIZE_Y;
+            incdec->memory |= INC_MEM_TBUT;
+            add_to_er(&loc,&size,ER_FILL,1,0);
+            add_to_er(&loc,&size,ER_FILL,2,0);
+         }
+         else
+            incdec->toon_state = 1;
+      }
+      
+      if (incdec->work_var)
+         if (!incdec->sub_state)
+            incdec->work_var--;
+         else
+            incdec->work_var++;
+
+      incdec->sub_state = 0;
+   }
+}
+
+
+/* * * * *
+*
+*  void draw_incdec(PART *counter,UCHAR plane,SHORT loc_scale_adj,SHORT size_scale_adj);
+*
+* * * * */
+void draw_incdec(PART *incdec,UCHAR plane,SHORT loc_scale_adj,SHORT size_scale_adj)
+{
+   void *shape_table;
+   short memory,active_inc,num_inc,tbut,bbut,state,active_state,shape_num;
+   short i,x,y,old_y,x_offset,y_offset,flipped;
+   P_PART_ELEMENTS elements;
+   P_SSHAPE ssptr;
+	short w,h;
+
+   static const signed char far head_coord_array[3][3] =
+   {
+      {57,39-INCDEC_TBUT_SIZE_Y,13},
+      {63,44-INCDEC_TBUT_SIZE_Y,14},
+      {56,31-INCDEC_TBUT_SIZE_Y,15},
+   };
+
+   static signed char far root_x_state_array[INCDEC_NUM_STATES] =
+   {  0,0,10,20,30,40,20  };
+
+   x = incdec->scrn_loc.x + incdec->offset.x - ledge;
+   y = incdec->scrn_loc.y - tedge;
+   shape_table = prop[incdec->type].part_shapes;
+   memory = incdec->memory;
+
+   /* do bit masking to get pertinent values. */
+   active_inc = (memory & INC_MEM_ACTIVE) >> ACTIVE_SHIFT;
+   num_inc = (memory & INC_MEM_NUM_INC) >> NUM_INC_SHIFT;
+   tbut = (memory & INC_MEM_TBUT) >> TBUT_SHIFT;
+   bbut = (memory & INC_MEM_BBUT) >> BBUT_SHIFT;
+   active_state = (memory & INC_MEM_STATE) >> STATE_SHIFT;
+
+   /* draw top button. */
+   shape_num = 0 + tbut;
+   if (tbut)
+      y_offset = 5;
+   else
+      y_offset = 0;
+
+   /* check for a flipped shape. */
+   if (incdec->flags2 & F2_FLIP_H_DRAW)
+   {
+		GetFrameWH(0,shape_num,shape_table,&w, &h);
+		w <<= VIRTUALCOORDS;
+		h <<= VIRTUALCOORDS;
+      x_offset = incdec->size.x - w;
+      flipped = FLIP_VERTICAL;
+   }
+   else
+      flipped = x_offset = 0;
+
+   draw_bitmap(shape_table,x+x_offset,y+y_offset,flipped,shape_num);
+
+   /* reposition y coordinate to the correct location. */
+   old_y = incdec->scrn_loc.y;
+   incdec->scrn_loc.y += INCDEC_TBUT_SIZE_Y;
+
+   /* draw the incrementers */
+   for (i=0; i<num_inc; i++)
+   {
+      /* find the correct state value */
+      if (i != active_inc)
+         state = 0;
+      else
+         state = active_state;
+
+      /* assign ssptr */
+      elements = &prop[incdec->type];
+      ssptr = *(elements->super_shapes+state);
+
+      /* draw the base shape of the incdec. */
+      draw_supershape(incdec,ssptr,shape_table,plane,loc_scale_adj,
+         size_scale_adj);
+
+      /* set up the poker head draws */
+      x_offset = root_x_state_array[state] + head_coord_array[i%3][0];
+      y_offset = head_coord_array[i%3][1];
+      shape_num = head_coord_array[i%3][2];
+
+      /* calculate the shape pointer. */
+   
+      /* check for a flipped shape. */
+      if (incdec->flags2 & F2_FLIP_H_DRAW)
+      {
+			GetFrameWH(0,shape_num,shape_table,&w, &h);
+			w <<= VIRTUALCOORDS;
+			h <<= VIRTUALCOORDS;
+         x_offset = incdec->size.x - x_offset - w;
+         flipped = FLIP_VERTICAL;
+      }
+      else
+         flipped = 0;
+
+      /* draw the poker of the machine */
+      draw_bitmap(shape_table,x+x_offset,incdec->scrn_loc.y+y_offset-tedge,
+         flipped, shape_num);
+      
+      /* reposition y coordinate to the correct location. */
+      incdec->scrn_loc.y += INCDEC_MACHINE_SIZE_Y;
+   }
+
+   /* reset the parts y location. */
+   incdec->scrn_loc.y = old_y;
+
+   /* draw the bottom button */
+   shape_num = 7 - bbut;
+   if (tbut)
+      x_offset = 19;
+   else
+      x_offset = 21;
+   
+   y += INCDEC_TBUT_SIZE_Y + INCDEC_MACHINE_SIZE_Y * num_inc;
+
+   /* check for a flipped shape. */
+   if (incdec->flags2 & F2_FLIP_H_DRAW)
+   {
+		GetFrameWH(0,shape_num,shape_table,&w, &h);
+		w <<= VIRTUALCOORDS;
+		h <<= VIRTUALCOORDS;
+      x_offset = incdec->size.x - x_offset - w;
+      flipped = FLIP_VERTICAL;
+   }
+   else
+      flipped = 0;
+
+   draw_bitmap(shape_table,x+x_offset,y,flipped, shape_num);
+}
+
+

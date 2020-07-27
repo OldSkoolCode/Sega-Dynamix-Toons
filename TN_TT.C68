@@ -1,0 +1,533 @@
+/* * * * *
+*
+*  TN_TT.C
+*
+*  This module is the rewritten code used to drive the teeter-totter.
+*
+*  By Chris Cole -- (c) 1993 Dynamix Software Development, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  04/16/93 ChrisC   File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "simlib.h"
+#include "tim.h"
+
+
+
+/*local routines */
+short get_push_speed( PART *);
+short tt_check_frozen( PART *, PART *, short, short, long);
+void tt_hit_static( PART *, short, short);
+
+
+/* supershape structure definition */
+static F_SSHAPE_C teeter1 = {0, TT_PLANE, {0,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C teeter2 = {0, TT_PLANE, {1,255,255,255},
+   {{0,2},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C teeter3 = {0, TT_PLANE, {2,255,255,255},
+   {{0,0},{0,0},{0,0},{0,0}}};
+
+/* supershape table definition */
+PC_SSHAPE_C far tt_ss_tab[TT_NUM_STATES] = {&teeter1,&teeter2,&teeter3};
+
+/* size and offsets. */
+TIM_VEC_C far tt_size[TT_NUM_STATES] = {{20,9},{20,6},{20,9}};
+TIM_SCVEC_C far tt_os[TT_NUM_STATES] = {{0,0},{1,11},{1,0}};
+
+/* border definitions. */
+#if 0
+static PART_BORDER_C far teeter1_bord[TT_BORDERS] =
+   {{0,17,0},{39,2,0},{39,4,0},{21,11,0},
+    {21,18,0},{19,18,0},{19,12,0},{0,19,0}};
+static PART_BORDER_C far teeter2_bord[TT_BORDERS] =
+   {{0,9,0},{39,9,0},{39,11,0},{21,11,0},
+    {21,18,0},{19,18,0},{19,11,0},{0,11,0}};
+static PART_BORDER_C far teeter3_bord[TT_BORDERS] =
+   {{0,1,0},{39,17,0},{39,19,0},{21,12,0},
+    {21,18,0},{19,18,0},{19,11,0},{0,4,0}};
+#else
+static PART_BORDER_C far teeter1_bord[TT_BORDERS] =
+   {{0,8,0},{39,2,0},{39,4,0},{21,11,0},
+    {21,18,0},{19,18,0},{19,12,0},{0,18,0}};
+static PART_BORDER_C far teeter2_bord[TT_BORDERS] =
+   {{0,9,0},{39,9,0},{39,11,0},{21,11,0},
+    {21,18,0},{19,18,0},{19,11,0},{0,11,0}};
+static PART_BORDER_C far teeter3_bord[TT_BORDERS] =
+   {{0,1,0},{39,17,0},{39,18,0},{21,12,0},
+    {21,18,0},{19,18,0},{19,11,0},{0,4,0}};
+#endif
+/* border tables */
+static PC_PART_BORDER_C far teeter_bord_tab[TT_NUM_STATES] =
+   {teeter1_bord,teeter2_bord,teeter3_bord};
+
+void tt_reinit(PART *tt_part)
+{
+   static TIM_VEC_C rope1_tab[3] = { {4,13}, {5,8}, {7,2} };
+   static TIM_VEC_C rope2_tab[3] = { {34,2}, {36,8}, {37,14} };
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!tt_part)
+   {
+      set_border_table_slopes(PT_TT, 0, teeter_bord_tab, 0, TT_NUM_STATES);
+      return;
+   }
+
+   tt_part->rope_loc[0].x = rope1_tab[tt_part->state].x;
+   tt_part->rope_loc[0].y = rope1_tab[tt_part->state].y;
+   tt_part->rope_loc[1].x = rope2_tab[tt_part->state].x;
+   tt_part->rope_loc[1].y = rope2_tab[tt_part->state].y;
+   tt_part->border = teeter_bord_tab[tt_part->state];
+   set_adjusted_loc_size(tt_part);
+}
+
+short tt_bounce(PART *cur_part)
+{
+   short bord_num,x_center,new_sub_state,do_bounce;
+   PART *tt_part;
+
+   tt_part = cur_part->col_info.part;
+   
+   /* check if the teeter-totter is frozen. */
+   if (tt_part->flags2 & F2_FROZEN)
+      return(1);
+
+   /* since the teeter-totter is not frozen, check the borders to see if one */
+   /* of the important edges has been hit. */
+   /* bord_num == 0 is the top of the teeter. */
+   /* bord_num == 2 or 6 is the bottom of the teeter. */
+   bord_num = cur_part->col_info.border_num;
+   do_bounce = 0;
+
+   switch (bord_num)
+   {
+      /* hit on top of teeter. */
+      case 0:
+         x_center = cur_part->scrn_loc.x + cur_part->offset.x +
+            (cur_part->size.x>>1) - tt_part->scrn_loc.x;
+         if (x_center >= 44)
+         {
+            if (tt_part->state == 2)
+               do_bounce = 1;
+            else
+               new_sub_state = 1;
+         }
+         else
+            if (x_center <= 36)
+            {
+               if (tt_part->state == 0)
+                  do_bounce = 1;
+               else
+                  new_sub_state = -1;
+            }
+            else
+               do_bounce = 1;
+         break;
+
+      case 2:
+         if (tt_part->state == 0)
+            do_bounce = 1;
+         else
+            new_sub_state = -1;
+         break;
+
+      case 6:
+         if (tt_part->state == 2)
+            do_bounce = 1;
+         else
+            new_sub_state = 1;
+         break;
+      default:
+         do_bounce = 1;
+   }
+
+   if (!do_bounce)
+   {
+      if (add_to_ft(cur_part,tt_part))
+      {
+         tt_part->sub_state = new_sub_state;
+         tt_part->force = cur_part->force;
+         cur_part->col_info.part = 0;
+      }
+      else
+         do_bounce = 1;
+   }
+
+   return(do_bounce);
+}
+
+
+
+
+
+#pragma argsused
+void tt_flip(PART *tt_part,short flip_mode)
+{
+   if (tt_part->state)
+      tt_part->state = 0;
+   else
+      tt_part->state = 2;
+   
+   tt_part->start_state = tt_part->toon_state = tt_part->state;
+   tt_reinit(tt_part);
+   sub_parts_to_er(tt_part,1|2);
+   part_to_er(tt_part,1|2);
+   set_redraw(tt_part,2);
+}
+
+
+
+void tt_internal(PART *tt_part)
+{
+   static LINE_SEG ls_tt[3] = {{0,32,79,3},{0,17,79,17},{0,3,79,32}};
+   short tt_center_x,center_x,push_speed;
+   long ly;
+   PART *pptr;
+
+   if (tt_part->sub_state)
+   {
+      tt_part->flags2 |= F2_INTERNAL;
+      if (tt_part->flags2 & F2_NOT_FROZEN)
+         tt_part->state += tt_part->sub_state;
+      else
+      {
+         if (tt_check_frozen(0,tt_part,RP_JUST_CHECK,1000,tt_part->force))
+            tt_part->flags2 |= F2_FROZEN;
+         else
+         {
+            tt_check_frozen(0,tt_part,0,1000,tt_part->force);
+            tt_part->state += tt_part->sub_state;
+         }
+      }
+
+      if (tt_part->state != tt_part->old_state)
+      {
+         tt_reinit(tt_part);
+
+         if ((tt_part->old_state==0) || (tt_part->old_state==2))
+            jtp_sx_play(SX_TEETER_TOTTER,0,0);
+
+         tt_center_x = tt_part->scrn_loc.x + tt_part->offset.x +
+            (tt_part->size.x>>1);
+
+         query_line(tt_part,F1_STATIC_L|F1_MOVE_L,&ls_tt[tt_part->state]);
+         pptr = tt_part->qptr;
+         while (pptr)
+         {
+            if (pptr->flags1 & F1_STATIC_L)
+               generic_static_to_static_collide(tt_part, pptr);
+            else
+            {
+               center_x = pptr->scrn_loc.x + pptr->offset.x + (pptr->size.x>>1);
+
+               push_speed = get_push_speed(pptr);
+               switch (tt_part->sub_state)
+               {
+                  case -1:
+                     if (center_x < tt_center_x)
+                     {
+                        pptr->speed.y = push_speed;
+                        pptr->speed.x = 0 - (push_speed>>2);
+                     }
+                     else
+                     {
+                        pptr->speed.y = 0 - push_speed;
+                        pptr->speed.x = push_speed >> 2;
+                     }
+                     break;
+
+                  case 1:
+                     if (center_x < tt_center_x)
+                     {
+                        pptr->speed.y = 0 - push_speed;
+                        pptr->speed.x = 0 - (push_speed>>2);
+                     }
+                     else
+                     {
+                        pptr->speed.y = push_speed;
+                        pptr->speed.x = push_speed >> 2;
+                     }
+                     break;
+               }
+
+               part_to_er(pptr,1|2);
+
+               if (pptr->speed.y < 0)
+               {
+                  pptr->old_scrn_loc.y = pptr->scrn_loc.y - 16;
+                  collide(pptr);
+                  pptr->old_scrn_loc.y = pptr->scrn_loc.y + 16;
+                  tt_part->flags2 |= F2_INACTIVE;
+                  collide(pptr);
+                  tt_part->flags2 &= (F2_INACTIVE^0xffff);
+                  pptr->old_scrn_loc.y = pptr->scrn_loc.y;
+                  ly = (long) pptr->scrn_loc.y;
+                  pptr->loc.y = ly<<SCALE_SHIFT;
+               }
+               else
+               {
+                  pptr->old_scrn_loc.y = pptr->scrn_loc.y + 16;
+                  collide(pptr);
+                  pptr->old_scrn_loc.y = pptr->scrn_loc.y - 16;
+                  tt_part->flags2 |= F2_INACTIVE;
+                  collide(pptr);
+                  tt_part->flags2 &= (F2_INACTIVE^0xffff);
+                  pptr->old_scrn_loc.y = pptr->scrn_loc.y;
+                  ly = (long) pptr->scrn_loc.y;
+                  pptr->loc.y = ((ly+1)<<SCALE_SHIFT) -1;
+               }
+            }
+
+            pptr = pptr->qptr;
+         }
+      }
+
+      tt_part->sub_state = 0;
+      tt_part->force = 0;
+   }
+
+   if ((tt_part->old_state==0) && (tt_part->old_old_state!=0))
+   {
+      query_rect(tt_part,F1_STATIC_L,74,79,-2,2);
+      tt_hit_static(tt_part,MOVING_UP,74);
+      query_rect(tt_part,F1_STATIC_L,0,6,32,36);
+      tt_hit_static(tt_part,MOVING_DOWN,0);
+   }
+   else
+      if ((tt_part->old_state==2) && (tt_part->old_old_state!=2))
+      {
+         query_rect(tt_part,F1_STATIC_L,74,79,32,36);
+         tt_hit_static(tt_part,MOVING_DOWN,74);
+         query_rect(tt_part,F1_STATIC_L,0,6,-2,2);
+         tt_hit_static(tt_part,MOVING_UP,0);
+      }
+}
+
+
+
+short tt_rope(PART *from_part,PART *tt_part,short tie_num,short rope_type,short mass,long force)
+{
+   short new_sub_state,old_sub_state,work_rt,frozen;
+   ROPE *rptr;
+
+   rptr = tt_part->rope_tie[tie_num];
+
+   rope_type &= (RP_JUST_CHECK|RP_SLACK|RP_PULL_DOWN|RP_PULL_UP);
+   work_rt = rope_type & (RP_JUST_CHECK^0xffff);
+   if (work_rt != RP_SLACK)
+      if (rptr->slack)
+      {
+         if (!(rope_type&RP_JUST_CHECK))
+            rptr->slack--;
+         return(0);
+      }
+
+   old_sub_state = tt_part->sub_state;
+   frozen = 0;
+   if (work_rt == RP_PULL_DOWN)
+   {
+      if (tie_num == 0)
+      {
+         if (tt_part->state == 0)
+            frozen = 1;
+         else
+            new_sub_state = -1;
+      }
+      else
+      {
+         if (tt_part->state == 2)
+            frozen = 1;
+         else
+            new_sub_state = 1;
+      }
+   }
+   else
+      if (work_rt == RP_PULL_UP)
+      {
+         if (tie_num == 0)
+         {
+            if (tt_part->state == 2)
+               frozen = 1;
+            else
+               new_sub_state = 1;
+         }
+         else
+         {
+            if (tt_part->state == 0)
+               frozen = 1;
+            else
+               new_sub_state = -1;
+         }
+      }
+
+   if ((!frozen) && (work_rt!=RP_SLACK))
+   {
+/*      if (tt_part->sub_state && (new_sub_state!=tt_part->sub_state)) */
+/*      { */
+/*         tt_part->sub_state = 0; */
+/*         frozen = 1; */
+/*      } */
+/*      else */
+/*      { */
+         tt_part->sub_state = new_sub_state;
+         frozen = tt_check_frozen(from_part,tt_part,rope_type&RP_JUST_CHECK,mass,force);
+         if (rope_type & RP_JUST_CHECK)
+            tt_part->sub_state = old_sub_state;
+         else
+            if (!frozen)
+               tt_part->flags2 |= F2_NOT_FROZEN;
+/*      } */
+   }
+
+   if (frozen)
+      tt_part->flags2 |= F2_FROZEN;
+
+   if (tt_part->flags2 & F2_FROZEN)
+      return(1);
+
+   if (rope_type == RP_SLACK)
+      rptr->slack++;
+
+   return(0);
+}
+
+
+short tt_check_frozen(PART *from_part,PART *tt_part,short check_mode,short mass,long force)
+{
+   short i,frozen;
+   short tt_link;
+   short tt_tie,other_tie,rope_action;
+   short dir;
+   PART *other_part;
+   ROPE *rptr;
+
+   if (tt_part->flags2 & F2_FROZEN)
+      return(1);
+
+   frozen = 0;
+   for (i=0;(i<2)&&(frozen==0);i++)
+   {
+      if ((rptr=tt_part->rope_tie[i]) == 0)
+         continue;
+
+      other_part = get_rope_link(tt_part,rptr);
+      if (other_part == from_part)
+         continue;
+
+      if (rptr->link1 == tt_part)
+      {
+         tt_link = 0;
+         tt_tie = rptr->l1_num;
+         other_tie = rptr->l2_num;
+      }
+      else
+      {
+         tt_link = 1;
+         tt_tie = rptr->l2_num;
+         other_tie = rptr->l1_num;
+      }
+
+      if (tt_part->sub_state > 0)
+      {
+         if (tt_tie == 0)
+            dir = MOVING_UP;
+         else
+            dir = MOVING_DOWN;
+      }
+      else
+      {
+         if (tt_tie == 0)
+            dir = MOVING_DOWN;
+         else
+            dir = MOVING_UP;
+      }
+      rope_action = get_rope_action(rptr,tt_link,dir);
+
+      rope_action |= check_mode;
+      frozen = prop[other_part->type].rope_func(tt_part,other_part,other_tie,rope_action,mass,force);
+   }
+
+   return(frozen);
+}
+
+
+
+short get_push_speed(PART *pptr)
+{
+   short mass,push_speed;
+
+   mass = prop[pptr->type].mass;
+   if (mass < 2)
+      push_speed = FOURTEEN_PIX;
+   else
+      if (mass < 6)
+         push_speed = THIRTEEN_PIX;
+      else
+         if (mass < 10)
+            push_speed = TWELVE_PIX;
+         else
+            if (mass < 21)
+               push_speed = ELEVEN_PIX;
+            else
+               if (mass < 121)
+                  push_speed = TEN_PIX;
+               else
+                  if (mass < 151)
+                     push_speed = NINE_PIX;
+                  else
+                     push_speed = EIGHT_PIX;
+
+   return(push_speed);
+}
+
+
+
+#pragma argsused
+void tt_hit_static(PART *tt_part,short direction,short x_loc)
+{
+   short real_x_loc,delt_x;
+   PART *pptr;
+
+   real_x_loc = tt_part->scrn_loc.x + x_loc;
+
+   pptr = tt_part->qptr;
+   while (pptr)
+   {
+      delt_x = real_x_loc - pptr->scrn_loc.x;
+
+      switch (pptr->type)
+      {
+         case PT_ANT:
+            startle_ant(pptr);
+            break;
+
+         case PT_SCISSORS:
+            if (pptr->flags2 & F2_FLIP_H_DRAW)
+            {
+               if ((delt_x>=25) && (delt_x<=37))
+                  pptr->sub_state = 1;
+            }
+            else
+               if ((delt_x>=0) && (delt_x<=12))
+                  pptr->sub_state = 1;
+            break;
+      }
+
+      pptr = pptr->qptr;
+   }
+}
+
+
+
+
+
+
+
+
+
+
+

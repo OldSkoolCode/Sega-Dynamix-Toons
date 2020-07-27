@@ -1,0 +1,287 @@
+Palette = 14
+Animation list = 52
+Animation to Frame catalog = 56
+Frame to Sprite catalog = 108
+Hotspot catalog = 0
+Character Definitions = 516
+Flags = 0
+Sega Palette:
+	Color Register Index = $0000
+	Number of colors in this packet = $0010
+	Colors:
+		$0E8A
+		$0000
+		$0666
+		$0AAA
+		$0EEE
+		$0A24
+		$0E66
+		$000A
+		$044E
+		$06A0
+		$00E0
+		$0A0A
+		$0E6E
+		$048C
+		$00EE
+		$0EE4
+Animations:
+Total number of Animations = 1.
+	Animation #0 has 26 frames.
+		Animation to Frame offset $0038.
+			Frame to Sprite offset $006C.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0010.
+				height in pixels = $0013.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0600.
+					Priority-Pal-V/HFlip-Char# = $0000.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $007C.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $000C.
+				height in pixels = $000D.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0500.
+					Priority-Pal-V/HFlip-Char# = $0006.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $008C.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0012.
+				height in pixels = $0015.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0A00.
+					Priority-Pal-V/HFlip-Char# = $000A.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $009C.
+				Number of Sprites = $0000.
+				Hotspot Offset = $0000.
+				Width in pixels = $0001.
+				height in pixels = $0001.
+			Frame to Sprite offset $00A4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $001A.
+				height in pixels = $0013.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0E00.
+					Priority-Pal-V/HFlip-Char# = $0013.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $00B4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0013.
+				height in pixels = $001B.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0B00.
+					Priority-Pal-V/HFlip-Char# = $001F.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $00C4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0012.
+				height in pixels = $0016.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0A00.
+					Priority-Pal-V/HFlip-Char# = $002B.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $00D4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0016.
+				height in pixels = $001A.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0B00.
+					Priority-Pal-V/HFlip-Char# = $0034.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $00E4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $001F.
+				height in pixels = $001B.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0F00.
+					Priority-Pal-V/HFlip-Char# = $0040.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $00F4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $001F.
+				height in pixels = $001A.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0F00.
+					Priority-Pal-V/HFlip-Char# = $0050.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $0104.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0016.
+				height in pixels = $0008.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0800.
+					Priority-Pal-V/HFlip-Char# = $0060.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $0114.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0015.
+				height in pixels = $0009.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0800.
+					Priority-Pal-V/HFlip-Char# = $0063.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $0124.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0018.
+				height in pixels = $0013.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0A00.
+					Priority-Pal-V/HFlip-Char# = $0066.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $0134.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $000B.
+				height in pixels = $0013.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0600.
+					Priority-Pal-V/HFlip-Char# = $006F.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $0144.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $000E.
+				height in pixels = $0012.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0600.
+					Priority-Pal-V/HFlip-Char# = $0075.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $0154.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0014.
+				height in pixels = $0012.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0A00.
+					Priority-Pal-V/HFlip-Char# = $007B.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $0164.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0006.
+				height in pixels = $0007.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0000.
+					Priority-Pal-V/HFlip-Char# = $0084.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $0174.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0008.
+				height in pixels = $0008.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0000.
+					Priority-Pal-V/HFlip-Char# = $0085.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $0184.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $000C.
+				height in pixels = $000F.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0500.
+					Priority-Pal-V/HFlip-Char# = $0086.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $0194.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0008.
+				height in pixels = $0008.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0000.
+					Priority-Pal-V/HFlip-Char# = $008A.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $01A4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $000D.
+				height in pixels = $0011.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0500.
+					Priority-Pal-V/HFlip-Char# = $008B.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $01B4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $000A.
+				height in pixels = $0007.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0400.
+					Priority-Pal-V/HFlip-Char# = $008F.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $01C4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $000D.
+				height in pixels = $0008.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0400.
+					Priority-Pal-V/HFlip-Char# = $0091.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $01D4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0018.
+				height in pixels = $0013.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0A00.
+					Priority-Pal-V/HFlip-Char# = $0093.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $01E4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $001A.
+				height in pixels = $0010.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0D00.
+					Priority-Pal-V/HFlip-Char# = $009C.
+					X Position on screen = 0.
+
+			Frame to Sprite offset $01F4.
+				Number of Sprites = $0001.
+				Hotspot Offset = $0000.
+				Width in pixels = $0009.
+				height in pixels = $0007.
+					Y Position on screen = 0.
+					H size, V Size, Link = $0000.
+					Priority-Pal-V/HFlip-Char# = $00A4.
+					X Position on screen = 0.
+
+	165 Total Sega Characters

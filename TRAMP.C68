@@ -1,0 +1,114 @@
+/* * * * *
+*
+*  TRAMP.C
+*
+*  This file contains the trampoline routines.
+*
+*  By Kevin Ryan -- (c) 1992 Dynamix, Inc.
+*
+*  Modification History:
+*  ---------------------
+*  10/08/92 Kevin Ryan  File created
+*
+* * * * */
+#include "vm.h"
+#include "vm_mylib.h"
+#include "simlib.h"
+#include "tim.h"
+
+
+
+/* super shape - mattress (part24) */
+static F_SSHAPE_C p24_s0 = {0,5,{0,255,255,255},{{0,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p24_s1 = {0,5,{1,255,255,255},{{-4,0},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p24_s2 = {0,5,{2,255,255,255},{{-7,1},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p24_s3 = {0,5,{3,255,255,255},{{1,-6},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p24_s4 = {0,5,{4,255,255,255},{{3,-13},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p24_s5 = {0,5,{3,255,255,255},{{1,-15},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p24_s6 = {0,5,{0,255,255,255},{{0,-16},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p24_s7 = {0,5,{0,255,255,255},{{0,-15},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p24_s8 = {0,5,{1,255,255,255},{{-4,-11},{0,0},{0,0},{0,0}}};
+static F_SSHAPE_C p24_s9 = {0,5,{1,255,255,255},{{-5,-6},{0,0},{0,0},{0,0}}};
+PC_SSHAPE_C far p24_ss_tab[ ] = {&p24_s0,&p24_s1,&p24_s2,&p24_s3,&p24_s4,&p24_s5,&p24_s6,&p24_s7,&p24_s8,&p24_s9};
+TIM_VEC_C far p24_size[] = {{33,15},{40,16},{46,17},{33,21},{33,28},{33,30},{34,31},{34,30},{40,27},{40,21}};
+TIM_SCVEC_C far p24_os[] = {{0,0},{-7,0},{-13,2},{0,-12},{0,-26},{0,-30},{0,-32},{0,-30},{-7,-23},{-9,-12}};
+ 
+
+
+
+short tramp_bounce(PART *cur_part)
+{
+   short bord_num,center_x;
+   PART *t_part;
+
+   t_part = cur_part->col_info.part;
+   bord_num = cur_part->col_info.border_num;
+
+   if (bord_num == 0)
+   {
+      center_x = cur_part->scrn_loc.x + cur_part->offset.x +
+         (cur_part->size.x>>1) - t_part->scrn_loc.x;
+      if ((center_x <0) || (center_x>t_part->size.x))
+         return(1);
+
+      t_part->sub_state = 1;
+      if (abs(cur_part->speed.x) >= TWO_PIX)
+         cur_part->speed.x >>= 1;
+      cur_part->col_info.part = 0;
+      cur_part->flags1 &= (F1_ROLLING^0xffff);
+      cur_part->speed.y = 0 - abs(cur_part->speed.y);
+      cur_part->speed.y -= TWO_PIX;
+      check_term_velocity(cur_part);
+      
+      /* check for special cases */
+      switch (cur_part->type)
+      {
+         case PT_BASEBALL:
+         case PT_SOCCER:
+            cur_part->sub_state = 1;
+      }
+      return(0);
+   }
+
+   return(1);
+}
+
+
+void tramp_reinit(PART *t_part)
+{
+   static PART_BORDER_C far bord0[4] = {{0,7,0},{31,7,0},{31,15,0},{0,15,0}};
+
+   /* If initalizing for the first time, set slopes for all of the borders */
+   if(!t_part)
+   {
+      set_border_slopes(PT_TRAMP, 0, bord0, 0, 0);
+      return;
+   }
+   t_part->border = bord0;
+}
+
+
+
+void tramp_internal(PART *t_part)
+{
+   const static char far state_array[] =
+   {
+      0,1,2,2,1,3,4,5,6,7,8,9,9,1
+   };
+   #define TRAMP_NUM_STATES   (sizeof(state_array)/sizeof(char))
+
+   if (t_part->sub_state)
+   {
+      t_part->state = state_array[++t_part->toon_state];
+      if (t_part->toon_state == 3)
+         jtp_sx_play(SX_TRAMP,0,0);
+
+      if (t_part->toon_state == TRAMP_NUM_STATES)
+         t_part->toon_state = t_part->state = t_part->sub_state = 0;
+
+      set_adjusted_loc_size(t_part);
+   }
+}
+
+
+	

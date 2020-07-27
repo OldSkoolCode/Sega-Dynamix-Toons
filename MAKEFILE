@@ -1,0 +1,289 @@
+#****************************************************************************
+#				 SEGA CD TOONS
+#				   MAKEFILE
+#
+# We use Borland Make version 3.1.
+#****************************************************************************
+
+# GEMS Music files path
+.path.a = GEMS
+
+# These files MUST be placed first in the linked executable
+INITFILES=vectors.o segahdr.o icd_blk4.o startup.o 
+
+# These are the C files
+COFILES1=main.o excptn.o tn_panel.o tn_chken.o tn_ant.o curs_mlh.o filesys.o
+COFILES2=vc.o tn_prop.o ball.o teapot.o scissors.o gun.o borders.o tn_free.o
+COFILES3=tn_egg1.o tn_edit.o tn_ed_md.o hot_spot.o support.o editor.o
+COFILES4=gameplay.o physics.o stub32.o tn_trot.o tn_char.o query.o tn_cat.o
+COFILES5=tn_sid.o tn_bana.o tn_ladr.o tim_glob.o m_glass.o tn_egg.o cat_def.o
+COFILES6=sid_def.o tn_cata.o dynamite.o ep.o hc_belt.o tn_tt.o tn_hair.o
+COFILES7=eyehook.o gear.o bullet.o balloon.o tramp.o tn_dragn.o tn_updwn.o
+COFILES8=tn_incre.o tn_shswt.o tn_mesg.o tn_rtrns.o incline.o tn_dryer.o
+COFILES9=tn_whstl.o tn_gum.o tn_fish.o tn_chees.o tn_nut.o tn_piano.o segadb.o
+COFILES10=tn_anvil.o tn_ww2.o tn_hatpn.o tn_pencl.o tn_mallt.o tn_eleph.o
+COFILES11=explosion.o tn_rug.o tn_trap.o tn_eat.o drawing.o collide.o wall.o
+COFILES12=tn_tunel.o smartend.o level.o tn_file.o tn_glob.o tn_rndom.o
+COFILES13=tn_clapr.o tn_rip.o tn_sound.o tn_htypt.o segartns.o strnicmp.o 
+COFILES14=run.o interact.o victory.o vic_1.o bitmaps.o tn_flush.o vm_line.o
+COFILES15=scroll.o
+
+ASMFILES1=variable.o vm_init.o vm_globs.o graf.o 
+ASMFILES2=levels.o gems.o
+
+CATFPAS=catakeup.fpa \
+catangel.fpa \
+catate.fpa   \
+catbanan.fpa \
+catbomb.fpa  \
+catbutt.fpa  \
+catclimb.fpa \
+catcrack.fpa \
+catcut.fpa   \
+categg.fpa   \
+catfish.fpa  \
+catflail.fpa \
+catgum.fpa   \
+cathairb.fpa \
+cathdryr.fpa \
+catlunch.fpa \
+catpeel.fpa  \
+catpencl.fpa \
+catpiano.fpa \
+catpin1.fpa  \
+catpin2.fpa  \
+catpin3.fpa  \
+catpounc.fpa \
+catroot.fpa  \
+catrug.fpa   \
+catrun.fpa   \
+catrunaw.fpa \
+catsaw.fpa   \
+catshake.fpa \
+catshot.fpa  \
+catsleep.fpa \
+catslide.fpa \
+catsmash.fpa \
+catsrtch.fpa \
+catstop.fpa  \
+cattake.fpa  \
+catunnel.fpa \
+catvac.fpa   \
+catwalk.fpa  \
+catyarn.fpa 	 
+
+SIDFPAS=sidanvil.fpa \
+sidbanan.fpa \
+sidberny.fpa \
+sidbomb.fpa  \
+sidbonk.fpa  \
+sidbronx.fpa \
+sidbutt.fpa  \
+sidcheez.fpa \
+sidclimb.fpa \
+sidcut.fpa   \
+siddustb.fpa \
+sidegg.fpa   \
+sidfall.fpa  \
+sidfly.fpa   \
+sidgiggl.fpa \
+sidgill.fpa  \
+sidgum.fpa   \
+sidgun.fpa   \
+sidhair.fpa  \
+sidhdryr.fpa \
+sidhless.fpa \
+sidknif1.fpa \
+sidknif2.fpa \
+sidknife.fpa \
+sidlunch.fpa \
+sidmiror.fpa \
+sidninja.fpa \
+sidpeel.fpa  \
+sidpencl.fpa \
+sidpiano.fpa \
+sidpin.fpa   \
+sidragon.fpa \
+sidrock.fpa  \
+sidroot.fpa  \
+sidrun.fpa   \
+sidsaw.fpa   \
+sidshake.fpa \
+sidslide.fpa \
+sidsqeek.fpa \
+sidstop.fpa  \
+sidtake.fpa  \
+sidtunel.fpa \
+sidvac.fpa   \
+sidwait.fpa  \
+sidwalk.fpa  \
+sidwhop.fpa  \
+sidwulf.fpa  
+
+PARTFPAS=part0.fpa \
+part2.fpa  \
+part3.fpa  \
+part4.fpa  \
+part5.fpa  \
+part6.fpa  \
+part7.fpa  \
+part8.fpa  \
+part9.fpa  \
+part10.fpa \
+part11.fpa \
+part12.fpa \
+part13.fpa \
+part14.fpa \
+part15.fpa \
+part16.fpa \
+part17.fpa \
+part18.fpa \
+part19.fpa \
+part20.fpa \
+part21.fpa \
+part22.fpa \
+part23.fpa \
+part24.fpa \
+part25.fpa \
+part26.fpa \
+part27.fpa \
+part28.fpa \
+part29.fpa \
+part30.fpa \
+part31.fpa \
+part32.fpa \
+part33.fpa \
+part34.fpa \
+part35.fpa \
+part36.fpa \
+part38.fpa \
+part39.fpa \
+part40.fpa \
+part41.fpa \
+part42.fpa \
+part43.fpa \
+part44.fpa \
+part45.fpa \
+part46.fpa \
+part47.fpa \
+part48.fpa \
+part49.fpa \
+part50.fpa \
+part51.fpa \
+part52.fpa \
+part53.fpa \
+part54.fpa \
+part55.fpa \
+part56.fpa \
+part57.fpa \
+part58.fpa \
+part59.fpa \
+part60.fpa \
+part61.fpa \
+part62.fpa \
+part63.fpa \
+part64.fpa \
+part65.fpa \
+part66.fpa \
+part67.fpa \
+part68.fpa \
+part69.fpa \
+part70.fpa \
+part72.fpa \
+part73.fpa \
+part74.fpa \
+part75.fpa \
+part77.fpa \
+part78.fpa \
+part79.fpa \
+part80.fpa \
+part82.fpa \
+part83.fpa \
+part84.fpa 
+	   
+
+INC=include
+GRAFINC=graf
+FAMINC=animmaps
+LVLINC=levels
+
+.path.o=OBJS
+.path.fpa=GRAF
+.path.h=INCLUDE
+.path.inc=INCLUDE
+.path.fpc=GRAF
+.path.fam=ANIMMAPS
+.path.bpe=GRAF
+.path.lev=levels
+
+.c68.o : 
+	echo Compiling $*.c68
+	com68 -I$(INC) -Oa2s2 -q -g1 -Q $*.c68 $(.path.o)\tmpxxx.s
+#	com68 -Xs -I$(INC) -Oa2s2 -q -g1 -Q $*.c68 $(.path.o)\tmpxxx.s
+	asm68 -AQkl -I$(INC) -o $(.path.o)\$*.o $(.path.o)\tmpxxx.s
+
+.asm.o :
+	echo Macro Assembling $*.asm
+	asm68k -AQklL -I$(INC) -I$(GRAFINC) -I$(FAMINC) -I$(LVLINC) \
+		-o $(.path.o)\$*.o $*.asm
+
+.a.o :
+	echo Assembling the GEMS driver and files
+	asm68k -AQkl -o $(.path.o)\$&.o $*.a
+
+toons.cof : tn_defs.h $(INITFILES) $(COFILES1) $(COFILES2) $(COFILES3) \
+		$(COFILES4) $(COFILES5) $(COFILES6) $(COFILES7) $(COFILES8)\
+		$(COFILES9) $(COFILES10) $(COFILES11) $(COFILES12) \
+		$(COFILES13) $(COFILES14) $(COFILES15) $(ASMFILES1) \
+		$(ASMFILES2) temp.lnk lib\segalib.lib
+	cd OBJS
+        link68 -i ..\temp.lnk ..\lib\segalib.lib -o ..\toons.cof
+	cd ..
+
+main.o: defs.h
+
+
+graf.o: $(CATFPAS) $(SIDFPAS) icons.fpa cursors.fpa clapper.fam crawl.fpa \
+	rbuttons.fpa sidroot.fpa numbers.fpa handles.fpa \
+	riptest.fam partbin2.fam speed.fam progpart.fam dynamix.fpc \
+	handall.fam pbicons.fpa $(PARTFPAS) pronumbs.fpa tempsave.fam
+
+levels.o: levels\levels.bin
+
+temp.lnk: makefile makefile.lnk
+	copy makefile.lnk temp.lnk
+	echo $(INITFILES) >>temp.lnk
+	echo $(COFILES1) >>temp.lnk
+	echo $(COFILES2) >>temp.lnk
+	echo $(COFILES3) >>temp.lnk
+	echo $(COFILES4) >>temp.lnk
+	echo $(COFILES5) >>temp.lnk
+	echo $(COFILES6) >>temp.lnk
+	echo $(COFILES7) >>temp.lnk
+	echo $(COFILES8) >>temp.lnk
+	echo $(COFILES9) >>temp.lnk
+	echo $(COFILES10) >>temp.lnk
+	echo $(COFILES11) >>temp.lnk
+	echo $(COFILES12) >>temp.lnk
+	echo $(COFILES13) >>temp.lnk
+	echo $(COFILES14) >>temp.lnk
+	echo $(COFILES15) >>temp.lnk
+	echo $(ASMFILES1) >>temp.lnk
+	echo $(ASMFILES2) >>temp.lnk
+	echo -l c >>temp.lnk
+
+tn_defs.h: catequ.h sidequ.h
+
+catequ.h: ..\source\tn_defs.h catequ.exe
+	catequ >$(INC)\catequ.h
+
+sidequ.h: ..\source\tn_defs.h sidequ.exe
+	sidequ >$(INC)\sidequ.h
+
+catequ.exe: catequ.c
+	bcc -I..\source -ms catequ.c
+
+sidequ.exe: sidequ.c
+	bcc -I..\source -ms sidequ.c
+
+

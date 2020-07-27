@@ -1,0 +1,11 @@
+
+
+makefile: riptest.fam progpart.fam speed.fam partbin2.fam clapper.fam \
+	handall.fam
+
+
+partbin2.fam: partbin2.inp
+	lbm2fam /l $*.inp $*.fam
+
+.inp.fam:
+	lbm2fam /p3 /l $*.inp $*.fam
